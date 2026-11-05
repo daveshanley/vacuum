@@ -1,7 +1,6 @@
 package motor
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/pb33f/go-yaml"
 	"net/http"
@@ -48,12 +47,13 @@ paths:
 			defer baseline.ReleaseOwnedResources()
 			require.NotEmpty(t, baseline.Results)
 			require.NotEmpty(t, plan.Targets, "plan: %+v baseline: %+v", plan, baseline.Results)
-			result, err := ValidateFixPlan(e, plan, RepairApproval{}, nil)
-			require.NoError(t, err)
-			defer result.Final.ReleaseOwnedResources()
-			require.NotEmpty(t, result.Verified)
-			require.Empty(t, result.Final.Results)
-			e.Spec = result.Candidate
+			_, result := RunRepairs(e, nil, nil, true)
+			require.Empty(t, result.Errors)
+			require.Empty(t, result.RepairWarnings)
+			defer result.ReleaseOwnedResources()
+			require.NotEmpty(t, result.FixedResults)
+			require.Empty(t, result.Results)
+			e.Spec = result.ModifiedSpec
 			next, lint, err := PlanFixes(e, nil)
 			require.NoError(t, err)
 			defer lint.ReleaseOwnedResources()
@@ -61,26 +61,6 @@ paths:
 			require.Empty(t, next.KeyTags)
 		})
 	}
-}
-
-func TestExternalPlanRequiresIndependentApproval(t *testing.T) {
-	source := []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n")
-	e := &RuleSetExecution{Spec: source, SpecFileName: "test.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-description": rulesets.GetAllBuiltInRules()["info-description"]}}}
-	plan := repair.NewPlan(e.SpecFileName, source)
-	plan.Operations = []repair.Operation{{Op: "add", Path: "/info/description", Value: json.RawMessage(`"Approved description"`)}}
-	_, err := ValidateFixPlan(e, plan, RepairApproval{}, nil)
-	require.ErrorContains(t, err, "differs")
-	encoded, err := json.Marshal(plan)
-	require.NoError(t, err)
-	result, err := ValidateFixPlan(e, plan, RepairApproval{ApprovedSHA256: repair.Hash(encoded)}, nil)
-	require.NoError(t, err)
-	defer result.Final.ReleaseOwnedResources()
-	require.Empty(t, result.Verified)
-	require.Empty(t, result.Final.Results)
-	plan.Operations[0].Path = "/x-lint-ignore"
-	plan.Operations[0].Value = json.RawMessage(`"info-description"`)
-	_, err = ValidateFixPlan(e, plan, RepairApproval{}, nil)
-	require.ErrorContains(t, err, "differs")
 }
 
 func TestRepairKeepsUnchangedDiagnosticAcrossFormatting(t *testing.T) {
@@ -114,7 +94,9 @@ func TestPluginRepairsAreVerifiedAndComposeWithBuiltins(t *testing.T) {
 				require.Len(t, result.FixedResults, 2)
 				require.NotEmpty(t, result.ModifiedSpec)
 			} else {
-				require.NotEmpty(t, result.Errors)
+				require.Empty(t, result.Errors)
+				require.NotEmpty(t, result.RepairWarnings)
+				require.Len(t, result.Results, 2)
 				require.Empty(t, result.FixedResults)
 				require.Empty(t, result.ModifiedSpec)
 			}
@@ -178,18 +160,126 @@ func TestAsyncAPIRepairProviders(t *testing.T) {
 	}
 }
 
-func TestApprovedPlanCannotClaimSuppressionAsRepair(t *testing.T) {
-	e := &RuleSetExecution{Spec: []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), SpecFileName: "test.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-description": rulesets.GetAllBuiltInRules()["info-description"]}}}
-	plan := repair.NewPlan(e.SpecFileName, e.Spec)
-	plan.Operations = []repair.Operation{{Op: "add", Path: "/x-lint-ignore", Value: json.RawMessage(`["info-description"]`)}}
-	data, err := json.Marshal(plan)
-	require.NoError(t, err)
-	_, err = ValidateFixPlan(e, plan, RepairApproval{ApprovedSHA256: repair.Hash(data)}, nil)
-	require.ErrorContains(t, err, "ignore directives")
-	plan.Operations = []repair.Operation{{Op: "add", Path: "/info/description", Value: json.RawMessage(`"Useful description"`)}}
-	plan.Targets = []repair.Target{{RuleID: "info-description", Pointer: "/info", Code: "invented-code"}}
-	data, err = json.Marshal(plan)
-	require.NoError(t, err)
-	_, err = ValidateFixPlan(e, plan, RepairApproval{ApprovedSHA256: repair.Hash(data)}, nil)
-	require.ErrorContains(t, err, "target code")
+func TestRepairPreservesDiagnosticsAfterSequenceRemoval(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: Test, version: '1'}
+paths: {}
+tags:
+  - {name: pets, description: Pets}
+  - {name: pets, description: Pets}
+  - {name: zoo}
+x-sentinel: keep
+`)
+	all := rulesets.GetAllBuiltInRules()
+	all["line-reference"] = &model.Rule{Id: "line-reference", Given: "$['x-sentinel']", Severity: "warn", Then: &model.RuleAction{Function: "line-reference"}}
+	e := &RuleSetExecution{Spec: source, SpecFileName: "test.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: all}, CustomFunctions: map[string]model.RuleFunction{"line-reference": repairLineFinding{}}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Empty(t, result.RepairWarnings)
+	require.NotEmpty(t, result.FixedResults)
+	require.NotEmpty(t, result.ModifiedSpec)
+	foundTag, foundLine := false, false
+	for _, r := range result.Results {
+		if r.RuleId == "tag-description" {
+			foundTag = true
+			require.Contains(t, r.Path, "[1]")
+		}
+		if r.RuleId == "line-reference" {
+			foundLine = true
+			require.Contains(t, r.Message, fmt.Sprintf("line `%d`", r.StartNode.Line))
+		}
+	}
+	require.True(t, foundTag)
+	require.True(t, foundLine)
+}
+
+type repairLineFinding struct{}
+
+func (repairLineFinding) GetCategory() string { return model.CategoryValidation }
+func (repairLineFinding) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "line-reference"}
+}
+func (repairLineFinding) RunRule(nodes []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
+	return []model.RuleFunctionResult{{StartNode: nodes[0], Path: "$['x-sentinel']", Message: fmt.Sprintf("value at line `%d` needs review", nodes[0].Line)}}
+}
+
+func TestRepairIndependentParameterFixesInOnePass(t *testing.T) {
+	source := []byte(`openapi: 3.1.0
+info: {title: Test, version: '1'}
+paths:
+  /pets/{id}:
+    get:
+      parameters:
+        - {name: id, in: path, required: false, schema: {type: string}}
+        - {name: kind, in: query, schema: {type: string, enum: [cat, cat, dog]}}
+      responses: {'200': {description: ok}}
+`)
+	builtins := rulesets.GetAllBuiltInRules()
+	e := &RuleSetExecution{Spec: source, SpecFileName: "test.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"path-params": builtins["path-params"], "duplicated-entry-in-enum": builtins["duplicated-entry-in-enum"]}}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Empty(t, result.RepairWarnings)
+	require.Len(t, result.FixedResults, 2)
+	require.Empty(t, result.Results)
+}
+
+type repairNewFinding struct{}
+
+func (repairNewFinding) GetCategory() string { return model.CategoryValidation }
+func (repairNewFinding) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "new-finding"}
+}
+func (repairNewFinding) RunRule(nodes []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
+	if len(nodes[0].Content) != 2 {
+		return nil
+	}
+	return []model.RuleFunctionResult{{StartNode: nodes[0], Message: "new constraint violation"}}
+}
+func TestRepairDeclinesNewDiagnosticAndKeepsBaseline(t *testing.T) {
+	e := &RuleSetExecution{Spec: []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["a","a","b"]}}}}`), SpecFileName: "test.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		"duplicated-entry-in-enum": rulesets.GetAllBuiltInRules()["duplicated-entry-in-enum"],
+		"new-finding":              {Id: "new-finding", Given: "$.components.schemas.Pet.enum", Severity: "warn", Then: &model.RuleAction{Function: "new-finding"}},
+	}}, CustomFunctions: map[string]model.RuleFunction{"new-finding": repairNewFinding{}}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.RepairWarnings, 1)
+	require.Contains(t, result.RepairWarnings[0], "introduces diagnostic")
+	require.Empty(t, result.ModifiedSpec)
+	require.Empty(t, result.FixedResults)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "duplicated-entry-in-enum", result.Results[0].RuleId)
+}
+
+func TestPluginRepairCannotSuppressFindings(t *testing.T) {
+	rule := &model.Rule{Id: "plugin", Given: "$.info.description", Severity: "warn", AutoFixFunction: "fix", Then: &model.RuleAction{Function: "truthy"}}
+	e := &RuleSetExecution{Spec: []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1","description":""},"paths":{}}`), SpecFileName: "test.json", SilenceLogs: true, ApplyAutoFixes: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"plugin": rule}}, AutoFixFunctions: map[string]model.AutoFixFunction{"fix": func(n, doc *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
+		n.Value = "Fixed"
+		doc.Content[0].Content = append(doc.Content[0].Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "x-lint-ignore"}, &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Content: []*yaml.Node{{Kind: yaml.ScalarNode, Tag: "!!str", Value: "plugin"}}})
+		return n, nil
+	}}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.RepairWarnings, 1)
+	require.Contains(t, result.RepairWarnings[0], "ignore directives")
+	require.Len(t, result.Results, 1)
+	require.Empty(t, result.FixedResults)
+	require.Empty(t, result.ModifiedSpec)
+}
+
+func TestPluginRepairTargetAfterBuiltinSequenceRemoval(t *testing.T) {
+	rule := &model.Rule{Id: "plugin", Given: "$.tags[*].name", Severity: "warn", AutoFixFunction: "rename", Then: &model.RuleAction{Function: "pattern", FunctionOptions: map[string]interface{}{"notMatch": "^zoo$"}}}
+	e := &RuleSetExecution{Spec: []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"tags":[{"name":"pets"},{"name":"pets"},{"name":"zoo"}]}`), SpecFileName: "test.json", SilenceLogs: true, ApplyAutoFixes: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"plugin": rule, "openapi-tags": rulesets.GetAllBuiltInRules()["openapi-tags"]}}, AutoFixFunctions: map[string]model.AutoFixFunction{"rename": func(n, _ *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
+		n.Value = "animals"
+		return n, nil
+	}}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Empty(t, result.RepairWarnings)
+	require.Len(t, result.FixedResults, 2)
+	require.Empty(t, result.Results)
 }
