@@ -56,4 +56,5 @@ jobs:
           repository: daveshanley/vacuum
 
           event-type: publish-event
-          client-payload: '{"new-tag": "${{ steps.bump-semver.outputs.new_version }}", "release-notes": "${{ steps.regex-match.outputs.group1 }}"}'
+          # toJSON quotes and escapes each value, so multi-line release notes stay valid JSON.
+          client-payload: '{"new-tag": ${{ toJSON(steps.bump-semver.outputs.new_version) }}, "release-notes": ${{ toJSON(steps.regex-match.outputs.group1) }}}'
