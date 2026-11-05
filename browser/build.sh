@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+# SPDX-License-Identifier: MIT
+#
 # Builds the vacuum CLI as a WebAssembly module, to run in a browser.
 #
 # Usage: browser/build.sh <output directory>
