@@ -42,7 +42,9 @@ Descriptions, summaries and operation IDs accept plain text. Contact and
 license values accept JSON objects with supported string fields. Mechanical
 repairs support selection, not arbitrary patch editing.
 
-The fix modal labels the current source and proposed result separately. This
+The fix modal has a full-width issue header with the rule, explanation, file
+location and source path. Solid pink borders separate the blue current-source
+column from the yellow proposed-result column. This
 proposal uses formatted excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` to verify the selected batch; the
 preview diff shows the actual candidate edits, with omitted sections marked.
