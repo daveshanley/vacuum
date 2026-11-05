@@ -204,7 +204,7 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent, false)
+	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent || flags.Format != schemaOutputText, false)
 	if err != nil {
 		return err
 	}
@@ -375,7 +375,7 @@ func lintSchemaInput(
 		FetchConfig:                     fetchConfig,
 		SpecFormat:                      dialect.Format,
 	}
-	repairFlags := &LintFlags{FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixPolicy: flags.FixPolicy, DryRun: flags.DryRun, SilentFlag: flags.Silent, FormattedOutput: flags.Format != schemaOutputText}
+	repairFlags := &LintFlags{repairWarningsSilenced: flags.Silent, RepairWarningWriter: errOut, FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixPolicy: flags.FixPolicy, DryRun: flags.DryRun, SilentFlag: flags.Silent, FormattedOutput: flags.Format != schemaOutputText}
 	result := executeLintWithRepairs(execution, &motor.ExecutionOptions{
 		ResolveAllRefs:       flags.ResolveAllRefs,
 		NestedRefsDocContext: flags.NestedRefsDocContext,

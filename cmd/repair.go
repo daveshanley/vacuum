@@ -61,6 +61,7 @@ func executeLintWithRepairs(execution *motor.RuleSetExecution, options *motor.Ex
 	}
 	execution.RepairIgnores = ignored
 	_, result := motor.RunRepairs(execution, options, policy, true)
+	writeRepairWarnings(result, flags)
 	return result
 }
 
@@ -72,7 +73,7 @@ func repairSummary(result *motor.RuleSetExecutionResult, flags *LintFlags) strin
 	}
 	if flags.PipelineOutput {
 		if flags.DryRun {
-			return fmt.Sprintf("\n> Preview only — no files written. %d verified fixes; %d findings remain.\n\n", len(result.FixedResults), len(result.Results))
+			return fmt.Sprintf("\n> Preview only, no files written. %d verified fixes; %d findings remain.\n\n", len(result.FixedResults), len(result.Results))
 		}
 		return ""
 	}
@@ -82,7 +83,7 @@ func repairSummary(result *motor.RuleSetExecutionResult, flags *LintFlags) strin
 		name = result.RuleSetExecution.SpecFileName
 	}
 	if flags.DryRun {
-		fmt.Fprintf(&text, "\nPREVIEW — no files written: %s\n", name)
+		fmt.Fprintf(&text, "\nPREVIEW, no files written: %s\n", name)
 	} else {
 		fmt.Fprintf(&text, "\nREPAIRS: %s\n", name)
 	}
@@ -103,4 +104,18 @@ func writtenFixCount(flags *LintFlags, verified int) int {
 		return 0
 	}
 	return verified
+}
+
+// writeRepairWarnings keeps declined-repair messages out of structured reports.
+func writeRepairWarnings(result *motor.RuleSetExecutionResult, flags *LintFlags) {
+	if result == nil || flags.repairWarningsSilenced || flags.SilentFlag && !flags.FormattedOutput {
+		return
+	}
+	writer := flags.RepairWarningWriter
+	if writer == nil {
+		writer = os.Stderr
+	}
+	for _, warning := range result.RepairWarnings {
+		fmt.Fprintf(writer, "Warning: %s\n", warning)
+	}
 }
