@@ -16,13 +16,18 @@ import (
 func repairTestModel(t *testing.T) (*ViolationResultTableModel, *[]byte) {
 	t.Helper()
 	source := []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/pets":{"get":{"responses":{"200":{"description":"ok"}}}}},"components":{"schemas":{"Pet":{"type":"string","enum":["a","a"]}}}}`)
+	return repairSourceTestModel(t, source, "review.json", []string{"info-description", "operation-description", "duplicated-entry-in-enum"})
+}
+
+func repairSourceTestModel(t *testing.T, source []byte, filename string, ruleIDs []string) (*ViolationResultTableModel, *[]byte) {
+	t.Helper()
 	builtins := rulesets.GetAllBuiltInRules()
 	rules := map[string]*model.Rule{}
-	for _, id := range []string{"info-description", "operation-description", "duplicated-entry-in-enum"} {
+	for _, id := range ruleIDs {
 		rules[id] = builtins[id]
 	}
 	open := func(data []byte) (*motor.FixReview, error) {
-		return motor.NewFixReview(&motor.RuleSetExecution{SpecFileName: "review.json", Spec: data, RuleSet: &rulesets.RuleSet{Rules: rules}, SilenceLogs: true}, nil)
+		return motor.NewFixReview(&motor.RuleSetExecution{SpecFileName: filename, Spec: data, RuleSet: &rulesets.RuleSet{Rules: rules}, SilenceLogs: true}, nil)
 	}
 	baseline, err := open(source)
 	require.NoError(t, err)
@@ -30,8 +35,8 @@ func repairTestModel(t *testing.T) (*ViolationResultTableModel, *[]byte) {
 	for _, o := range baseline.Options() {
 		results = append(results, o.Result)
 	}
-	columns, rows := BuildResultTableData(results, "review.json", 180, true)
-	m := &ViolationResultTableModel{width: 180, height: 40, fileName: "review.json", specContent: source, allResults: results, filteredResults: results, rows: rows, table: table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true)), uiState: UIState{ShowPath: true}, categoryIndex: -1, ruleIndex: -1}
+	columns, rows := BuildResultTableData(results, filename, 180, true)
+	m := &ViolationResultTableModel{width: 180, height: 40, fileName: filename, specContent: source, allResults: results, filteredResults: results, rows: rows, table: table.New(table.WithColumns(columns), table.WithRows(rows), table.WithFocused(true)), uiState: UIState{ShowPath: true}, categoryIndex: -1, ruleIndex: -1}
 	disk := append([]byte(nil), source...)
 	m.repair = &dashboardRepair{config: &RepairConfig{Open: open, Write: func(original, candidate []byte) error {
 		if !bytes.Equal(original, disk) {
