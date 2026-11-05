@@ -11,8 +11,17 @@ import (
 // RenderRepairJSON renders a JSON-compatible node tree without converting its
 // numeric lexemes through float64. It preserves mapping order and rejects
 // aliases, duplicate keys and non-JSON scalar values instead of coercing them.
-func RenderRepairJSON(root *yaml.Node) ([]byte, error) {
+func RenderRepairJSON(root *yaml.Node, original ...[]byte) ([]byte, error) {
 	var out bytes.Buffer
+	encoder := json.NewEncoder(&out)
+	encoder.SetEscapeHTML(false)
+	writeString := func(value string) error {
+		if err := encoder.Encode(value); err != nil {
+			return err
+		}
+		out.Truncate(out.Len() - 1) // Encode appends one newline after the string.
+		return nil
+	}
 	active := make(map[*yaml.Node]bool)
 	var write func(*yaml.Node, int) error
 	write = func(n *yaml.Node, depth int) error {
@@ -45,8 +54,9 @@ func RenderRepairJSON(root *yaml.Node) ([]byte, error) {
 				if i > 0 {
 					out.WriteByte(',')
 				}
-				key, _ := json.Marshal(k.Value)
-				out.Write(key)
+				if err := writeString(k.Value); err != nil {
+					return err
+				}
 				out.WriteByte(':')
 				if err := write(n.Content[i+1], depth+1); err != nil {
 					return err
@@ -67,8 +77,9 @@ func RenderRepairJSON(root *yaml.Node) ([]byte, error) {
 		case yaml.ScalarNode:
 			switch n.Tag {
 			case "!!str":
-				value, _ := json.Marshal(n.Value)
-				out.Write(value)
+				if err := writeString(n.Value); err != nil {
+					return err
+				}
 			case "!!null":
 				out.WriteString("null")
 			case "!!bool":
@@ -97,9 +108,19 @@ func RenderRepairJSON(root *yaml.Node) ([]byte, error) {
 	if err := write(root, 0); err != nil {
 		return nil, err
 	}
+	indent := "  "
+	if len(original) > 0 {
+		indent = repairJSONIndent(original[0])
+		if indent == "" {
+			return repairLineEndings(out.Bytes(), original[0]), nil
+		}
+	}
 	var formatted bytes.Buffer
-	if err := json.Indent(&formatted, out.Bytes(), "", "  "); err != nil {
+	if err := json.Indent(&formatted, out.Bytes(), "", indent); err != nil {
 		return nil, err
+	}
+	if len(original) > 0 {
+		return repairLineEndings(formatted.Bytes(), original[0]), nil
 	}
 	return formatted.Bytes(), nil
 }
