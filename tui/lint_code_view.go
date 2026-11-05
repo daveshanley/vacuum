@@ -128,7 +128,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 
 	title := fmt.Sprintf("📄 %s - line %d", m.fileName, targetLine)
 	if m.repairDiff() != "" {
-		title = "Preview changes — no files written"
+		title = "Preview changes, no files written"
 	}
 	content.WriteString(titleStyle.Render(title))
 	content.WriteString("\n")
