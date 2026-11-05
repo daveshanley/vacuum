@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+# SPDX-License-Identifier: MIT
+#
 # Packages the browser build of vacuum as a release asset.
 #
 # Usage: browser/package.sh

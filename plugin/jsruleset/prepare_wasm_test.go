@@ -1,5 +1,8 @@
 //go:build js && wasm
 
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
+
 package jsruleset
 
 import (
