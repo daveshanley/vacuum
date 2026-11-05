@@ -34,9 +34,12 @@ func getTerminalWidth() int {
 	return width
 }
 
+// fullBoxWidth matches the full-size summary tables printed by lint.
+const fullBoxWidth = 107
+
 func calculateBoxWidth(termWidth int) int {
 	// simplified box width calculation based on terminal size
-	if termWidth < 100 {
+	if termWidth < fullBoxWidth {
 		boxWidth := termWidth - 13
 		if boxWidth < 40 {
 			return 40
@@ -44,7 +47,7 @@ func calculateBoxWidth(termWidth int) int {
 		return boxWidth
 	}
 	// for larger terminals, use a reasonable max width
-	return 107
+	return fullBoxWidth
 }
 
 func RenderStyledBox(message string, boxType BoxType, noStyle bool) {

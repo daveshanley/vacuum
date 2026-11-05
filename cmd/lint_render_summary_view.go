@@ -27,6 +27,17 @@ type columnWidths struct {
 	fullHeaders bool
 }
 
+// fullTableWidth is the printed width of the full-size summary tables:
+// rule(40) + violation(12) + impact(50) + spaces(4) + leading(1).
+const fullTableWidth = 107
+
+// info sizes the category table's last column so both summary tables print at
+// the same width: category + two numbers + info + 6 spaces must equal
+// rule + violation + impact + 4 spaces.
+func (w columnWidths) info() int {
+	return w.rule + w.violation + w.impact - w.category - 2*w.number - 2
+}
+
 // table header configuration
 type tableHeader struct {
 	label string
@@ -47,12 +58,23 @@ type summaryTotals struct {
 	info     int
 }
 
+// minTerminalWidth is the narrowest layout the tables have (calculateColumnWidths
+// below 60 columns). Narrower terminals wrap, rather than break the layout math.
+const minTerminalWidth = 40
+
+// layoutWidth turns a reported terminal width into the width to lay out for:
+// 120 when the size is unknown, and never less than minTerminalWidth.
+func layoutWidth(width int) int {
+	if width == 0 {
+		return 120
+	}
+	return max(width, minTerminalWidth)
+}
+
 // get terminal width with fallback
 func getTerminalWidth() int {
 	width, _, _ := tui.TerminalSize()
-	if width == 0 {
-		width = 120
-	}
+	width = layoutWidth(width)
 
 	// In no-style mode, reduce width by 3 to avoid off-by-one truncation issues
 	if color2.AreColorsDisabled() && width > 3 {
@@ -60,6 +82,18 @@ func getTerminalWidth() int {
 	}
 
 	return width
+}
+
+// fileHeaderWidth is the width of the rule under a file's name, matching the
+// summary table below it.
+func fileHeaderWidth(termWidth int) int {
+	if termWidth < 100 {
+		// for smaller terminals, leave some margin
+		return termWidth - 13
+	}
+	widths := calculateColumnWidths(termWidth)
+	// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
+	return widths.rule + widths.violation + widths.impact + 4 + 1
 }
 
 // calculate responsive column widths based on terminal width
@@ -82,7 +116,7 @@ func calculateColumnWidths(width int) columnWidths {
 			impact:      20,
 			fullHeaders: false,
 		}
-	} else if width < 100 {
+	} else if width < fullTableWidth {
 		return columnWidths{
 			category:    15,
 			number:      9,
@@ -92,10 +126,6 @@ func calculateColumnWidths(width int) columnWidths {
 			fullHeaders: true,
 		}
 	}
-	// full width - make category table match rules table width
-	// rules table: 40 + 12 + 50 + 4 (spaces) + 1 (leading) = 107
-	// category table: 20 + 12 + 12 + X + 6 (spaces) + 1 (leading) = 107
-	// [X = 107 - 20 - 12 - 12 - 6 - 1 = 56]
 	return columnWidths{
 		category:    20,
 		number:      12,
@@ -120,8 +150,7 @@ func renderTableSeparator(widths []int) {
 
 // render category table headers
 func renderCategoryHeaders(widths columnWidths) {
-	// calculate extended info width to match rules table
-	infoWidth := 56
+	infoWidth := widths.info()
 
 	headers := []tableHeader{
 		{label: "category", color: color2.ASCIIPink, width: widths.category},
@@ -150,7 +179,7 @@ func renderCategoryHeaders(widths columnWidths) {
 	}
 	fmt.Println()
 
-	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
+	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.info()})
 }
 
 // render category table row
@@ -160,28 +189,22 @@ func renderCategoryRow(name string, errors, warnings, info int, widths columnWid
 		name = name[:widths.category-3] + "..."
 	}
 
-	// calculate info column width to match rules table
-	// rules table total: rule(40) + violation(12) + impact(50) + spaces(4) + leading(1) = 107
-	// category table: category(20) + number(12) + number(12) + infoWidth + spaces(6) + leading(1) = 107
-	// [infoWidth = 107 - 20 - 12 - 12 - 6 - 1 = 56]
-	infoWidth := 56
-
 	fmt.Printf(" %-*s  %-*s  %-*s  %-*s\n",
 		widths.category, name,
 		widths.number, humanize.Comma(int64(errors)),
 		widths.number, humanize.Comma(int64(warnings)),
-		infoWidth, humanize.Comma(int64(info)))
+		widths.info(), humanize.Comma(int64(info)))
 }
 
 // render category totals row
 func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
-	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
+	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.info()})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
 		color2.ASCIIBold, widths.category, "total", color2.ASCIIReset,
 		color2.ASCIIRed, color2.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), color2.ASCIIReset,
 		color2.ASCIIYellow, color2.ASCIIBold, widths.number, humanize.Comma(int64(totals.warnings)), color2.ASCIIReset,
-		color2.ASCIIBlue, color2.ASCIIBold, 56, humanize.Comma(int64(totals.info)), color2.ASCIIReset)
+		color2.ASCIIBlue, color2.ASCIIBold, widths.info(), humanize.Comma(int64(totals.info)), color2.ASCIIReset)
 }
 
 // render category summary table
