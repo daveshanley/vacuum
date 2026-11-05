@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -25,10 +26,14 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 	if execution != nil {
 		template = *execution
 	}
+	var configMu sync.RWMutex
 	return &tui.RepairConfig{
 		Reload: func(rules *rulesets.RuleSet, currentIgnores model.IgnoredItems) {
-			template.RuleSet = rules.CopyForExecution()
+			next := rules.CopyForExecution()
+			configMu.Lock()
+			template.RuleSet = next
 			ignored = currentIgnores
+			configMu.Unlock()
 		},
 		Open: func(snapshot []byte) (*motor.FixReview, error) {
 			if disabled != "" {
@@ -48,10 +53,12 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			if !bytes.Equal(current, snapshot) {
 				return nil, fmt.Errorf("source changed; refresh the dashboard before reviewing fixes")
 			}
+			configMu.RLock()
 			copy := template
+			copy.RepairIgnores = ignored
+			configMu.RUnlock()
 			copy.Spec = append([]byte(nil), snapshot...)
 			copy.SpecFileName = source
-			copy.RepairIgnores = ignored
 			return motor.NewFixReview(&copy, options)
 		},
 		Write: func(original, candidate []byte) error {
