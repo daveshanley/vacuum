@@ -30,8 +30,14 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 export GOWORK=off
 
+# go list reports an empty Dir for a module missing from the module cache.
+go mod download charm.land/bubbletea/v2
 bubbletea_dir="$(go list -m -f '{{.Dir}}' charm.land/bubbletea/v2)"
 bubbletea_version="$(go list -m -f '{{.Version}}' charm.land/bubbletea/v2)"
+if [[ ! -d "$bubbletea_dir" ]]; then
+  echo "bubbletea $bubbletea_version is not in the module cache." >&2
+  exit 1
+fi
 if [[ -f "$bubbletea_dir/tty_js.go" ]]; then
   echo "bubbletea $bubbletea_version supports js/wasm; building without the patch."
 else
