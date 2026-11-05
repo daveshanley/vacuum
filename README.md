@@ -821,31 +821,29 @@ Collection flags accept comma-separated values. For example,
 
 ## Auto-fixing rule violations
 
-Built-in repairs are opt-in. Preview the proposed edits and declined findings:
+Use `--fix` to apply supported built-in repairs and configured plugin fixes:
 
 ```sh
-vacuum lint api.yaml --fix-plan repairs.json
-vacuum lint api.yaml --fix --fix-builtins
-vacuum lint api.yaml --fix --fix-builtins --fix-file api.fixed.yaml
-vacuum schema schema.json --fix --fix-builtins
+vacuum lint api.yaml --fix
+vacuum lint api.yaml --fix --dry-run
+vacuum lint api.yaml --fix --fix-file api.fixed.yaml
+vacuum schema schema.json --fix
 ```
 
-`--fix-plan` creates a new JSON plan file and leaves the source unchanged.
-`--fix-builtins` enables guarded repairs such as duplicate enum removal,
-required path-parameter flags and tag ordering. A rule must be enabled before
-it can supply a repair. Ambiguous findings remain for review. Metadata values
-can come from an exact local `--fix-policy`; see the
-[repair API and policy guide](design/autofix/IMPLEMENTATION.md).
+`--fix --dry-run` applies and verifies changes in memory, displays the proposed
+changes, and leaves source, output and backup files untouched. `--fix-file`
+writes the verified result to a separate file. In-place repairs create a backup.
+A rule must be enabled before it can supply a repair.
 
-Repairs run against source snapshots, then reparse and relint the candidate.
-The CLI writes only verified results, checks the source again, and uses a
-same-directory atomic replacement. JSON stays JSON, including exact numbers.
-YAML comments are retained where supported; unsafe edits are declined.
-A backup is created for in-place writes. Built-in edits currently target the
-root file. The language server offers versioned edits without writing files.
+To review and edit fixes interactively, run `vacuum dashboard api.yaml` and
+press `f`. Use Space to select or skip, `e` to edit supported metadata, `v` to
+preview, and `a` to apply the verified result. The existing code view (`x`)
+shows the preview diff. Editing or reloading the source invalidates the preview.
 
-`--fix` alone continues to select named plugin callbacks. The CLI now verifies
-their final document too: a changed node alone does not establish a repair.
+Repairs reparse and relint the candidate before writing, and check that the
+source has not changed. Unsupported or ambiguous findings remain for review.
+Use `--fix-policy policy.yaml` with `--fix` to supply exact metadata values;
+see [Autofix usage, policies and limits](AUTOFIX.md).
 
 If you have a rule that doesn't need a human to look at it, and the change can be reliably automated you can configure an `AutoFixFunction` on the rule. When you then run the `lint` command you can pass the `--fix` flag and the violation will be automatically fixed.
 
