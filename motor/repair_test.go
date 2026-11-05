@@ -283,3 +283,15 @@ func TestPluginRepairTargetAfterBuiltinSequenceRemoval(t *testing.T) {
 	require.Len(t, result.FixedResults, 2)
 	require.Empty(t, result.Results)
 }
+
+func TestPluginRepairWithParsedRuleSet(t *testing.T) {
+	rs, err := rulesets.CreateRuleSetFromData([]byte("rules:\n  title:\n    given: $.info.title\n    severity: error\n    autoFixFunction: clearTitle\n    then: {function: falsy}\n"))
+	require.NoError(t, err)
+	e := &RuleSetExecution{Spec: []byte("openapi: 3.0.3\ninfo: {title: Bad, version: '1'}\npaths: {}\n"), SpecFileName: "test.yaml", SilenceLogs: true, ApplyAutoFixes: true, RuleSet: rs, AutoFixFunctions: map[string]model.AutoFixFunction{"clearTitle": func(n, _ *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) { n.Value = ""; return n, nil }}}
+	_, result := RunRepairs(e, nil, nil, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Empty(t, result.RepairWarnings)
+	require.Len(t, result.FixedResults, 1)
+	require.Empty(t, result.Results)
+}

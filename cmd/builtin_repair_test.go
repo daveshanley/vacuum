@@ -310,4 +310,13 @@ function runRule(input) { return input.length === 2 ? [{message: "new diagnostic
 		require.NoError(t, err)
 		require.Equal(t, original, saved)
 	}
+	report, _, err := exportCommand(t, "lint", path, "--fix", "--format", "json", "--fail-severity", "warn", "--ruleset", rules, "--functions", functions)
+	var exitErr *ExitError
+	require.ErrorAs(t, err, &exitErr)
+	require.Equal(t, ExitCodeViolations, exitErr.Code)
+	require.True(t, json.Valid([]byte(report)))
+	report, warnings, err := exportCommand(t, "lint", path, "--fix", "--fail-severity", "none", "--ruleset", rules, "--functions", functions, "--silent")
+	require.NoError(t, err)
+	require.Empty(t, report)
+	require.Empty(t, warnings)
 }
