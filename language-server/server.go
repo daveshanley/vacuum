@@ -236,27 +236,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 
 	handler.TextDocumentCodeAction = func(context *lsp.Context, params *protocol.CodeActionParams) (any, error) {
-		var actions []protocol.CodeAction
-
-		for _, diagnostic := range params.Context.Diagnostics {
-			if diagnostic.CodeDescription != nil && diagnostic.CodeDescription.HRef != "" {
-				quickFixKind := protocol.CodeActionKindQuickFix
-				actions = append(actions, protocol.CodeAction{
-					Title: "View documentation",
-					Kind:  &quickFixKind,
-					Command: &protocol.Command{
-						Title:     "Open documentation",
-						Command:   "vacuum.openUrl",
-						Arguments: []interface{}{diagnostic.CodeDescription.HRef},
-					},
-				})
-			}
-		}
-
-		if action := state.repairCodeAction(params.TextDocument.URI); action != nil {
-			actions = append(actions, *action)
-		}
-		return actions, nil
+		return state.codeActions(params), nil
 	}
 
 	handler.WorkspaceExecuteCommand = func(context *lsp.Context, params *protocol.ExecuteCommandParams) (any, error) {

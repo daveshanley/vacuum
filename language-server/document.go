@@ -33,6 +33,8 @@ type Document struct {
 	RunningDiagnostic bool
 	Content           string
 	mu                sync.RWMutex // Protects Content field
+	repairMu          sync.Mutex   // Serializes repair computation for this open document.
+	repairCache       *repairActionCache
 }
 
 func newDocumentStore() *DocumentStore {
