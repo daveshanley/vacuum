@@ -4,10 +4,14 @@
 package openapi
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/testify/assert"
 )
 
@@ -477,4 +481,135 @@ func TestCamelCaseProperties_identifyCaseType(t *testing.T) {
 	assert.Equal(t, "unknown", def.identifyCaseType("First_Name"))
 	assert.Equal(t, "unknown", def.identifyCaseType(""))
 	assert.Equal(t, "unknown", def.identifyCaseType("first name"))
+}
+
+// buildMultiFileCamelCaseContext writes the supplied files into a temp dir and builds a context
+// from main.yaml, with relative file references enabled.
+func buildMultiFileCamelCaseContext(t *testing.T, files map[string]string) model.RuleFunctionContext {
+	tmpDir := t.TempDir()
+	for name, content := range files {
+		assert.NoError(t, os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644))
+	}
+
+	config := datamodel.NewDocumentConfiguration()
+	config.BasePath = tmpDir
+	config.AllowFileReferences = true
+
+	document, err := libopenapi.NewDocumentWithConfiguration([]byte(files["main.yaml"]), config)
+	assert.NoError(t, err)
+
+	m, errs := document.BuildV3Model()
+	assert.NoError(t, errs)
+
+	return model.RuleFunctionContext{
+		DrDocument: drModel.NewDrDocument(m),
+		SpecInfo:   document.GetSpecInfo(),
+		Rule:       &model.Rule{},
+	}
+}
+
+const camelCaseMultiFileItem = `type: object
+properties:
+  item_id:
+    type: string
+  kind:
+    type: string
+`
+
+func TestCamelCaseProperties_RunRule_MultiFile_DirectRef(t *testing.T) {
+	ctx := buildMultiFileCamelCaseContext(t, map[string]string{
+		"main.yaml": `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: './Item.yaml'
+`,
+		"Item.yaml": camelCaseMultiFileItem,
+	})
+
+	res := CamelCaseProperties{}.RunRule(nil, ctx)
+	if assert.Len(t, res, 1) {
+		assert.Contains(t, res[0].Message, "item_id")
+		assert.Contains(t, res[0].Message, "snake_case")
+		assert.Equal(t, 3, res[0].StartNode.Line)
+	}
+}
+
+func TestCamelCaseProperties_RunRule_MultiFile_ComponentRef(t *testing.T) {
+	ctx := buildMultiFileCamelCaseContext(t, map[string]string{
+		"main.yaml": `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+components:
+  schemas:
+    Item:
+      $ref: './Item.yaml'
+`,
+		"Item.yaml": camelCaseMultiFileItem,
+	})
+
+	res := CamelCaseProperties{}.RunRule(nil, ctx)
+	if assert.Len(t, res, 1) {
+		assert.Contains(t, res[0].Message, "item_id")
+	}
+}
+
+func TestCamelCaseProperties_RunRule_MultiFile_NestedRef(t *testing.T) {
+	ctx := buildMultiFileCamelCaseContext(t, map[string]string{
+		"main.yaml": `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: './Item.yaml'
+`,
+		"Item.yaml": `type: object
+properties:
+  owner_ref:
+    $ref: './Owner.yaml'
+`,
+		"Owner.yaml": `type: object
+properties:
+  first_name:
+    type: string
+`,
+	})
+
+	res := CamelCaseProperties{}.RunRule(nil, ctx)
+	var names []string
+	for _, r := range res {
+		names = append(names, r.Message)
+	}
+	if assert.Len(t, res, 2, names) {
+		assert.Contains(t, res[0].Message, "first_name")
+		assert.Contains(t, res[1].Message, "owner_ref")
+	}
 }
