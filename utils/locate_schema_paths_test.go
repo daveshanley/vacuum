@@ -81,7 +81,7 @@ components:
 	assert.Equal(t, "$.components.schemas['Pet']", primaryPath)
 	assert.Equal(t, []string{"$.components.schemas['Pet']"}, allPaths)
 
-	_, cachedAfterIncompleteLookup := ctx.SchemaPathCache.Load(petSchema)
+	_, cachedAfterIncompleteLookup := ctx.SchemaPathCache.Load(schemaPathCacheKey{schema: petSchema})
 	assert.False(t, cachedAfterIncompleteLookup, "incomplete fallback results must not be cached")
 
 	keyNode := petSchema.Value.GoLow().Type.KeyNode
@@ -96,7 +96,7 @@ components:
 	assert.Contains(t, allPaths, "$.paths['/pets'].get.responses['200'].content['application/json'].schema")
 	assert.Contains(t, allPaths, "$.paths['/pets2'].get.responses['200'].content['application/json'].schema")
 
-	cached, ok := ctx.SchemaPathCache.Load(petSchema)
+	cached, ok := ctx.SchemaPathCache.Load(schemaPathCacheKey{schema: petSchema, key: keyNode, value: valueNode})
 	require.True(t, ok)
 	cachedResult, ok := cached.(*schemaPathResult)
 	require.True(t, ok)
@@ -289,4 +289,63 @@ func findSchemaByIndexedPath(t *testing.T, schemas []*v3.Schema, specPath string
 	}
 	t.Fatalf("schema at %s not found in %s", indexedPath, specPath)
 	return nil
+}
+
+func TestLocateSchemaPropertyPaths_CacheSeparatesPropertyNodes(t *testing.T) {
+	const spec = `openapi: 3.0.3
+info:
+  title: Synthetic cache example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        owner:
+          anyOf:
+            - $ref: '#/components/schemas/Person'
+          description: An owner.
+          nullable: true
+    Person:
+      type: object
+      properties:
+        name:
+          type: string
+`
+	document, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(t, err)
+	built, err := document.BuildV3Model()
+	require.NoError(t, err)
+	doctor := drModel.NewDrDocument(built)
+	var owner *v3.Schema
+	for _, schema := range doctor.Schemas {
+		if schema.GenerateJSONPath() == "$.components.schemas['Envelope'].properties['owner']" {
+			owner = schema
+			break
+		}
+	}
+	require.NotNil(t, owner)
+	low := owner.Value.GoLow()
+	uncached := model.RuleFunctionContext{DrDocument: doctor, Index: built.Index}
+	_, schemaPaths := LocateSchemaPropertyPaths(uncached, owner, owner.GetKeyNode(), owner.GetValueNode())
+	_, propertyPaths := LocateSchemaPropertyPaths(uncached, owner, low.AnyOf.KeyNode, low.AnyOf.KeyNode)
+	require.NotEqual(t, schemaPaths, propertyPaths, "fixture must exercise distinct model lookups")
+	for _, schemaFirst := range []bool{true, false} {
+		cached := uncached
+		cached.SchemaPathCache = &sync.Map{}
+		for attempt := 0; attempt < 2; attempt++ {
+			if schemaFirst {
+				_, got := LocateSchemaPropertyPaths(cached, owner, owner.GetKeyNode(), owner.GetValueNode())
+				assert.Equal(t, schemaPaths, got)
+				_, got = LocateSchemaPropertyPaths(cached, owner, low.AnyOf.KeyNode, low.AnyOf.KeyNode)
+				assert.Equal(t, propertyPaths, got)
+			} else {
+				_, got := LocateSchemaPropertyPaths(cached, owner, low.AnyOf.KeyNode, low.AnyOf.KeyNode)
+				assert.Equal(t, propertyPaths, got)
+				_, got = LocateSchemaPropertyPaths(cached, owner, owner.GetKeyNode(), owner.GetValueNode())
+				assert.Equal(t, schemaPaths, got)
+			}
+		}
+	}
 }
