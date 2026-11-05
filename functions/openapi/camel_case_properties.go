@@ -150,6 +150,30 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		for i := range context.DrDocument.Schemas {
 			checkSchema(context.DrDocument.Schemas[i])
 		}
+
+		// a schema reached through a $ref is not published to DrDocument.Schemas, so the root schema
+		// of a file pulled in by a relative $ref never shows up there. its property schemas do, so walk
+		// up from each schema and check the ancestor schemas too. climbed stops a walk once it reaches
+		// a schema whose ancestors have already been visited.
+		climbed := make(map[*v3.Schema]bool)
+		for i := range context.DrDocument.Schemas {
+			schema := context.DrDocument.Schemas[i]
+			if schema == nil || climbed[schema] {
+				continue
+			}
+			climbed[schema] = true
+			for parent := schema.GetParent(); parent != nil; parent = parent.GetParent() {
+				parentSchema, ok := parent.(*v3.Schema)
+				if !ok {
+					continue
+				}
+				if climbed[parentSchema] {
+					break
+				}
+				climbed[parentSchema] = true
+				checkSchema(parentSchema)
+			}
+		}
 	}
 
 	return results
