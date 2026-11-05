@@ -45,6 +45,10 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	for _, node := range nodes {
+		// Like Spectral, a matched scalar has no fields, so 'field' does not apply and the value is defined.
+		if node.Kind == yaml.ScalarNode {
+			continue
+		}
 		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 		fieldNode := result.KeyNode
 

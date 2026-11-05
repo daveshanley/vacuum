@@ -142,3 +142,27 @@ tags:
 	assert.Equal(t, "fridge", n[0].(*v3.Tag).Value.Name)
 
 }
+
+// Issue #1032: like Spectral, 'field' does not apply to a matched scalar, which is itself defined.
+func TestDefined_RunRule_Field_ScalarTarget_Issue1032(t *testing.T) {
+	sampleYaml := `schema:
+  country: {type: string}
+example:
+  country: DE`
+
+	path := "$..country"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 2)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "defined", "example", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := Defined{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1, "only the schema property is missing 'example'")
+	assert.Equal(t, "test rule: `example` must be defined", res[0].Message)
+}

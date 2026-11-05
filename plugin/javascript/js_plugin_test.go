@@ -249,11 +249,11 @@ func Test_JSPlugin_Core_Function_Not_OK(t *testing.T) {
 
 	f.RegisterCoreFunction("truthy", func(input interface{}, context model.RuleFunctionContext) []model.RuleFunctionResult {
 		truthy := core.Truthy{}
-		// re-encode input back into yaml
+		// re-encode input back into yaml as a map, like plugin.extractInput
 		var y yaml.Node
-		_ = yaml.Unmarshal([]byte(fmt.Sprintf("%v", input)), &y)
+		_ = y.Encode(input)
 
-		results := truthy.RunRule([]*yaml.Node{y.Content[0]}, context)
+		results := truthy.RunRule([]*yaml.Node{&y}, context)
 		return results
 	})
 

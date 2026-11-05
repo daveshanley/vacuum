@@ -30,6 +30,7 @@ func (t Truthy) GetCategory() string {
 // RunRule will execute the Truthy rule, based on supplied context and a supplied []*yaml.Node slice.
 // If no field is specified, the function checks if the matched node itself is falsy (and reports if so).
 // If a field is specified, the function checks if that field within the matched node is falsy.
+// A matched scalar has no fields, so it is checked itself, like Spectral.
 func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
@@ -62,8 +63,11 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		var fieldName string
 		var fieldResult vacuumUtils.FieldPathResult
 
-		if context.RuleAction.Field == "" {
-			// no field specified - check the matched node itself
+		// Like Spectral, a matched scalar has no fields, so 'field' does not apply to it.
+		checkNode := context.RuleAction.Field == "" || (!isArray && node.Kind == yaml.ScalarNode)
+
+		if checkNode {
+			// no field to look up - check the matched node itself
 			targetNode = node
 			fieldName = "value"
 		} else {
@@ -88,7 +92,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			var allPaths []string
 			locatedPath := pathValue
 			if context.DrDocument != nil || context.Arazzo != nil || context.AsyncAPI != nil {
-				if context.RuleAction.Field == "" {
+				if checkNode {
 					locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
 				} else if fieldNode == nil {
 					basePath, basePaths, baseObjects := locateNodePaths(&context, node)

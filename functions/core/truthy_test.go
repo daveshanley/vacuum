@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
@@ -198,4 +199,54 @@ func TestTruthy_RunRule_CheckSecurity(t *testing.T) {
 	res := tru.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
+}
+
+// Issue #1032: like Spectral, 'field' does not apply to a matched scalar, so the scalar itself is checked.
+func TestTruthy_RunRule_Field_ScalarTarget_Issue1032(t *testing.T) {
+	sampleYaml := `schema:
+  country: {type: string, example: DE}
+example:
+  country: DE
+empty:
+  country: ""`
+
+	path := "$..country"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 3)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "example", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	tru := Truthy{}
+	var res []model.RuleFunctionResult
+	for _, node := range nodes {
+		res = append(res, tru.RunRule([]*yaml.Node{node}, ctx)...)
+	}
+
+	assert.Len(t, res, 1, "only the empty scalar is falsy")
+	assert.Equal(t, "test rule: `value` must be set", res[0].Message)
+	assert.Equal(t, "$..country", res[0].Path, "no field is appended to a scalar path")
+}
+
+// Elements of a matched array still have the field looked up.
+func TestTruthy_RunRule_Field_ArrayOfScalars(t *testing.T) {
+	sampleYaml := `tags: [a, b]`
+
+	path := "$.tags"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "name", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	tru := Truthy{}
+	res := tru.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 2)
 }
