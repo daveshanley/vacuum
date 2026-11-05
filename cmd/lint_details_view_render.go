@@ -93,9 +93,7 @@ func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName stri
 // calculateTableConfig determines the table layout based on terminal width
 func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip, noStyle bool, showAbsPaths bool) *TableConfig {
 	width, _, _ := tui.TerminalSize()
-	if width == 0 {
-		width = 120
-	}
+	width = layoutWidth(width)
 
 	// In no-style mode, reduce width by 3 to avoid off-by-one truncation issues
 	if noStyle && width > 3 {
@@ -324,17 +322,7 @@ func printFileHeader(fileName string, silent bool) {
 		}
 	}
 
-	// get terminal width and calculate table width
-	termWidth := getTerminalWidth()
-	widths := calculateColumnWidths(termWidth)
-
-	// calculate actual table width (matching the summary table)
-	// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
-	tableWidth := widths.rule + widths.violation + widths.impact + 4 + 1
-	if termWidth < 100 {
-		// for smaller terminals, adjust table width accordingly
-		tableWidth = termWidth - 13 // leave some margin
-	}
+	tableWidth := fileHeaderWidth(getTerminalWidth())
 
 	// use the same nice formatting as multi-file
 	noStyle := color.AreColorsDisabled()

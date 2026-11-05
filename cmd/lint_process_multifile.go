@@ -308,17 +308,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 	} else if !flags.GitHubAnnotations {
 		// Normal console output mode
-		// get terminal width and calculate table width
-		termWidth := getTerminalWidth()
-		widths := calculateColumnWidths(termWidth)
-
-		// calculate actual table width (matching the summary table)
-		// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
-		tableWidth := widths.rule + widths.violation + widths.impact + 4 + 1
-		if termWidth < 100 {
-			// for smaller terminals, adjust table width accordingly
-			tableWidth = termWidth - 13 // leave some margin
-		}
+		tableWidth := fileHeaderWidth(getTerminalWidth())
 
 		for _, fr := range fileResults {
 			// File headers are chrome - only show when not silent
