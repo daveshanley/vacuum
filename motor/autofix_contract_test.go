@@ -32,7 +32,7 @@ func TestAutoFixTransactionOutcome(t *testing.T) {
 				require.Contains(t, string(r.ModifiedSpec), "9007199254740993.0")
 				require.Contains(t, string(r.ModifiedSpec), "0.123456789012345678901")
 				require.Contains(t, string(r.ModifiedSpec), "1.234567890123456789e40")
-				require.Contains(t, string(r.ModifiedSpec), `"x-note": "added"`)
+				require.Contains(t, string(r.ModifiedSpec), `"x-note":"added"`)
 			} else {
 				if mode == "replacement" {
 					require.Len(t, r.Errors, 1)

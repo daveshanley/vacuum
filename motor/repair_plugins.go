@@ -35,10 +35,27 @@ func repairWithPlugins(execution *RuleSetExecution, plan repair.Plan, options *E
 		original := make(map[string]repair.Finding)
 		for _, location := range locations {
 			if location.Unavailable == "" {
-				original[diagnosticIdentity(before.Results[location.Index])] = location
+				result := before.Results[location.Index]
+				result.Path = location.Pointer
+				original[diagnosticIdentity(result)] = location
 			}
 		}
-		for _, fixed := range plugins.FixedResults {
+		correspondence, err := repair.TraceChanges(execution.Spec, candidate, plan)
+		if err != nil {
+			return nil, err
+		}
+		// Callback nodes keep their authored positions in the canonical tree.
+		pluginLocations, err := repairFindings(e, plugins.FixedResults)
+		if err != nil {
+			return nil, err
+		}
+		for i, fixed := range plugins.FixedResults {
+			pointer, mapped := correspondence.OriginalPointer(pluginLocations[i].Pointer)
+			if pluginLocations[i].Unavailable != "" || !mapped {
+				return nil, fmt.Errorf("plugin repair has no original authored target: %s", fixed.RuleId)
+			}
+			fixed.Path = pointer
+			fixed.Message = originalDiagnosticLines(fixed.Message, correspondence)
 			location, ok := original[diagnosticIdentity(fixed)]
 			if !ok {
 				return nil, fmt.Errorf("plugin repair has no original authored target: %s", fixed.RuleId)

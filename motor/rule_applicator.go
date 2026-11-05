@@ -140,6 +140,9 @@ type RuleSetExecution struct {
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
 type RuleSetExecutionResult struct {
+	// RepairWarnings explain declined candidate edits; baseline lint results remain valid.
+	RepairWarnings []string
+
 	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
 	Results          []model.RuleFunctionResult       // The results of the execution.
 	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline ignore directives.

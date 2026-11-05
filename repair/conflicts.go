@@ -66,15 +66,26 @@ func sourceNodes(root *yaml.Node) map[string]*yaml.Node {
 	return nodes
 }
 
-// An array edit owns the enclosing array, because removing or moving one item
-// changes every later positional pointer in another provider's snapshot.
+// Positional edits own their immediate sequence; mapping siblings stay independent.
 func editFootprint(path string, nodes map[string]*yaml.Node) string {
-	result := path
-	for p := path; p != ""; {
-		p = p[:strings.LastIndex(p, "/")]
-		if n := nodes[p]; n != nil && n.Kind == yaml.SequenceNode {
-			result = p
+	if path != "" {
+		parent := path[:strings.LastIndex(path, "/")]
+		if n := nodes[parent]; n != nil && n.Kind == yaml.SequenceNode {
+			return parent
 		}
 	}
-	return result
+	return path
+}
+func operationFootprint(op Operation, nodes map[string]*yaml.Node) string {
+	if op.Op == "replace" || op.Op == "test" {
+		return op.Path
+	}
+	return editFootprint(op.Path, nodes)
+}
+
+func sourceFootprint(op Operation, nodes map[string]*yaml.Node) string {
+	if op.Op == "move" {
+		return editFootprint(op.From, nodes)
+	}
+	return op.From
 }

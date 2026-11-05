@@ -107,9 +107,9 @@ func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
 		conflict := false
 		var footprints []string
 		for _, op := range ops {
-			footprints = append(footprints, editFootprint(op.Path, nodes))
+			footprints = append(footprints, operationFootprint(op, nodes))
 			if op.Op == "move" || op.Op == "copy" {
-				footprints = append(footprints, editFootprint(op.From, nodes))
+				footprints = append(footprints, sourceFootprint(op, nodes))
 			}
 		}
 		for _, edit := range keys {

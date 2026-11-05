@@ -113,7 +113,9 @@ func TestConflictIndexOwnsArrays(t *testing.T) {
 	parsed, err := ParseDocument([]byte(`{"items":[{"a":1},{"b":2}]}`))
 	require.NoError(t, err)
 	nodes := sourceNodes(parsed.Content[0])
-	require.Equal(t, "/items", editFootprint("/items/0/a", nodes))
+	require.Equal(t, "/items/0/a", editFootprint("/items/0/a", nodes))
+	require.Equal(t, "/items", editFootprint("/items/0", nodes))
+	require.Equal(t, "/items/0", operationFootprint(Operation{Op: "replace", Path: "/items/0"}, nodes))
 	index := &editIndex{}
 	index.add("/items")
 	require.True(t, index.conflicts("/items/1/b"))

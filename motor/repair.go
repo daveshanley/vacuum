@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -13,14 +15,6 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 )
-
-// RepairApproval supplies caller authority independently of a submitted plan.
-// An empty ApprovedSHA256 permits only the exact built-in plan generated from
-// the current findings. Explicitly reviewed plans require their full JSON hash.
-type RepairApproval struct {
-	ApprovedSHA256 string
-	Policy         *repair.Policy
-}
 
 // RepairVerification owns the final lint result and the verified candidate.
 // Release Final's owned resources when done. Candidate is nil on failure.
@@ -76,65 +70,10 @@ func PlanFixesWithPolicy(execution *RuleSetExecution, options *ExecutionOptions,
 	return plan, baseline, err
 }
 
-// ValidateFixPlan applies a plan privately and relints it with the same input
-// settings. It rejects unapproved edits, incomplete runs and new diagnostics.
-// A plan without target findings can validate but never counts as a repair.
-func ValidateFixPlan(execution *RuleSetExecution, plan repair.Plan, approval RepairApproval, options *ExecutionOptions) (*RepairVerification, error) {
-	options, cancel := repairRunOptions(options)
-	defer cancel()
-	expected, before, err := PlanFixesWithPolicy(execution, options, approval.Policy)
-	if before != nil {
-		defer before.ReleaseOwnedResources()
-	}
-	if err != nil {
-		return nil, err
-	}
-	return validatePreparedPlan(execution, plan, approval, options, expected, before)
-}
-
-func validatePreparedPlan(execution *RuleSetExecution, plan repair.Plan, approval RepairApproval, options *ExecutionOptions, expected repair.Plan, before *RuleSetExecutionResult) (*RepairVerification, error) {
+// validatePreparedPlan verifies a proposal produced by the built-in review flow.
+func validatePreparedPlan(execution *RuleSetExecution, plan repair.Plan, options *ExecutionOptions, before *RuleSetExecutionResult) (*RepairVerification, error) {
 	if err := repairCanceled(options); err != nil {
 		return nil, err
-	}
-	encoded, err := json.Marshal(plan)
-	if err != nil {
-		return nil, err
-	}
-	if approval.ApprovedSHA256 == "" {
-		allowed, err := json.Marshal(expected)
-		if err != nil {
-			return nil, err
-		}
-		if !bytes.Equal(encoded, allowed) {
-			return nil, fmt.Errorf("plan differs from the authorized built-in repairs")
-		}
-	} else if approval.ApprovedSHA256 != repair.Hash(encoded) {
-		return nil, fmt.Errorf("reviewed plan hash does not match")
-	}
-	if approval.ApprovedSHA256 != "" {
-		allowedCodes := make(map[string]string)
-		for _, target := range expected.Targets {
-			allowedCodes[target.RuleID+"\x00"+target.Pointer] = target.Code
-		}
-		findings, err := repairFindings(before.RuleSetExecution, before.Results)
-		if err != nil {
-			return nil, err
-		}
-		for _, target := range plan.Targets {
-			valid := allowedCodes[target.RuleID+"\x00"+target.Pointer] == target.Code && target.Code != ""
-			for _, finding := range findings {
-				if finding.Unavailable == "" && finding.RuleID == target.RuleID && finding.Pointer == target.Pointer {
-					code := finding.Code
-					if code == "" {
-						code = "reviewed-edit"
-					}
-					valid = valid || target.Code == code
-				}
-			}
-			if !valid {
-				return nil, fmt.Errorf("repair target code is not supported by the original diagnostic: %s", target.Code)
-			}
-		}
 	}
 	sources, hashes, err := freezeRepairSources(before)
 	if err != nil {
@@ -160,8 +99,20 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	if err != nil {
 		return nil, err
 	}
+	correspondence, err := repair.TraceChanges(execution.Spec, candidate, plan)
+	if err != nil {
+		return nil, err
+	}
 	originalIgnores, _ := json.Marshal(repairIgnoreScopes(before.RuleSetExecution.CanonicalDocument))
-	candidateIgnores, _ := json.Marshal(repairIgnoreScopes(parsed))
+	candidateScopes := make(map[string]map[string]bool)
+	for path, scope := range repairIgnoreScopes(parsed) {
+		origin, ok := correspondence.OriginalPointer(path)
+		if !ok {
+			return nil, fmt.Errorf("repair cannot introduce inline ignore directives")
+		}
+		candidateScopes[origin] = scope
+	}
+	candidateIgnores, _ := json.Marshal(candidateScopes)
 	if !bytes.Equal(originalIgnores, candidateIgnores) {
 		return nil, fmt.Errorf("repair cannot alter inline ignore directives")
 	}
@@ -176,17 +127,6 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 		return fail(fmt.Errorf("repair validation did not complete: %w", after.Errors[0]))
 	}
 	after.Results = utils.FilterIgnoredResultsWithOptions(after.Results, e.RepairIgnores, utils.IgnoreMatcherOptions{RootNode: e.CanonicalDocument, SpecBytes: e.Spec, LookupTimeout: e.NodeLookupTimeout})
-	baseline := make(map[string]int)
-	for _, r := range before.Results {
-		baseline[diagnosticIdentity(r)]++
-	}
-	for _, r := range after.Results {
-		k := diagnosticIdentity(r)
-		if baseline[k] == 0 {
-			return fail(fmt.Errorf("repair introduces diagnostic %s at %s", r.RuleId, r.Path))
-		}
-		baseline[k]--
-	}
 	beforeFindings, err := repairFindings(before.RuleSetExecution, before.Results)
 	if err != nil {
 		return fail(err)
@@ -194,6 +134,28 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	afterFindings, err := repairFindings(e, after.Results)
 	if err != nil {
 		return fail(err)
+	}
+	baseline := make(map[string]int)
+	for i, r := range before.Results {
+		if beforeFindings[i].Unavailable == "" {
+			r.Path = beforeFindings[i].Pointer
+		}
+		baseline[diagnosticIdentity(r)]++
+	}
+	for i, r := range after.Results {
+		if afterFindings[i].Unavailable == "" {
+			origin, ok := correspondence.OriginalPointer(afterFindings[i].Pointer)
+			if !ok {
+				return fail(fmt.Errorf("repair introduces diagnostic %s at %s", r.RuleId, r.Path))
+			}
+			r.Path = origin
+			r.Message = originalDiagnosticLines(r.Message, correspondence)
+		}
+		k := diagnosticIdentity(r)
+		if baseline[k] == 0 {
+			return fail(fmt.Errorf("repair introduces diagnostic %s at %s", r.RuleId, r.Path))
+		}
+		baseline[k]--
 	}
 	original := make(map[string]bool)
 	remaining := make(map[string]bool)
@@ -204,7 +166,9 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	}
 	for _, f := range afterFindings {
 		if f.Unavailable == "" {
-			remaining[f.RuleID+"\x00"+f.Pointer] = true
+			if origin, ok := correspondence.OriginalPointer(f.Pointer); ok {
+				remaining[f.RuleID+"\x00"+origin] = true
+			}
 		}
 	}
 	for _, target := range plan.Targets {
@@ -359,10 +323,10 @@ func runRepairs(execution *RuleSetExecution, options *ExecutionOptions, policy *
 	if plugins {
 		verified, err = repairWithPlugins(execution, plan, options, before)
 	} else {
-		verified, err = validatePreparedPlan(execution, plan, RepairApproval{Policy: policy}, options, plan, before)
+		verified, err = validatePreparedPlan(execution, plan, options, before)
 	}
 	if err != nil {
-		before.Errors = append(before.Errors, err)
+		before.RepairWarnings = append(before.RepairWarnings, "repairs declined: "+err.Error())
 		return plan, before
 	}
 	selected := make(map[string]bool)
@@ -424,4 +388,19 @@ func repairIgnoreScopes(root *yaml.Node) map[string]map[string]bool {
 		}
 	}
 	return result
+}
+
+// Only explicit line references are translated. Numbers that describe API
+// constraints or values remain part of the diagnostic identity.
+var diagnosticLineReference = regexp.MustCompile("(?i)(\\bline[ :]+[`'\"]?)([0-9]+)")
+
+func originalDiagnosticLines(message string, correspondence *repair.Correspondence) string {
+	return diagnosticLineReference.ReplaceAllStringFunc(message, func(part string) string {
+		match := diagnosticLineReference.FindStringSubmatch(part)
+		n, _ := strconv.Atoi(match[2])
+		if original, ok := correspondence.OriginalLine(n); ok {
+			return match[1] + strconv.Itoa(original)
+		}
+		return part
+	})
 }
