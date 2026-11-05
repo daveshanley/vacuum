@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"charm.land/bubbles/v2/viewport"
 	"fmt"
+	"github.com/daveshanley/vacuum/color"
 	"strings"
 	"sync"
 
@@ -25,21 +27,32 @@ type RepairConfig struct {
 }
 
 type dashboardRepair struct {
-	diff       string
-	byIdentity map[string]int
-	config     *RepairConfig
-	review     *motor.FixReview
-	options    []motor.FixOption
-	selected   map[int]bool
-	values     map[int]string
-	preview    *motor.FixPreview
-	pending    *repairPreviewJob
-	source     []byte
-	status     string
-	onlyFixes  bool
-	editing    bool
-	editIndex  int
-	input      textinput.Model
+	diff         string
+	byIdentity   map[string]int
+	config       *RepairConfig
+	review       *motor.FixReview
+	options      []motor.FixOption
+	selected     map[int]bool
+	values       map[int]string
+	preview      *motor.FixPreview
+	pending      *repairPreviewJob
+	source       []byte
+	status       string
+	onlyFixes    bool
+	editing      bool
+	editIndex    int
+	input        textinput.Model
+	discovery    *repairDiscoveryJob
+	pulse        int
+	pulseID      int
+	draft        *motor.FixDraft
+	draftError   string
+	draftHeading string
+	draftView    viewport.Model
+	editReturn   bool
+	automatic    int
+	suggested    int
+	needsInput   int
 }
 
 // A command owns its result until the UI takes it. Cancellation also releases a
@@ -94,6 +107,16 @@ func (r *dashboardRepair) invalidate() {
 }
 func (r *dashboardRepair) close() {
 	r.invalidate()
+	r.pulseID++
+	r.pulse = 0
+	r.automatic, r.suggested, r.needsInput = 0, 0, 0
+	r.draft = nil
+	r.editing = false
+	r.input.Blur()
+	if r.discovery != nil {
+		r.discovery.cancel()
+		r.discovery = nil
+	}
 	if r.review != nil {
 		review := r.review
 		r.review = nil
@@ -117,15 +140,28 @@ func (m *ViolationResultTableModel) openRepair() {
 		r.status = "Fix review: " + err.Error()
 		return
 	}
+	m.adoptRepairReview(review)
+}
+
+func (m *ViolationResultTableModel) adoptRepairReview(review *motor.FixReview) {
+	r := m.repair
 	r.review = review
 	r.options = review.Options()
 	r.byIdentity = make(map[string]int, len(r.options))
+	r.automatic, r.suggested, r.needsInput = 0, 0, 0
 	for i, o := range r.options {
 		r.byIdentity[fixIdentity(o.Result)] = i
 		r.selected[o.Index] = o.Selected
 		r.values[o.Index] = o.Value
+		if o.Generated {
+			r.suggested++
+		} else if o.Editable {
+			r.needsInput++
+		} else if o.Reason == "" {
+			r.automatic++
+		}
 	}
-	r.status = "Review fixes: space select/skip · e edit · v preview"
+	r.status = "Fixes available · F to review"
 	m.refreshRepairRows()
 }
 func fixIdentity(r *model.RuleFunctionResult) string {
@@ -165,6 +201,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	if r == nil {
 		return false, nil
 	}
+	if handled, cmd := m.handleRepairDiscovery(msg); handled {
+		return true, cmd
+	}
 	if done, ok := msg.(repairPreviewMsg); ok {
 		if r.pending != done.job {
 			done.job.cancel()
@@ -192,9 +231,22 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		if r.editing {
+			switch msg.(type) {
+			case tea.WindowSizeMsg, fileChangeMsg, relintCompleteMsg, relintErrorMsg, continueWatchingMsg, clearProcessingStateMsg, docsLoadedMsg, docsErrorMsg:
+				return false, nil
+			}
 			var cmd tea.Cmd
 			r.input, cmd = r.input.Update(msg)
-			return false, cmd
+			return true, cmd
+		}
+		if m.uiState.ActiveModal == ModalRepair {
+			switch msg.(type) {
+			case tea.WindowSizeMsg, fileChangeMsg, relintCompleteMsg, relintErrorMsg, continueWatchingMsg, clearProcessingStateMsg, docsLoadedMsg, docsErrorMsg:
+				return false, nil
+			}
+			var cmd tea.Cmd
+			r.draftView, cmd = r.draftView.Update(msg)
+			return true, cmd
 		}
 		return false, nil
 	}
@@ -204,6 +256,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.editing = false
 			r.input.Blur()
 			r.status = "Edit canceled"
+			m.finishRepairEdit()
 			return true, nil
 		case "ctrl+c":
 			r.close()
@@ -211,24 +264,56 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, tea.Quit
 		case "enter":
 			r.values[r.editIndex] = r.input.Value()
-			r.selected[r.editIndex] = true
+			r.selected[r.editIndex] = strings.TrimSpace(r.input.Value()) != ""
 			r.editing = false
 			r.input.Blur()
 			r.invalidate()
 			r.status = "Value saved for review · v preview before applying"
 			m.refreshRepairRows()
+			m.finishRepairEdit()
 			return true, nil
 		}
 		var cmd tea.Cmd
 		r.input, cmd = r.input.Update(msg)
 		return true, cmd
 	}
-	if m.uiState.ActiveModal != ModalNone {
+	if len(key.Text) == 1 && strings.Contains("FEVA", key.Text) {
+		key.Text = strings.ToLower(key.Text)
+		key.Code = rune(key.Text[0])
+	}
+	if key.String() == "ctrl+c" {
+		r.close()
+		m.quitting = true
+		return true, tea.Quit
+	}
+	if m.uiState.ActiveModal == ModalRepair {
+		switch key.String() {
+		case "esc", "q":
+			m.CloseActiveModal()
+			return true, nil
+		case "enter", " ", "space", "e", "v", "a":
+			if key.String() == "enter" {
+				key.Text = " "
+				key.Code = ' '
+				if o := m.currentRepairOption(); o != nil && o.Editable && strings.TrimSpace(r.values[o.Index]) == "" {
+					key.Text = "e"
+					key.Code = 'e'
+				}
+			}
+			if key.String() == "v" || key.String() == "a" {
+				m.CloseActiveModal()
+			}
+		default:
+			var cmd tea.Cmd
+			r.draftView, cmd = r.draftView.Update(msg)
+			return true, cmd
+		}
+	} else if m.uiState.ActiveModal != ModalNone {
 		return false, nil
 	}
 	switch key.String() {
 	case "esc":
-		if r.review != nil || r.pending != nil || (r.preview != nil && r.source != nil) {
+		if r.onlyFixes || r.pending != nil || (r.preview != nil && r.source != nil) {
 			r.close()
 			r.options = nil
 			r.selected = nil
@@ -241,7 +326,11 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		return false, nil
-	case "f":
+	case "f", "F":
+		if r.discovery != nil {
+			r.status = "Checking available fixes, please wait"
+			return true, nil
+		}
 		if r.review == nil {
 			m.openRepair()
 		}
@@ -249,9 +338,22 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		r.onlyFixes = !r.onlyFixes
+		if r.preview == nil && r.pending == nil && !strings.HasPrefix(r.status, "APPLIED:") {
+			if r.onlyFixes {
+				r.status = "Review fixes · Enter before/after · Space select · V verify"
+			} else {
+				r.status = "Fixes available · F to review"
+			}
+		}
 		m.ApplyFilter()
 		m.UpdateDetailsViewContent()
 		return true, nil
+	case "enter":
+		if r.onlyFixes && r.review != nil {
+			m.openRepairDetail()
+			return true, nil
+		}
+		return false, nil
 	case " ", "space":
 		if o := m.currentRepairOption(); o != nil && (o.Reason == "" || o.Editable) {
 			r.selected[o.Index] = !r.selected[o.Index]
@@ -261,6 +363,10 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		}
 		return true, nil
 	case "e":
+		if r.pending != nil {
+			r.status = "Verification running · wait before editing"
+			return true, nil
+		}
 		o := m.currentRepairOption()
 		if o == nil || !o.Editable {
 			r.status = "This fix has no editable value"
@@ -270,17 +376,19 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		r.editIndex = o.Index
 		r.editing = true
 		r.input = textinput.New()
+		r.input.Placeholder = o.Description
 		r.input.SetValue(r.values[o.Index])
-		r.input.SetWidth(max(10, m.width*HowToFixColumnPercent/100-6))
 		r.input.CharLimit = 65536
-		if m.uiState.ViewMode != ViewModeTableWithSplit {
-			m.ToggleSplitView()
-		}
-		m.UpdateDetailsViewContent()
-		m.table.SetHeight(max(MinTableHeight, m.height-SplitViewHeight-SplitViewMargin))
+		r.editReturn = m.uiState.ActiveModal == ModalRepair
+		m.OpenModal(ModalRepairEdit)
+		m.resizeRepairModal()
 		r.status = "Edit value · enter save · esc cancel"
 		return true, r.input.Focus()
 	case "v":
+		if r.discovery != nil {
+			r.status = "Checking available fixes, please wait"
+			return true, nil
+		}
 		if r.pending != nil {
 			r.status = "Preview is running"
 			return true, nil
@@ -358,9 +466,7 @@ func (m *ViolationResultTableModel) repairDetails() string {
 	if r == nil {
 		return ""
 	}
-	if r.editing {
-		return "Edit proposed value\n\n" + r.input.View() + "\n\nenter: save · esc: cancel"
-	}
+
 	o := m.repairOption(m.modalContent)
 	if o == nil {
 		return ""
@@ -374,6 +480,9 @@ func (m *ViolationResultTableModel) repairDetails() string {
 	}
 	text := state + "\n" + o.Description
 	if o.Editable {
+		if o.Generated && r.values[o.Index] == o.Value {
+			text += "\nGenerated suggestion, review before use"
+		}
 		value := r.values[o.Index]
 		if value == "" {
 			value = "(value required)"
@@ -406,6 +515,14 @@ func (m *ViolationResultTableModel) repairStatus() string {
 	if r.review != nil && !strings.HasPrefix(r.status, "PREVIEW:") {
 		prefix = fmt.Sprintf("%d selected · ", selected)
 	}
+	available := r.automatic + r.suggested + r.needsInput
+	if available > 0 && !r.onlyFixes && strings.HasPrefix(r.status, "Fixes available") {
+		badge := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true)
+		if r.pulse > 0 && r.pulse%2 == 0 {
+			badge = badge.Foreground(color.RGBYellow)
+		}
+		return badge.MaxWidth(max(1, m.width-2)).Render(fmt.Sprintf(" | FIX AVAILABLE · F review · %d auto / %d suggested / %d input", r.automatic, r.suggested, r.needsInput))
+	}
 	return lipgloss.NewStyle().MaxWidth(max(1, m.width-2)).Render(" | " + prefix + strings.ReplaceAll(r.status, "\n", " "))
 }
 
@@ -423,7 +540,15 @@ func (m *ViolationResultTableModel) buildRepairTableData(results []*model.RuleFu
 						state = "[x] "
 					}
 				}
-				rows[i][2] = state + rows[i][2]
+				label := ""
+				if o.Generated && m.repair.values[o.Index] == o.Value {
+					label = "generated "
+				} else if o.Editable && m.repair.values[o.Index] == "" {
+					label = "input needed "
+				} else if o.Reason == "" {
+					label = "auto "
+				}
+				rows[i][2] = state + label + rows[i][2]
 			}
 		}
 	}
