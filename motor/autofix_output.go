@@ -23,17 +23,23 @@ func marshalFixedDocument(root *yaml.Node, fixed int, original ...[]byte) (data 
 			err = &RuleExecutionError{Kind: RuleErrorAutoFix, Err: err}
 		}
 	}()
+	authored := root
 	if len(original) > 0 {
-		if _, err := repair.ParseDocument(original[0]); err != nil {
-			return nil, err
+		parsed, parseErr := repair.ParseDocument(original[0])
+		if parseErr != nil {
+			return nil, parseErr
 		}
+		authored = parsed
 	}
 	if root == nil {
 		return nil, fmt.Errorf("repaired document is unavailable")
 	}
 	if len(original) > 0 && json.Valid(original[0]) {
-		return utils.RenderRepairJSON(root)
+		return utils.RenderRepairJSON(root, original[0])
 	}
-	data, err = yaml.Marshal(root)
-	return data, err
+	var source []byte
+	if len(original) > 0 {
+		source = original[0]
+	}
+	return utils.RenderRepairYAML(root, source, utils.CaptureRepairYAMLFormat(authored))
 }

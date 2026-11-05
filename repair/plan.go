@@ -100,6 +100,7 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 		return nil, fmt.Errorf("repair requires one document")
 	}
 	root := doc.Content[0]
+	format := utils.CaptureRepairYAMLFormat(root)
 	if err := validateTreeShape(root, make(map[*yaml.Node]bool), false); err != nil {
 		return nil, err
 	}
@@ -215,9 +216,9 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 		return append([]byte(nil), data...), nil
 	}
 	if json.Valid(data) {
-		return utils.RenderRepairJSON(&doc)
+		return utils.RenderRepairJSON(&doc, data)
 	}
-	return yaml.Marshal(&doc)
+	return utils.RenderRepairYAML(&doc, data, format)
 }
 
 func validateTree(n *yaml.Node, seen map[*yaml.Node]bool) error {
