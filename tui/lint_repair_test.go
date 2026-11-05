@@ -48,7 +48,10 @@ func repairKey(m *ViolationResultTableModel, code rune, text string) tea.Cmd {
 	_, cmd := m.Update(tea.KeyPressMsg{Code: code, Text: text})
 	return cmd
 }
+
+// repairType replaces the proposed value through the input before typing.
 func repairType(m *ViolationResultTableModel, text string) {
+	m.repair.input.SetValue("")
 	for _, r := range text {
 		repairKey(m, r, string(r))
 	}
@@ -164,6 +167,7 @@ func TestDashboardFixEditingAllowsWatchAndResize(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 35})
 	require.Equal(t, 120, m.width)
 	require.Equal(t, 35, m.height)
+	m.repair.input.SetValue("")
 	m.Update(tea.PasteMsg{Content: "Pasted description"})
 	require.Equal(t, "Pasted description", m.repair.input.Value())
 	m.Update(fileChangeMsg{fileName: "review.json"})
