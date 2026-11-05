@@ -245,7 +245,7 @@ func (r *FixReview) Preview(choices []FixChoice) (*FixPreview, error) {
 	defer cancel()
 	// This exact proposal was derived from the user's selected providers and
 	// supplied values; no arbitrary patch operations are accepted by this API.
-	verification, err := validatePreparedPlan(r.execution, plan, RepairApproval{Policy: policy}, options, plan, r.baseline)
+	verification, err := validatePreparedPlan(r.execution, plan, options, r.baseline)
 	if err != nil {
 		return nil, err
 	}
