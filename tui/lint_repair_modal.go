@@ -277,7 +277,15 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 		}
 		lines = append(lines, pink.Render("│")+row+pink.Render("│"))
 	}
-	lines = append(lines, edge("├", "┴", "┤"), full("Enter/Space: select or skip   E: edit   V: verify selection"), full("↑↓: scroll   Esc: back   No files written"), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
+	accept := "Enter: accept fix"
+	if o := m.currentRepairOption(); o != nil {
+		if o.Editable && strings.TrimSpace(r.values[o.Index]) == "" {
+			accept = "Enter: edit value"
+		} else if r.selected[o.Index] {
+			accept = "Enter: deselect fix"
+		}
+	}
+	lines = append(lines, edge("├", "┴", "┤"), full(accept+"   E: edit   V: verify selection"), full("↑↓: scroll   Esc: back   No files written"), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
 	return lipgloss.NewStyle().MaxWidth(width).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 func (m *ViolationResultTableModel) finishRepairEdit() {

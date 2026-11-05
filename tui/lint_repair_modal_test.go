@@ -250,7 +250,7 @@ func TestDashboardRepairPendingVerificationDoesNotBlockModalKeys(t *testing.T) {
 	require.Nil(t, m.repair.pending)
 }
 
-func TestDashboardRepairContactExplainsJSONInput(t *testing.T) {
+func TestDashboardRepairContactStartsWithEditableProposal(t *testing.T) {
 	m, _ := repairTestModel(t)
 	m.repair.close()
 	review, err := motor.NewFixReview(&motor.RuleSetExecution{
@@ -269,13 +269,18 @@ func TestDashboardRepairContactExplainsJSONInput(t *testing.T) {
 	m.table.SetCursor(0)
 	m.repair.onlyFixes = true
 	repairKey(m, tea.KeyEnter, "")
-	require.True(t, m.repair.draft.NeedsValue)
-	require.Contains(t, ansi.Strip(m.buildRepairModal()), "Enter contact as a JSON object")
+	require.False(t, m.repair.draft.NeedsValue)
+	require.True(t, m.repair.draft.Generated)
+	require.Contains(t, m.repair.draft.After, `"contact"`)
+	require.Contains(t, ansi.Strip(m.buildRepairModal()), "GENERATED SUGGESTION")
+	require.NotContains(t, ansi.Strip(m.buildRepairModal()), "VALUE REQUIRED")
 	repairKey(m, 'e', "e")
 	require.Equal(t, ModalRepairEdit, m.uiState.ActiveModal)
-	require.Equal(t, "Enter contact as a JSON object", m.repair.input.Placeholder)
-	require.Empty(t, m.repair.input.Value())
-	require.Contains(t, ansi.Strip(m.buildRepairModal()), "Enter contact as a JSON object")
+	require.NotEmpty(t, m.repair.input.Value())
+	require.Equal(t, options[0].Value, m.repair.input.Value())
+	repairKey(m, tea.KeyEscape, "")
+	require.Equal(t, ModalRepair, m.uiState.ActiveModal)
+	require.Contains(t, m.repair.draft.After, `"contact"`)
 }
 
 func TestDashboardRepairOpensAtChangeNearOwnerEnd(t *testing.T) {

@@ -1,6 +1,7 @@
 package motor
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -73,7 +74,7 @@ func TestFixDraftDoesNotLintAndMechanicalBeforeAfterUsesSource(t *testing.T) {
 	require.Equal(t, calls, counter.calls.Load(), "opening details must not run lint again")
 }
 
-func TestFixDraftDoesNotInventContactOrLicense(t *testing.T) {
+func TestFixDraftContactAndLicenseHaveEditableNeutralProposals(t *testing.T) {
 	execution := reviewFixture()
 	execution.RuleSet.Rules = map[string]*model.Rule{}
 	for _, id := range []string{"info-contact", "info-license"} {
@@ -83,39 +84,139 @@ func TestFixDraftDoesNotInventContactOrLicense(t *testing.T) {
 	require.NoError(t, err)
 	defer review.Close()
 	require.Len(t, review.Options(), 2)
+	var choices []FixChoice
 	for _, option := range review.Options() {
 		require.True(t, option.Editable)
-		require.False(t, option.Generated)
+		require.True(t, option.Generated)
 		require.False(t, option.Selected)
-		require.Empty(t, option.Value)
+		var value map[string]string
+		require.NoError(t, json.Unmarshal([]byte(option.Value), &value))
+		require.Len(t, value, 1, "do not invent contact addresses or license grants")
+		if option.Result.RuleId == "info-contact" {
+			require.Equal(t, "Review support", value["name"])
+		} else {
+			require.Equal(t, "Unspecified", value["name"])
+		}
 		draft, err := review.Draft(FixChoice{Index: option.Index})
 		require.NoError(t, err)
-		require.True(t, draft.NeedsValue)
-		require.Contains(t, draft.Before, "Review")
-		require.Empty(t, draft.After)
-		_, err = review.Preview([]FixChoice{{Index: option.Index}})
-		require.ErrorContains(t, err, "requires a nonempty value")
+		require.False(t, draft.NeedsValue)
+		require.True(t, draft.Generated)
+		require.Contains(t, draft.After, value["name"])
+		choices = append(choices, FixChoice{Index: option.Index})
+	}
+	preview, err := review.Preview(choices)
+	require.NoError(t, err)
+	defer preview.Close()
+	require.Equal(t, 2, preview.Fixed)
+	require.Empty(t, preview.Results)
+}
+
+func TestFixDraftNeutralMetadataCannotIntroduceDiagnostics(t *testing.T) {
+	for _, pair := range [][2]string{{"info-contact", "contact-properties"}, {"info-license", "license-url"}} {
+		t.Run(pair[0], func(t *testing.T) {
+			execution := reviewFixture()
+			original := string(execution.Spec)
+			execution.RuleSet.Rules = map[string]*model.Rule{}
+			for _, id := range pair {
+				execution.RuleSet.Rules[id] = rulesets.GetAllBuiltInRules()[id]
+			}
+			review, err := NewFixReview(execution, nil)
+			require.NoError(t, err)
+			defer review.Close()
+			var selected []FixChoice
+			for _, option := range review.Options() {
+				if option.Result.RuleId == pair[0] {
+					require.True(t, option.Generated)
+					selected = append(selected, FixChoice{Index: option.Index})
+				}
+			}
+			require.Len(t, selected, 1)
+			preview, err := review.Preview(selected)
+			require.ErrorContains(t, err, "introduces diagnostic "+pair[1])
+			require.Nil(t, preview)
+			require.Equal(t, original, string(execution.Spec))
+		})
 	}
 }
 
-func TestFixDraftOperationIDSuggestionsAvoidExistingAndAmbiguousNames(t *testing.T) {
+func TestFixDraftOperationIDSuggestionsResolveExistingAndGeneratedCollisions(t *testing.T) {
 	execution := reviewFixture()
 	execution.Spec = []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/pets":{"get":{"responses":{}}},"/pets/{id}":{"get":{"responses":{}}},"/pets/id":{"get":{"responses":{}}},"/existing":{"get":{"operationId":"getPets","responses":{}}},"/users":{"post":{"responses":{}}}}}`)
 	execution.RuleSet.Rules = map[string]*model.Rule{"operation-operationId": rulesets.GetAllBuiltInRules()["operation-operationId"]}
 	review, err := NewFixReview(execution, nil)
 	require.NoError(t, err)
 	defer review.Close()
-	count := 0
+	ids := map[string]bool{"getPets": true}
+	var choices []FixChoice
 	for _, option := range review.Options() {
-		if option.Generated {
-			count++
-			require.Equal(t, "postUsers", option.Value)
-			require.False(t, option.Selected)
-		} else {
-			require.Empty(t, option.Value)
-		}
+		require.True(t, option.Generated)
+		require.False(t, option.Selected)
+		require.NotEmpty(t, option.Value)
+		require.False(t, ids[option.Value], "generated ID %q must be unique", option.Value)
+		ids[option.Value] = true
+		choices = append(choices, FixChoice{Index: option.Index})
 	}
-	require.Equal(t, 1, count)
+	require.Len(t, choices, 4)
+	require.True(t, ids["getPets2"])
+	require.True(t, ids["getPetsId"])
+	require.True(t, ids["getPetsId2"])
+	require.True(t, ids["postUsers"])
+	repeated, err := NewFixReview(execution, nil)
+	require.NoError(t, err)
+	defer repeated.Close()
+	byPath := make(map[string]string)
+	for _, option := range review.Options() {
+		byPath[option.Result.Path] = option.Value
+	}
+	for _, option := range repeated.Options() {
+		require.Equal(t, byPath[option.Result.Path], option.Value)
+	}
+	preview, err := review.Preview(choices)
+	require.NoError(t, err)
+	defer preview.Close()
+	require.Equal(t, 4, preview.Fixed)
+	require.Empty(t, preview.Results)
+}
+
+func TestFixDraftRequestBodyStartsWithUsableProposal(t *testing.T) {
+	for _, source := range []string{
+		`{"openapi":"3.1.0","info":{"title":"Images","version":"1"},"paths":{"/pets/{id}/uploadImage":{"post":{"description":"Upload an image.","requestBody":{"content":{"application/octet-stream":{"schema":{"type":"string","format":"binary"}}}},"responses":{"200":{"description":"Image received."}}}}}}`,
+		"openapi: 3.1.0\ninfo: {title: Images, version: '1'}\npaths:\n  /pets/{id}/uploadImage:\n    post:\n      description: Upload an image.\n      requestBody:\n        content:\n          application/octet-stream:\n            schema:\n              type: string\n              format: binary\n      responses:\n        '200':\n          description: Image received.\n",
+	} {
+		t.Run(fmt.Sprintf("json=%t", json.Valid([]byte(source))), func(t *testing.T) {
+			execution := reviewFixture()
+			execution.Spec = []byte(source)
+			execution.RuleSet.Rules = map[string]*model.Rule{"operation-description": rulesets.GetAllBuiltInRules()["operation-description"]}
+			review, err := NewFixReview(execution, nil)
+			require.NoError(t, err)
+			defer review.Close()
+			require.Len(t, review.Options(), 1)
+			option := review.Options()[0]
+			require.True(t, option.Generated)
+			require.False(t, option.Selected)
+			require.Equal(t, "Binary request body for POST /pets/{id}/uploadImage.", option.Value)
+			draft, err := review.Draft(FixChoice{Index: option.Index})
+			require.NoError(t, err)
+			require.False(t, draft.NeedsValue)
+			require.Contains(t, draft.Before, "requestBody")
+			require.NotContains(t, draft.Before, option.Value)
+			require.Contains(t, draft.After, option.Value)
+			require.Contains(t, draft.After, "application/octet-stream")
+			preview, err := review.Preview([]FixChoice{{Index: option.Index}})
+			require.NoError(t, err)
+			defer preview.Close()
+			require.Equal(t, 1, preview.Fixed)
+			require.Empty(t, preview.Results)
+			require.Contains(t, string(preview.Candidate), option.Value)
+			require.Equal(t, source, string(execution.Spec))
+			custom := "The image data submitted by the caller."
+			edited, err := review.Draft(FixChoice{Index: option.Index, Value: &custom})
+			require.NoError(t, err)
+			require.Contains(t, edited.After, custom)
+			require.False(t, edited.Generated)
+			require.Equal(t, option.Value, review.Options()[0].Value)
+		})
+	}
 }
 
 func TestFixDraftExcerptsAreBoundedAndValidUTF8(t *testing.T) {
