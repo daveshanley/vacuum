@@ -44,10 +44,25 @@ func repairWithPlugins(execution *RuleSetExecution, plan repair.Plan, options *E
 		if err != nil {
 			return nil, err
 		}
-		// Callback nodes keep their authored positions in the canonical tree.
-		pluginLocations, err := repairFindings(e, plugins.FixedResults)
+		// Diagnostic nodes may be detached snapshots of the input or live nodes
+		// changed by a callback. Resolve snapshots against the unchanged input first.
+		input := &RuleSetExecution{Spec: candidate, SpecFileName: execution.SpecFileName}
+		pluginLocations, err := repairFindings(input, plugins.FixedResults)
 		if err != nil {
 			return nil, err
+		}
+		var liveLocations []repair.Finding
+		for i := range pluginLocations {
+			if pluginLocations[i].Unavailable == "" {
+				continue
+			}
+			if liveLocations == nil {
+				liveLocations, err = repairFindings(e, plugins.FixedResults)
+				if err != nil {
+					return nil, err
+				}
+			}
+			pluginLocations[i] = liveLocations[i]
 		}
 		for i, fixed := range plugins.FixedResults {
 			pointer, mapped := correspondence.OriginalPointer(pluginLocations[i].Pointer)
