@@ -6,6 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
+	"strings"
 	"testing"
 )
 
@@ -64,4 +65,37 @@ func TestRuntimeSchemaFailureIsConfigurationError(t *testing.T) {
 	require.ErrorAs(t, result.Errors[0], &failure)
 	require.Equal(t, RuleErrorConfiguration, failure.Kind)
 	require.Zero(t, p.calls.Load())
+}
+
+func TestMarshalFixedDocumentPreservesSourceFormatting(t *testing.T) {
+	for _, source := range []string{
+		"key:\n  enum: [a, a, b]\n",
+		"key:\n    enum: [a, a, b]\n",
+		"{\n    \"description\": \"<b>bold</b> & text\",\n    \"enum\": [\n        \"a\",\n        \"a\",\n        \"b\"\n    ]\n}\n",
+	} {
+		var root yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(source), &root))
+		// A callback changes the sequence in place, retaining source node positions.
+		var walk func(*yaml.Node)
+		walk = func(n *yaml.Node) {
+			if n.Kind == yaml.MappingNode {
+				for i := 0; i < len(n.Content); i += 2 {
+					if n.Content[i].Value == "enum" {
+						seq := n.Content[i+1]
+						seq.Content = append(seq.Content[:1], seq.Content[2:]...)
+						return
+					}
+				}
+			}
+			for _, child := range n.Content {
+				walk(child)
+			}
+		}
+		walk(&root)
+		actual, err := marshalFixedDocument(&root, 1, []byte(source))
+		require.NoError(t, err)
+		expected := strings.Replace(source, "[a, a, b]", "[a, b]", 1)
+		expected = strings.Replace(expected, "        \"a\",\n        \"a\",", "        \"a\",", 1)
+		require.Equal(t, expected, string(actual))
+	}
 }
