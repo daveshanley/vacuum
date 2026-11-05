@@ -159,9 +159,9 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 	nodes := sourceNodes(root)
 	conflicts := &editIndex{}
 	for _, op := range plan.Operations {
-		conflicts.add(editFootprint(op.Path, nodes))
+		conflicts.add(operationFootprint(op, nodes))
 		if op.Op == "move" || op.Op == "copy" {
-			conflicts.add(editFootprint(op.From, nodes))
+			conflicts.add(sourceFootprint(op, nodes))
 		}
 	}
 	for _, edit := range plan.KeyTags {
@@ -237,7 +237,7 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 				continue
 			}
 			for _, op := range ops {
-				conflicts.add(editFootprint(op.Path, nodes))
+				conflicts.add(operationFootprint(op, nodes))
 			}
 			plan.Operations = append(plan.Operations, ops...)
 			plan.Targets = append(plan.Targets, target)
