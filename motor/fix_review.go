@@ -248,6 +248,12 @@ func (r *FixReview) Close() {
 // Every selected finding must be resolved without introducing new diagnostics.
 // An edited selection never reuses the candidate from an earlier preview.
 func (r *FixReview) Preview(choices []FixChoice) (*FixPreview, error) {
+	return r.PreviewOutput(choices, FixOutputOptions{})
+}
+
+// PreviewOutput verifies selected repairs after bundling and format conversion.
+// It checks the final output for the requested destination, but never writes it.
+func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) (*FixPreview, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.baseline == nil {
@@ -261,7 +267,7 @@ func (r *FixReview) Preview(choices []FixChoice) (*FixPreview, error) {
 	defer cancel()
 	// This exact proposal was derived from the user's selected providers and
 	// supplied values; no arbitrary patch operations are accepted by this API.
-	verification, err := validatePreparedPlan(r.execution, plan, options, r.baseline)
+	verification, err := validatePreparedPlanOutput(r.execution, plan, options, r.baseline, output)
 	if err != nil {
 		return nil, err
 	}
