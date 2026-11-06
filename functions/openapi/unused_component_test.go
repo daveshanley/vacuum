@@ -339,6 +339,15 @@ func TestUnusedComponent_RunRule_PanicWithSpaceInSchemaKey(t *testing.T) {
 }
 
 func TestUnusedComponent_RunRule_MultiFileSecurityScheme(t *testing.T) {
+	testUnusedComponentMultiFileSecurity(t, "MyAuth", false)
+}
+
+func TestUnusedComponent_RunRule_ChildSecurityURI(t *testing.T) {
+	testUnusedComponentMultiFileSecurity(t, "#/components/securitySchemes/MyAuth", true)
+}
+
+func testUnusedComponentMultiFileSecurity(t *testing.T, requirement string, wantUnused bool) {
+	t.Helper()
 
 	// root spec defines a security scheme but has no security requirements itself
 	rootYML := `openapi: 3.1.0
@@ -354,6 +363,10 @@ components:
       type: http
       scheme: bearer`
 
+	if wantUnused {
+		rootYML = strings.Replace(rootYML, "3.1.0", "3.2.0", 1)
+	}
+
 	// child paths file uses the security scheme in an operation
 	childYML := `paths:
   /items:
@@ -364,6 +377,7 @@ components:
       responses:
         '200':
           description: ok`
+	childYML = strings.Replace(childYML, "MyAuth: []", fmt.Sprintf("%q: []", requirement), 1)
 
 	var rootNode, childNode yaml.Node
 	_ = yaml.Unmarshal([]byte(rootYML), &rootNode)
@@ -408,11 +422,14 @@ components:
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
 
-	// MyAuth should NOT be reported as unused — it's referenced in the child index
+	foundUnused := false
 	for _, r := range res {
-		assert.NotContains(t, r.Message, "securitySchemes/MyAuth",
-			"MyAuth should be found via child index security requirements")
+		if strings.Contains(r.Message, "securitySchemes/MyAuth") {
+			foundUnused = true
+		}
 	}
+	assert.Equal(t, wantUnused, foundUnused)
+
 }
 
 func setupUnusedComponentsTestContext(t *testing.T, yml string) []model.RuleFunctionResult {

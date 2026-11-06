@@ -10,9 +10,10 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
+	"strings"
 )
 
-// OperationSecurityDefined is a rule that checks operation security against defined global schemes.
+// OperationSecurityDefined checks that security requirements identify declared security schemes.
 type OperationSecurityDefined struct {
 }
 
@@ -38,7 +39,9 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 	var results []model.RuleFunctionResult
 
 	paths := context.Index.GetAllPaths()
-	securityDefinitions := context.Index.GetAllSecuritySchemes()
+	securityByIndex := map[*index.SpecIndex]map[string]*index.Reference{
+		context.Index: context.Index.GetAllSecuritySchemes(),
+	}
 
 	for path, methodMap := range paths {
 
@@ -50,8 +53,8 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 
 				basePath := fmt.Sprintf("$.paths['%s'].%s", path, method)
 
-				results = osd.checkSecurityNode(securityNode, securityDefinitions, results,
-					basePath, methodNode.Node, context)
+				results = osd.checkSecurityNode(securityNode, securityByIndex, results,
+					basePath, context)
 			}
 		}
 	}
@@ -61,28 +64,50 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 	if rootSecurity != nil {
 		basePath := "$"
 
-		results = osd.checkSecurityNode(rootSecurity, securityDefinitions, results,
-			basePath, rootSecurity, context)
+		results = osd.checkSecurityNode(rootSecurity, securityByIndex, results,
+			basePath, context)
 	}
 
 	return results
 }
 
 func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
-	securityDefinitions map[string]*index.Reference, results []model.RuleFunctionResult,
-	basePath string, startNode *yaml.Node,
+	securityByIndex map[*index.SpecIndex]map[string]*index.Reference, results []model.RuleFunctionResult,
+	basePath string,
 	context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	// look through each security item and check it exists in the global security index.
-	for i, securityItem := range securityNode.Content {
-		if len(securityItem.Content) > 0 {
-			// name is key and role scope an array value.
-			name := securityItem.Content[0]
-			if name != nil {
+	allowURI := allowsSecuritySchemeURI(context)
+	securityDefinitions := securityByIndex[context.Index]
+	localDefinitions := securityDefinitions
+	locatedSource := false
 
-				// lookup in security definitions
-				lookup := fmt.Sprintf("#/components/securitySchemes/%s", name.Value)
-				if securityDefinitions[lookup] == nil {
+	// Every key in a requirement object names a scheme that must be defined.
+	for i, securityItem := range securityNode.Content {
+		if !utils.IsNodeMap(securityItem) {
+			continue
+		}
+		for j := 0; j+1 < len(securityItem.Content); j += 2 {
+			name := securityItem.Content[j]
+			if name != nil {
+				if allowURI && !locatedSource && strings.HasPrefix(name.Value, "#") && securityDefinitions[securitySchemePrefix+name.Value] == nil {
+					locatedSource = true
+					// Locate URI ownership once per security block; named schemes stay rooted.
+					source := securitySchemeSource(context.Index, securityNode)
+					if source == nil {
+						allowURI = false
+					} else {
+						if version, ok := source.ResolveDocumentVersion(); ok {
+							allowURI = version == 3.2
+						}
+						localDefinitions = securityByIndex[source]
+						if localDefinitions == nil {
+							localDefinitions = source.GetAllSecuritySchemes()
+							securityByIndex[source] = localDefinitions
+						}
+					}
+				}
+
+				if securitySchemeKey(name.Value, securityDefinitions, localDefinitions, allowURI) == "" {
 
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("Security definition points a non-existent "+

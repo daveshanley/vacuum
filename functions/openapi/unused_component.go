@@ -56,41 +56,26 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	pathItems := context.Index.GetAllComponentPathItems()
 	mappedRefs := context.Document.GetRolodex().GetAllMappedReferences()
 
-	// aggregate security requirements across root and all child indexes
-	allSecReq := make(map[string]map[string][]*index.Reference)
-	for name, refs := range context.Index.GetSecurityRequirementReferences() {
-		allSecReq[name] = refs
+	// Resolve requirements before combining them: a child document's local URI
+	// does not refer to a same-named component in the root document.
+	usedSecuritySchemes := make(map[string]bool)
+	allowURI := allowsSecuritySchemeURI(context)
+	collectSecurity := func(source *index.SpecIndex) {
+		for name := range source.GetSecurityRequirementReferences() {
+			if context.SpecInfo != nil && context.SpecInfo.SpecType == utils.OpenApi2 {
+				allRefs[fmt.Sprintf("#/securityDefinitions/%s", name)] = &index.Reference{}
+				continue
+			}
+			if key := securitySchemeKey(name, securitySchemes, securitySchemes, allowURI && source == context.Index); key != "" {
+				usedSecuritySchemes[key] = true
+			}
+		}
 	}
+	collectSecurity(context.Index)
 	if rolodex := context.Index.GetRolodex(); rolodex != nil {
 		for _, idx := range rolodex.GetIndexes() {
-			for name, refs := range idx.GetSecurityRequirementReferences() {
-				// first occurrence wins; we only need to know the name exists
-				if allSecReq[name] == nil {
-					allSecReq[name] = refs
-				}
-			}
+			collectSecurity(idx)
 		}
-	}
-
-	if context.SpecInfo != nil && context.SpecInfo.SpecType == utils.OpenApi2 {
-		for r := range allSecReq {
-			allRefs[fmt.Sprintf("#/securityDefinitions/%s", r)] = &index.Reference{}
-		}
-	}
-
-	// extract security from OpenAPI.
-	checkOpenAPISecurity := func(key string) bool {
-		if strings.Contains(key, "securitySchemes") {
-			segs := strings.Split(key, "/")
-			if len(segs) == 0 {
-				return false
-			}
-			def := segs[len(segs)-1]
-			if _, exists := allSecReq[def]; exists {
-				return true
-			}
-		}
-		return false
 	}
 
 	// create poly maps.
@@ -152,7 +137,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 				// check if this is a security reference definition (that does not use a $ref)
 				if !found {
-					found = checkOpenAPISecurity(key)
+					found = usedSecuritySchemes[key]
 				}
 				if !found {
 					// nothing is using this!
