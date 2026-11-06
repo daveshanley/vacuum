@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/pb33f/go-yaml"
@@ -105,5 +106,24 @@ func TestRepairSourceLastWideGlyphRemainsReachable(t *testing.T) {
 		require.Len(t, rows, 1)
 		require.Equal(t, 2, strings.Count(ansi.Strip(rows[0]), "終"), "width %d", width)
 		require.Equal(t, width-2, ansi.StringWidth(rows[0]))
+	}
+}
+
+func TestRepairVerifiedDiffNeverWrapsWideEdgeGlyphs(t *testing.T) {
+	line := "+" + strings.Repeat("日本語", 50) + "終"
+	for width := 40; width < 100; width++ {
+		view := viewport.New(viewport.WithWidth(width), viewport.WithHeight(3))
+		view.SetContent("header\n" + line + "\nfooter")
+		view.SetXOffset(9999)
+		offset := view.XOffset()
+		rendered := repairDiffViewport(view)
+		rows := strings.Split(ansi.Strip(rendered), "\n")
+		require.Len(t, rows, 3, "width %d", width)
+		require.Contains(t, rows[1], "終", "width %d", width)
+		require.Empty(t, strings.TrimSpace(rows[2]), "short line must stay on its source row")
+		require.Equal(t, offset, view.XOffset(), "render must not change navigation state")
+		for _, row := range rows {
+			require.Equal(t, width, ansi.StringWidth(row))
+		}
 	}
 }
