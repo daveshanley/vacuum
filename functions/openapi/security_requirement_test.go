@@ -40,6 +40,7 @@ func TestSecurityRequirementIssue1044(t *testing.T) {
 		{name: "bad percent", requirement: "'#/components/securitySchemes/Api%ZZKey': []", scheme: "Api%ZZKey", missing: []string{"#/components/securitySchemes/Api%ZZKey"}, unused: true},
 		{name: "trailing tilde", requirement: "'#/components/securitySchemes/Api~': []", scheme: "Api~", missing: []string{"#/components/securitySchemes/Api~"}, unused: true},
 		{name: "bad tilde", requirement: "'#/components/securitySchemes/Api~2Key': []", scheme: "Api~2Key", missing: []string{"#/components/securitySchemes/Api~2Key"}, unused: true},
+		{name: "absolute name precedence", requirement: "'https://example.test/security.yaml#/components/securitySchemes/ApiKey': []", scheme: "https://example.test/security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "name precedence", requirement: "'#/components/securitySchemes/ApiKey': []", scheme: "#/components/securitySchemes/ApiKey"},
 		{name: "external URI stays external", requirement: "'other.yaml#/components/securitySchemes/ApiKey': []", missing: []string{"other.yaml#/components/securitySchemes/ApiKey"}, unused: true},
 		{name: "absolute URI stays external", requirement: "'https://example.com/api.yaml#/components/securitySchemes/ApiKey': []", missing: []string{"https://example.com/api.yaml#/components/securitySchemes/ApiKey"}, unused: true},
