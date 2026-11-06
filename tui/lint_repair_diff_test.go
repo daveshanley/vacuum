@@ -216,3 +216,84 @@ func TestSourceReloadClosesVerifiedCodeView(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyFollowsCurrentProposalWithoutChangingSelection(t *testing.T) {
+	source := []byte("openapi: 3.1.0\ninfo:\n  title: Pets\n  version: '1'\npaths: {}\ncomponents:\n  schemas:\n    Cat:\n      type: string\n    Dog:\n      type: string\n")
+	m, disk := repairSourceTestModel(t, source, "pets.yaml", []string{"component-description"})
+	repairKey(m, 'f', "f")
+	require.Len(t, m.repair.options, 2)
+	for _, option := range m.repair.options {
+		m.repair.selected[option.Index] = true
+	}
+	choices := m.repair.selectedChoices()
+	m.table.SetCursor(0)
+	repairKey(m, tea.KeyEnter, "")
+	repairKey(m, tea.KeyDown, "")
+	require.Equal(t, 1, m.table.Cursor())
+	second := m.currentRepairOption().Index
+	m.repair.values[second] = "Authored dog description"
+	cmd := repairKey(m, 'v', "v")
+	require.NotNil(t, cmd)
+	m.Update(cmd())
+	require.Equal(t, 1, m.repair.preview.Fixed)
+	require.Contains(t, string(m.repair.preview.Candidate), "Authored dog description")
+	require.NotContains(t, string(m.repair.preview.Candidate), "Cat schema.")
+	require.Equal(t, 2, len(m.repair.selectedChoices()))
+	require.Contains(t, ansi.Strip(m.renderActiveModal()), "Authored dog description")
+	repairKey(m, tea.KeyEscape, "")
+	repairKey(m, tea.KeyEnter, "")
+	repairKey(m, tea.KeyUp, "")
+	require.Equal(t, 0, m.table.Cursor())
+	cmd = repairKey(m, 'V', "V")
+	require.NotNil(t, cmd)
+	m.Update(cmd())
+	require.Contains(t, string(m.repair.preview.Candidate), "Cat schema.")
+	require.NotContains(t, string(m.repair.preview.Candidate), "Authored dog description")
+	require.Equal(t, choices[0].Index, m.repair.selectedChoices()[0].Index)
+	require.Equal(t, choices[1].Index, m.repair.selectedChoices()[1].Index)
+	require.Equal(t, source, *disk)
+	// Save always checks the entire selected batch, not only the displayed fix.
+	prepareRepairSave(t, m)
+	require.Equal(t, 2, m.repair.preview.Fixed)
+	require.Contains(t, string(m.repair.preview.Candidate), "Cat schema.")
+	require.Contains(t, string(m.repair.preview.Candidate), "Authored dog description")
+	require.Equal(t, source, *disk)
+}
+
+func TestVerifyUnselectedProposalDoesNotSelectIt(t *testing.T) {
+	m, disk := repairTestModel(t)
+	original := append([]byte(nil), (*disk)...)
+	selectRepairRule(t, m, "info-description")
+	m.openRepairDetail()
+	require.Empty(t, m.repair.selectedChoices())
+	cmd := repairKey(m, 'v', "v")
+	require.NotNil(t, cmd)
+	m.Update(cmd())
+	require.Contains(t, string(m.repair.preview.Candidate), "Review API.")
+	require.Empty(t, m.repair.selectedChoices())
+	require.Equal(t, original, *disk)
+	repairKey(m, 'a', "a")
+	repairKey(m, tea.KeyEnter, "")
+	require.Contains(t, m.repair.save.err, "Select at least one fix")
+	require.Equal(t, original, *disk)
+}
+
+func TestVerifyAgainKeepsVerifiedChangeAndScroll(t *testing.T) {
+	m, _ := repairTestModel(t)
+	for _, id := range []string{"info-description", "operation-description"} {
+		selectRepairRule(t, m, id)
+		repairKey(m, ' ', " ")
+	}
+	cmd := repairKey(m, 'v', "v")
+	m.Update(cmd())
+	repairKey(m, ']', "]")
+	m.codeViewport.SetHeight(2)
+	m.codeViewport.SetYOffset(1)
+	before := m.codeViewport.GetContent()
+	preview := m.repair.preview
+	require.Nil(t, repairKey(m, 'v', "v"))
+	require.Same(t, preview, m.repair.preview)
+	require.Equal(t, 1, m.repair.changes.index)
+	require.Equal(t, 1, m.codeViewport.YOffset())
+	require.Equal(t, before, m.codeViewport.GetContent())
+}
