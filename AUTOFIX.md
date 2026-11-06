@@ -62,7 +62,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
-| `a` | Apply the current verified candidate; confirm breaking or unknown impact when requested |
+| `a` | Open the save modal: choose the destination and bundling, review the checked output, then save |
 | Escape | Cancel an edit, close a modal, or cancel review |
 
 Descriptions, summaries and operation IDs accept plain text. Contact and
@@ -75,9 +75,8 @@ lines are blue on the left; added or changed lines are yellow on the right.
 Unchanged lines keep their normal syntax colors. Solid pink borders frame the
 comparison, with one pipe-separated control row. The proposal uses formatted
 excerpts of the selected source location. It is not yet
-verified and does not write a file. Use `v` to verify the selected batch; the
-verified preview diff shows every changed line in full. Scroll this view to
-inspect the complete changes before applying them.
+verified and does not write a file. Use `v` for a preview without saving, or press `a` to start the save flow.
+Both verified previews show every changed line in full.
 
 Supported editable fixes open with proposed content already inserted in the
 right-hand source pane. The dashboard drafts descriptions, summaries and unique
@@ -95,9 +94,25 @@ Example generation does not authorize replacing a schema default.
 Editing uses a separate modal. Enter saves the value for review; Escape keeps
 the prior value. Cursor blinking does not resize the surrounding content.
 
-The preview shows contract impact, verified repairs, severity counts and the
-existing quality score before and after. Apply refreshes the table with remaining
-findings and reports actual results. A successful repair does not guarantee a
+The save modal asks you to update the current specification or create a new
+file. For a new file, enter its name; relative names resolve beside the source.
+Use `.yaml`, `.yml`, or `.json` to select the output format. Next, choose whether
+to keep references, inline external references, or compose reusable components.
+Bundling uses the native OpenAPI 3 bundler. Other document formats must keep
+references. A copy in another directory is declined if the final output still
+contains location-dependent references.
+
+Vacuum verifies the exact output after format conversion and bundling. The modal
+shows the destination, full diff, contract impact, fix counts and score. Press
+Enter to save. Breaking or unknown impact needs a second Enter to accept that
+impact. Press `e` to change the output options, or Escape to cancel. No earlier
+`v` preview is required. Errors stay in the modal; failed verification cannot be
+overridden.
+
+Updating the source refreshes the findings table. Creating a copy leaves the
+source and its dashboard findings unchanged. Existing output files cannot be
+replaced. The completion modal shows the saved path, remaining findings and
+score. A successful repair does not guarantee a
 score of 100: other findings may remain. Editing a selection or value invalidates
 the preview. Source reloads also discard the previous review.
 
@@ -179,7 +194,9 @@ The CLI checks original source bytes before writing, stages the candidate in
 the destination directory and renames it. In-place writes create a temporary
 backup. Symlink inputs and output paths that alias the input through a hardlink
 are rejected. Replacing one path leaves other hardlinks on their original
-inode. The source check and rename are not a filesystem compare-and-swap.
+inode. The source check and rename are not a filesystem compare-and-swap. Dashboard
+copies use atomic create-only publication from the staged file, so a destination
+created during review or save cannot be overwritten.
 
 Only the root file is written. OpenAPI verification reuses captured external
 reference bytes. Arazzo verification also reuses captured source bytes and redirect

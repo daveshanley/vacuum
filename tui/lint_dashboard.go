@@ -87,6 +87,7 @@ const (
 	ModalCode
 	ModalRepair
 	ModalRepairEdit
+	ModalRepairSave
 )
 
 var (
@@ -410,7 +411,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.editing = false
-			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit || m.uiState.ActiveModal == ModalRepairSave {
 				m.CloseActiveModal()
 			}
 			m.repair.status = "Source changed · f to review again"
@@ -436,7 +437,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.repair.options = nil
 			m.repair.onlyFixes = false
 			m.repair.status = "Source reloaded · checking fixes"
-			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit || m.uiState.ActiveModal == ModalRepairSave {
 				m.CloseActiveModal()
 			}
 			cmds = append(cmds, m.discoverRepairs())
@@ -844,7 +845,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - ModalHeightMargin
-	if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+	if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit || m.uiState.ActiveModal == ModalRepairSave {
 		w, h := m.repairModalSize()
 		return max(0, (m.width-w)/2), max(0, (m.height-h)/2)
 	}
@@ -910,6 +911,8 @@ func (m *ViolationResultTableModel) renderActiveModal() string {
 		return m.buildModalView()
 	case ModalCode:
 		return m.BuildCodeView()
+	case ModalRepairSave:
+		return m.buildRepairSaveModal()
 	case ModalRepair, ModalRepairEdit:
 		return m.buildRepairModal()
 	default:

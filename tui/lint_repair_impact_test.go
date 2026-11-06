@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"strings"
 	"testing"
 
@@ -38,11 +39,12 @@ func TestRepairImpactRequiresSeparateAcceptance(t *testing.T) {
 			require.NotNil(t, cmd)
 			m.Update(cmd())
 			require.NotNil(t, m.repair.preview)
+			prepareRepairSave(t, m)
 			m.repair.preview.Impact.Status = status
-			repairKey(m, 'a', "a")
+			repairKey(m, tea.KeyEnter, "")
 			require.Equal(t, original, string(*disk))
 			require.True(t, m.repair.confirmImpact)
-			repairKey(m, 'a', "a")
+			repairKey(m, tea.KeyEnter, "")
 			require.NotEqual(t, original, string(*disk))
 		})
 	}
@@ -56,8 +58,9 @@ func TestRepairEditInvalidatesImpactAcceptance(t *testing.T) {
 	cmd := repairKey(m, 'v', "v")
 	require.NotNil(t, cmd)
 	m.Update(cmd())
+	prepareRepairSave(t, m)
 	m.repair.preview.Impact.Status = motor.RepairImpactUnknown
-	repairKey(m, 'a', "a")
+	repairKey(m, tea.KeyEnter, "")
 	require.True(t, m.repair.confirmImpact)
 	repairKey(m, 'e', "e")
 	require.False(t, m.repair.confirmImpact)

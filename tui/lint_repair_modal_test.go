@@ -53,6 +53,9 @@ func TestDashboardRepairModalShowsGeneratedBeforeAfter(t *testing.T) {
 	m.Update(preview())
 	require.NotNil(t, m.repair.preview)
 	repairKey(m, 'A', "A")
+	require.Equal(t, ModalRepairSave, m.uiState.ActiveModal)
+	verifyRepairSave(t, m)
+	repairKey(m, tea.KeyEnter, "")
 	require.Contains(t, string(*disk), "Authored API description")
 }
 

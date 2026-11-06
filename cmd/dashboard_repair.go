@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -28,6 +29,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 	}
 	var configMu sync.RWMutex
 	return &tui.RepairConfig{
+		SourcePath: source,
 		Reload: func(rules *rulesets.RuleSet, currentIgnores model.IgnoredItems) {
 			next := rules.CopyForExecution()
 			configMu.Lock()
@@ -70,5 +72,72 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			}
 			return writeRepairFile(source, "", original, candidate)
 		},
+		PreviewOutput: func(review *motor.FixReview, choices []motor.FixChoice, save tui.RepairSaveOptions) (*motor.FixPreview, error) {
+			if disabled != "" {
+				return nil, fmt.Errorf("%s", disabled)
+			}
+			output, err := dashboardRepairOutputPath(source, save.OutputPath)
+			if err != nil {
+				return nil, err
+			}
+			format := ""
+			if output != "" {
+				switch strings.ToLower(filepath.Ext(output)) {
+				case ".yaml", ".yml":
+					format = "yaml"
+				case ".json":
+					format = "json"
+				}
+			}
+			return review.PreviewOutput(choices, motor.FixOutputOptions{OutputPath: output, Format: format, BundleMode: save.BundleMode})
+		},
+		Save: func(original, candidate []byte, save tui.RepairSaveOptions) error {
+			if disabled != "" {
+				return fmt.Errorf("%s", disabled)
+			}
+			output, err := dashboardRepairOutputPath(source, save.OutputPath)
+			if err != nil {
+				return err
+			}
+			if output != "" {
+				return writeNewRepairFile(source, output, original, candidate)
+			}
+			return writeRepairFile(source, "", original, candidate)
+		},
 	}
+}
+
+// Relative copy names belong beside the source, not in the process directory.
+// The writer repeats these checks and enforces no-clobber publication at save.
+func dashboardRepairOutputPath(source, output string) (string, error) {
+	if output == "" {
+		return "", nil
+	}
+	if strings.TrimSpace(output) == "" {
+		return "", fmt.Errorf("enter a file name for the new specification")
+	}
+	absoluteSource, err := filepath.Abs(source)
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(output) {
+		output = filepath.Join(filepath.Dir(absoluteSource), output)
+	}
+	output = filepath.Clean(output)
+	if output == absoluteSource {
+		return "", fmt.Errorf("new file must have a different path from the source")
+	}
+	if _, err = os.Lstat(output); err == nil {
+		return "", fmt.Errorf("new file already exists: %s", output)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	parent, err := os.Stat(filepath.Dir(output))
+	if err != nil {
+		return "", fmt.Errorf("new file directory: %w", err)
+	}
+	if !parent.IsDir() {
+		return "", fmt.Errorf("new file parent must be a directory")
+	}
+	return output, nil
 }
