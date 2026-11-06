@@ -59,6 +59,13 @@ func IndexLocations(root *yaml.Node) *Locations {
 	return l
 }
 
+// FindExact returns the pointer only when n belongs to the indexed tree.
+// It does not match nodes from other documents by parser position.
+func (l *Locations) FindExact(n *yaml.Node) (string, bool) {
+	p, ok := l.nodes[n]
+	return p, ok
+}
+
 // Find returns an unambiguous source pointer, including mapping-key locations.
 func (l *Locations) Find(n *yaml.Node) (string, bool) {
 	if n == nil {

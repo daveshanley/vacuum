@@ -137,6 +137,15 @@ func repairIntegrityDefects(result *RuleSetExecutionResult, options ...*Executio
 		}
 		defects = append(defects, repairDefect{kind, path, detail})
 	}
+	// Semantic checks use the unresolved owner. Only exact authored nodes can
+	// supply root pointers; external nodes must not match by line and column.
+	addSemantic := func(kind string, node *yaml.Node, path, detail string) {
+		if pointer, ok := locations.FindExact(node); ok {
+			defects = append(defects, repairDefect{kind, pointer, detail})
+			return
+		}
+		defects = append(defects, repairDefect{kind, "", path + ": " + detail})
+	}
 	switch {
 	case e.Arazzo != nil:
 		validation := e.Arazzo.Validation
@@ -202,6 +211,42 @@ func repairIntegrityDefects(result *RuleSetExecutionResult, options ...*Executio
 			add("schema", d.Node, strings.TrimPrefix(d.Pointer, "#"), d.Message)
 		}
 	case document != nil:
+		if e.IndexUnresolved == nil {
+			return nil, fmt.Errorf("OpenAPI integrity index is unavailable")
+		}
+		ctx := model.RuleFunctionContext{Index: e.IndexUnresolved, DrDocument: e.DrDocument}
+		checks := []model.RuleFunction{openapifunc.OAS2OperationSecurityDefined{}}
+		if document.GetSpecInfo().VersionNumeric >= 3 {
+			if e.DrDocument == nil || e.DrDocument.V3Document == nil {
+				return nil, fmt.Errorf("OpenAPI integrity Doctor model is unavailable; reference and path checks cannot complete")
+			}
+			checks = []model.RuleFunction{openapifunc.PathParameters{}, openapifunc.OperationSecurityDefined{}}
+		}
+		for _, check := range checks {
+			ctx.Rule = &model.Rule{Id: check.GetSchema().Name}
+			for _, d := range check.RunRule([]*yaml.Node{root}, ctx) {
+				addSemantic("OpenAPI "+check.GetSchema().Name, d.StartNode, d.Path, d.Message)
+			}
+		}
+		// The native index owns duplicate parameter detection. Read one graph,
+		// rather than count the resolved and unresolved copies of each error.
+		indexes := []*index.SpecIndex{e.IndexUnresolved}
+		if rolo := e.IndexUnresolved.GetRolodex(); rolo != nil {
+			indexes = append(indexes, rolo.GetIndexes()...)
+		}
+		for _, idx := range indexes {
+			if idx == nil {
+				continue
+			}
+			for _, err := range idx.GetOperationParametersIndexErrors() {
+				var ie *index.IndexingError
+				if errors.As(err, &ie) {
+					addSemantic("operation parameter", ie.Node, idx.GetSpecAbsolutePath()+"#"+ie.Path, ie.Error())
+				} else {
+					addSemantic("operation parameter", nil, idx.GetSpecAbsolutePath(), err.Error())
+				}
+			}
+		}
 		defects = append(defects, repairLinkDefects(document, root)...)
 		valid, validation := schema_validation.ValidateOpenAPIDocument(document)
 		if !valid && len(validation) == 0 {

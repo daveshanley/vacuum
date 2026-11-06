@@ -1153,10 +1153,23 @@ func reviewedPropertyRename(root *yaml.Node, nodes map[string]*yaml.Node, f Find
 	}
 	schemaPath := parentPath[:strings.LastIndex(parentPath, "/")]
 	schema := nodes[schemaPath]
-	for _, key := range []string{"dependentRequired", "dependentSchemas", "dependencies", "allOf", "oneOf", "anyOf", "if", "then", "else", "discriminator", "propertyNames", "patternProperties", "examples", "default"} {
-		if field(schema, key) != nil {
-			return nil, "property has dependent constraints or data requiring coordinated migration"
+	// A nested rename also changes instances described by its ancestors. Only
+	// the immediate example is migrated below; other authored data or dependent
+	// constraints need a coordinated migration, not a local key rename.
+	for path := schemaPath; ; {
+		for _, key := range []string{"dependentRequired", "dependentSchemas", "dependencies", "allOf", "oneOf", "anyOf", "if", "then", "else", "discriminator", "propertyNames", "patternProperties", "example", "examples", "default", "const", "enum"} {
+			if path == schemaPath && key == "example" {
+				continue
+			}
+			if field(nodes[path], key) != nil {
+				return nil, "property has dependent constraints or data requiring coordinated migration"
+			}
 		}
+		i := strings.LastIndex(path, "/")
+		if i < 0 {
+			break
+		}
+		path = path[:i]
 	}
 	ops := []Operation{{Op: "move", From: f.Pointer, Path: parentPath + "/" + EscapeToken(value)}}
 	if required := field(schema, "required"); required != nil {

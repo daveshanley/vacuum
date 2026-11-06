@@ -75,9 +75,9 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 
 	// look through each security item and check it exists in the global security index.
 	for i, securityItem := range securityNode.Content {
-		if len(securityItem.Content) > 0 {
-			// name is key and role scope an array value.
-			name := securityItem.Content[0]
+		for j := 0; j+1 < len(securityItem.Content); j += 2 {
+			// Each mapping key names a required security scheme.
+			name := securityItem.Content[j]
 			if name != nil {
 
 				// lookup in security definitions

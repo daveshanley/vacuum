@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"os"
@@ -67,6 +69,67 @@ func (errorReader) Read([]byte) (int, error) { return 0, errors.New("must not re
 type errorWriter struct{}
 
 func (errorWriter) Write([]byte) (int, error) { return 0, errors.New("display failed") }
+
+func TestSilentRepairCannotApproveUnseenChanges(t *testing.T) {
+	for _, dryRun := range []bool{false, true} {
+		t.Run(fmt.Sprint(dryRun), func(t *testing.T) {
+			source := []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{}}`)
+			execution := &motor.RuleSetExecution{Spec: source, SpecFileName: "review.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-description": rulesets.GetAllBuiltInRules()["info-description"]}}}
+			var output bytes.Buffer
+			result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true, SilentFlag: true, DryRun: dryRun}, nil, errorReader{}, &output, true)
+			defer result.ReleaseOwnedResources()
+			require.Empty(t, output.String())
+			if dryRun {
+				require.Empty(t, result.Errors)
+				require.Len(t, result.FixedResults, 1)
+				require.NotEmpty(t, result.ModifiedSpec)
+			} else {
+				require.Len(t, result.Errors, 1)
+				require.ErrorContains(t, result.Errors[0], "visible review")
+				require.Empty(t, result.ModifiedSpec)
+			}
+			require.Equal(t, source, execution.Spec)
+		})
+	}
+}
+
+func TestSilentDryRunSuppressesReviewOutput(t *testing.T) {
+	for _, tc := range []struct{ command, format string }{{"lint", ""}, {"schema", ""}, {"lint", "json"}, {"schema", "json"}} {
+		t.Run(tc.command+tc.format, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "source.json")
+			source := []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{}}`)
+			var args []string
+			if tc.command == "schema" {
+				source = []byte(`{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"string","enum":["a","a"]}`)
+			} else {
+				args = []string{"--ruleset", focusedRepairRules(t, dir, "info-description")}
+			}
+			require.NoError(t, os.WriteFile(path, source, 0600))
+			args = append([]string{tc.command, path, "--fix", "--dry-run", "--silent", "--fail-severity", "none"}, args...)
+			if tc.format != "" {
+				args = append(args, "--format", tc.format)
+			}
+			out, errOut, err := exportCommand(t, args...)
+			if tc.command == "lint" && tc.format == "json" {
+				require.ErrorContains(t, err, "--format cannot be combined with --silent")
+				require.Empty(t, out)
+				require.Equal(t, "--format cannot be combined with --silent", strings.TrimSpace(errOut))
+			} else if tc.format == "json" {
+				require.NoError(t, err)
+				require.True(t, json.Valid([]byte(out)), "structured output must remain valid")
+				require.Empty(t, errOut)
+			} else {
+				require.NoError(t, err)
+				require.Empty(t, out)
+				require.Empty(t, errOut)
+			}
+			data, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Equal(t, source, data)
+		})
+	}
+}
 
 func TestReviewedCLIRepairAcceptsExactCandidate(t *testing.T) {
 	original := []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat"]}}}}`)

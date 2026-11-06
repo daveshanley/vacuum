@@ -229,3 +229,129 @@ func TestRepairIntegrityPreservesExistingExternalIDCollision(t *testing.T) {
 	require.NoError(t, err)
 	defer preview.Close()
 }
+
+// Exercise the public review path: only path-item-refs is enabled, and the
+// reviewer edits the replacement operation before validation.
+func TestRepairIntegrityEditedOperationSemantics(t *testing.T) {
+	const valid = `{"responses":{"200":{"description":"ok"}}}`
+	const duplicate = `{"parameters":[{"name":"id","in":"query","schema":{"type":"string"}},{"name":"id","in":"query","schema":{"type":"integer"}}],"responses":{"200":{"description":"ok"}}}`
+	const unused = `{"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"ok"}}}`
+	const undefined = `{"security":[{"Unknown":[]}],"responses":{"200":{"description":"ok"}}}`
+	for _, tc := range []struct {
+		name, value, existing, want string
+		skipCheck, skipResolve      bool
+	}{
+		{name: "duplicate parameters", value: duplicate, want: "operation parameter"},
+		{name: "unused path parameter", value: unused, want: "oasPathParam"},
+		{name: "undefined security scheme", value: undefined, want: "oasOpSecurityDefined"},
+		{name: "skip document check cannot bypass", value: undefined, want: "oasOpSecurityDefined", skipCheck: true},
+		{name: "skip resolve cannot bypass", value: undefined, want: "oasOpSecurityDefined", skipResolve: true},
+		{name: "undefined second security scheme", value: `{"security":[{"Known":[],"Unknown":[]}],"responses":{"200":{"description":"ok"}}}`, want: "oasOpSecurityDefined"},
+		{name: "defined security scheme", value: `{"security":[{"Known":[]}],"responses":{"200":{"description":"ok"}}}`},
+		{name: "valid replacement", value: valid},
+		{name: "existing duplicate parameters", value: valid, existing: duplicate},
+		{name: "existing unused path parameter", value: valid, existing: unused},
+		{name: "existing undefined security scheme", value: valid, existing: undefined},
+		{name: "existing defect does not permit another", value: duplicate, existing: duplicate, want: "operation parameter"},
+		{name: "same parameter name in different locations", value: `{"parameters":[{"name":"id","in":"query","schema":{"type":"string"}},{"name":"id","in":"header","schema":{"type":"integer"}}],"responses":{"200":{"description":"ok"}}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			extra := ""
+			if tc.existing != "" {
+				extra = `,"/existing":{"get":` + tc.existing + `}`
+			}
+			source := []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/pets":{"get":{"$ref":"#/paths/~1source/get"}},"/source":{"get":` + valid + `}` + extra + `},"components":{"securitySchemes":{"Known":{"type":"apiKey","name":"key","in":"header"}}}}`)
+			execution := &RuleSetExecution{Spec: source, SpecFileName: filepath.Join(t.TempDir(), "api.json"), SkipDocumentCheck: tc.skipCheck, SkipResolve: tc.skipResolve, SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"path-item-refs": rulesets.GetAllBuiltInRules()["path-item-refs"]}}}
+			review, err := NewFixReview(execution, nil)
+			require.NoError(t, err)
+			defer review.Close()
+			var choices []FixChoice
+			for _, option := range review.Options() {
+				if option.Available {
+					require.True(t, option.Editable)
+					choices = append(choices, FixChoice{Index: option.Index, Value: &tc.value})
+				}
+			}
+			require.Len(t, choices, 1)
+			preview, err := review.Preview(choices)
+			if tc.want != "" {
+				require.ErrorContains(t, err, tc.want)
+				require.Nil(t, preview)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, preview)
+				preview.Close()
+			}
+			require.Equal(t, source, execution.Spec)
+		})
+	}
+}
+
+func TestRepairIntegrityRequiresOpenAPISemanticModel(t *testing.T) {
+	execution := &RuleSetExecution{SpecFileName: "repair.json", Spec: []byte(integritySpec), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{}}}
+	result := ApplyRulesToRuleSet(execution)
+	defer result.ReleaseOwnedResources()
+	doctor := result.RuleSetExecution.DrDocument
+	require.NotNil(t, doctor)
+	result.RuleSetExecution.DrDocument = nil
+	_, err := repairIntegrityDefects(result)
+	result.RuleSetExecution.DrDocument = doctor
+	require.ErrorContains(t, err, "integrity Doctor model is unavailable")
+}
+
+func TestRepairIntegrityOAS2Security(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		t.Run(map[bool]string{false: "new undefined scheme", true: "existing undefined scheme"}[existing], func(t *testing.T) {
+			security := ""
+			if existing {
+				security = `,"security":[{"Unknown":[]}]`
+			}
+			execution := &RuleSetExecution{SpecFileName: "swagger.json", Spec: []byte(`{"swagger":"2.0","info":{"title":"Repair","version":"1"},"paths":{"/pets":{"get":{"responses":{"200":{"description":"ok"}}` + security + `}}},"securityDefinitions":{"Known":{"type":"apiKey","name":"key","in":"header"}}}`), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-description": rulesets.GetAllBuiltInRules()["info-description"]}}}
+			_, before, err := PlanFixes(execution, nil)
+			require.NoError(t, err)
+			defer before.ReleaseOwnedResources()
+			plan := repair.NewPlan(execution.SpecFileName, execution.Spec)
+			plan.Operations = []repair.Operation{{Op: "add", Path: "/info/description", Value: json.RawMessage(`"Repaired description"`)}}
+			if !existing {
+				plan.Operations = append(plan.Operations, repair.Operation{Op: "add", Path: "/paths/~1pets/get/security", Value: json.RawMessage(`[{"Known":[],"Unknown":[]}]`)})
+			}
+			checked, err := validatePreparedPlan(execution, plan, nil, before)
+			if existing {
+				require.NoError(t, err)
+				checked.Final.ReleaseOwnedResources()
+			} else {
+				require.ErrorContains(t, err, "oas2OpSecurityDefined")
+				require.Nil(t, checked)
+			}
+		})
+	}
+}
+
+func TestRepairIntegrityPreservesExternalParameterDefects(t *testing.T) {
+	for _, parameter := range []string{
+		`[{"name":"id","in":"query","schema":{"type":"string"}},{"name":"id","in":"query","schema":{"type":"string"}}]`,
+		`[{"name":"unused","in":"path","required":true,"schema":{"type":"string"}}]`,
+	} {
+		t.Run(parameter, func(t *testing.T) {
+			dir := t.TempDir()
+			external := filepath.Join(dir, "external.json")
+			require.NoError(t, os.WriteFile(external, []byte(`{"get":{"parameters":`+parameter+`,"responses":{"200":{"description":"ok"}}}}`), 0600))
+			execution := &RuleSetExecution{SpecFileName: filepath.Join(dir, "api.json"), Base: dir, AllowLookup: true, Spec: []byte(`{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/remote":{"$ref":"external.json"},"/pets":{"get":{"$ref":"#/paths/~1source/get"}},"/source":{"get":{"responses":{"200":{"description":"ok"}}}}}}`), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"path-item-refs": rulesets.GetAllBuiltInRules()["path-item-refs"]}}}
+			review, err := NewFixReview(execution, nil)
+			require.NoError(t, err)
+			defer review.Close()
+			require.NoError(t, os.Remove(external))
+			value := `{"responses":{"200":{"description":"ok"}}}`
+			var choices []FixChoice
+			for _, option := range review.Options() {
+				if option.Available {
+					choices = append(choices, FixChoice{Index: option.Index, Value: &value})
+				}
+			}
+			require.Len(t, choices, 1)
+			preview, err := review.Preview(choices)
+			require.NoError(t, err)
+			preview.Close()
+		})
+	}
+}

@@ -87,21 +87,23 @@ func (sd OAS2OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node
 			continue
 		}
 
-		name := securityItem.Content[0]
-		if name != nil {
+		for j := 0; j+1 < len(securityItem.Content); j += 2 {
+			name := securityItem.Content[j]
+			if name != nil {
 
-			// lookup in security definitions
-			lookup := fmt.Sprintf("#/securityDefinitions/%s", name.Value)
-			if securityDefinitions[lookup] == nil {
+				// lookup in security definitions
+				lookup := fmt.Sprintf("#/securityDefinitions/%s", name.Value)
+				if securityDefinitions[lookup] == nil {
 
-				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("Security definition points a non-existent "+
-						"securityDefinition '%s'", name.Value),
-					StartNode: startNode,
-					EndNode:   vacuumUtils.BuildEndNode(startNode),
-					Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
-					Rule:      context.Rule,
-				})
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("Security definition points a non-existent "+
+							"securityDefinition '%s'", name.Value),
+						StartNode: startNode,
+						EndNode:   vacuumUtils.BuildEndNode(startNode),
+						Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
+						Rule:      context.Rule,
+					})
+				}
 			}
 		}
 	}
