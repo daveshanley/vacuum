@@ -28,6 +28,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	highoverlay "github.com/pb33f/libopenapi/datamodel/high/overlay"
 	"github.com/pb33f/libopenapi/overlay"
+	libopenapiutils "github.com/pb33f/libopenapi/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -273,19 +274,19 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		return NewInputError("unable to prepare OpenAPI document: %s", applyErr)
 	}
 	defer result.OverlayDocument.Release()
+	specInfo := result.OverlayDocument.GetSpecInfo()
+	if specInfo == nil || specInfo.RootNode == nil {
+		err := errors.New("applied Overlay did not produce an OpenAPI document root")
+		renderApplyOverlayError(stdOut, err)
+		return NewInputError("%s", err)
+	}
+	root := specInfo.RootNode
 
 	var filterStats openapitransform.FilterStats
 	var pruneStats openapitransform.PruneStats
 	var transformWarnings []openapitransform.Warning
 	transformsEnabled := filterOptions.Enabled() || pruneUnused
 	if transformsEnabled {
-		specInfo := result.OverlayDocument.GetSpecInfo()
-		if specInfo == nil || specInfo.RootNode == nil {
-			transformErr := errors.New("applied Overlay did not produce an OpenAPI document root")
-			renderApplyOverlayError(stdOut, transformErr)
-			return NewInputError("%s", transformErr)
-		}
-		root := specInfo.RootNode
 		var transformErr error
 		filterStats, pruneStats, transformErr = openapitransform.Transform(root, result.OverlayDocument.GetVersion(), openapitransform.Options{
 			TagFilter:       filterOptions,
@@ -303,21 +304,36 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 				Message: "operation filtering kept zero operations",
 			})
 		}
-		result.Bytes, transformErr = yaml.Marshal(root)
-		if transformErr != nil {
-			renderApplyOverlayError(stdOut, transformErr)
-			return NewInputError("unable to render transformed OpenAPI document: %s", transformErr)
-		}
 	}
 
 	// Explicit output extensions take precedence over the input format.
-	jsonOutput := json.Valid(specBytes)
+	jsonInput := json.Valid(specBytes)
+	jsonOutput := jsonInput
 	if !stdOut {
 		switch strings.ToLower(filepath.Ext(outputPath)) {
 		case ".json":
 			jsonOutput = true
 		case ".yaml", ".yml":
 			jsonOutput = false
+		}
+	}
+	indent := 0
+	if !jsonInput && !jsonOutput {
+		// Read the original input: applying an overlay already re-encodes its document.
+		if detected := libopenapiutils.DetermineWhitespaceLengthBytes(specBytes); detected >= 2 && detected <= 9 {
+			indent = detected
+		}
+	}
+	if transformsEnabled || (indent > 0 && indent != specInfo.OriginalIndentation) {
+		options := []yaml.Option{yaml.WithV3Defaults(), yaml.WithLineWidth(-1)}
+		if indent > 0 {
+			options = append(options, yaml.WithIndent(indent))
+		}
+		var renderErr error
+		result.Bytes, renderErr = yaml.Dump(root, options...)
+		if renderErr != nil {
+			renderApplyOverlayError(stdOut, renderErr)
+			return NewInputError("unable to render OpenAPI document: %s", renderErr)
 		}
 	}
 	if jsonOutput {

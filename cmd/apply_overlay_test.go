@@ -140,7 +140,7 @@ func TestApplyOverlayInputOutputCombinations(t *testing.T) {
 	}
 }
 
-func TestApplyOverlayDefaultPathPreservesOverlayBytes(t *testing.T) {
+func TestApplyOverlayDefaultPathPreservesOverlayContent(t *testing.T) {
 	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	spec, err := os.ReadFile(filepath.Join(dir, "spec.yaml"))
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestApplyOverlayDefaultPathPreservesOverlayBytes(t *testing.T) {
 	require.NoError(t, err)
 	actual, err := os.ReadFile(output)
 	require.NoError(t, err)
-	assert.Equal(t, expected.Bytes, actual)
+	assert.Equal(t, normalizedYAML(t, expected.Bytes), normalizedYAML(t, actual))
 }
 
 func TestApplyOverlayTransformValidationAndAtomicErrors(t *testing.T) {
