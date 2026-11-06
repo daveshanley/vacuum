@@ -29,7 +29,7 @@ func TestRepairSourceColorsOnlyChangedLines(t *testing.T) {
 		{"separated edits", "a: old\nkeep: unchanged\nz: old", "a: new\nkeep: unchanged\nz: new", "keep: unchanged", "a: old", "a: new", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			rows, first := repairSourceRows(tc.before, tc.after, 100, tc.yaml)
+			rows, first := repairSourceRows(tc.before, tc.after, 100, tc.yaml, 0)
 			view := strings.Join(rows, "\n")
 			require.GreaterOrEqual(t, first, 0)
 			// Context stays on the same row in both panes, using the source view's syntax styles.
@@ -64,13 +64,14 @@ func TestRepairSourceColorsOnlyChangedLines(t *testing.T) {
 	}
 }
 
-func TestRepairSourceWrappedChangesAndNoColor(t *testing.T) {
-	blue, yellow, pink := color.RGBBlue, color.RGBYellow, color.RGBPink
-	t.Cleanup(func() { color.RGBBlue, color.RGBYellow, color.RGBPink = blue, yellow, pink })
-	color.RGBBlue, color.RGBYellow, color.RGBPink = lipgloss.NoColor{}, lipgloss.NoColor{}, lipgloss.NoColor{}
-	rows, first := repairSourceRows("existing", "existing\n"+strings.Repeat("long new value ", 20), 72, true)
+func TestRepairSourceLongLinesStayOnOneRowWithoutColor(t *testing.T) {
+	blue, yellow, pink, grey := color.RGBBlue, color.RGBYellow, color.RGBPink, color.RGBGrey
+	t.Cleanup(func() { color.RGBBlue, color.RGBYellow, color.RGBPink, color.RGBGrey = blue, yellow, pink, grey })
+	color.RGBBlue, color.RGBYellow, color.RGBPink, color.RGBGrey = lipgloss.NoColor{}, lipgloss.NoColor{}, lipgloss.NoColor{}, lipgloss.NoColor{}
+	rows, first := repairSourceRows("existing", "existing\n"+strings.Repeat("long new value ", 20), 72, true, 0)
 	require.Equal(t, 1, first)
-	require.Greater(t, len(rows), 4)
+	require.Len(t, rows, 2)
+	require.Contains(t, rows[1], "›")
 	for _, row := range rows {
 		require.Equal(t, row, ansi.Strip(row))
 		require.Equal(t, 70, lipgloss.Width(row))
@@ -95,7 +96,7 @@ func TestRepairSplitCompactMessageAndSingleGrayFooter(t *testing.T) {
 	}
 	require.Contains(t, plain, "Currently")
 	require.Contains(t, plain, "Autofixed")
-	require.Contains(t, view, lipgloss.NewStyle().Foreground(color.RGBGrey).Render("↑↓: fixes | enter: accept | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll"))
+	require.Contains(t, view, lipgloss.NewStyle().Foreground(color.RGBGrey).Render("↑↓: fixes | enter: accept | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"))
 	rows := strings.Split(plain, "\n")
 	require.Contains(t, rows[len(rows)-3], "┴")
 	require.Contains(t, rows[len(rows)-2], "enter: accept")

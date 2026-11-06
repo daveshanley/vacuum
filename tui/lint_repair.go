@@ -40,34 +40,36 @@ type RepairSaveOptions struct {
 }
 
 type dashboardRepair struct {
-	save          *repairSaveState
-	confirmImpact bool
-	diff          string
-	byIdentity    map[string]int
-	config        *RepairConfig
-	review        *motor.FixReview
-	options       []motor.FixOption
-	selected      map[int]bool
-	values        map[int]string
-	preview       *motor.FixPreview
-	pending       *repairPreviewJob
-	source        []byte
-	status        string
-	onlyFixes     bool
-	editing       bool
-	editIndex     int
-	input         textinput.Model
-	discovery     *repairDiscoveryJob
-	pulse         int
-	pulseID       int
-	draft         *motor.FixDraft
-	draftError    string
-	draftHeading  string
-	draftView     viewport.Model
-	editReturn    bool
-	automatic     int
-	suggested     int
-	needsInput    int
+	save            *repairSaveState
+	confirmImpact   bool
+	diff            string
+	byIdentity      map[string]int
+	config          *RepairConfig
+	review          *motor.FixReview
+	options         []motor.FixOption
+	selected        map[int]bool
+	values          map[int]string
+	preview         *motor.FixPreview
+	pending         *repairPreviewJob
+	source          []byte
+	status          string
+	onlyFixes       bool
+	editing         bool
+	editIndex       int
+	input           textinput.Model
+	discovery       *repairDiscoveryJob
+	pulse           int
+	pulseID         int
+	draft           *motor.FixDraft
+	draftError      string
+	draftHeading    string
+	draftView       viewport.Model
+	draftXOffset    int
+	draftMaxXOffset int
+	editReturn      bool
+	automatic       int
+	suggested       int
+	needsInput      int
 }
 
 // A command owns its result until the UI takes it. Cancellation also releases a
@@ -247,7 +249,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score) + " | " + repairImpactLabel(preview.Impact)
 		if r.save != nil && r.save.step == repairSaveVerifying {
 			r.save.step = repairSavePreview
+			r.save.view.SoftWrap = false
 			r.save.view.SetContent(r.diff)
+			r.save.view.SetXOffset(0)
 			r.save.view.GotoTop()
 			return true, nil
 		}
@@ -321,6 +325,16 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	}
 	if m.uiState.ActiveModal == ModalRepair {
 		switch key.String() {
+		case "left", "right":
+			step := 8
+			if key.String() == "left" {
+				step = -step
+			}
+			r.draftXOffset = max(0, min(r.draftMaxXOffset, r.draftXOffset+step))
+			y := r.draftView.YOffset()
+			m.setRepairDraftContent()
+			r.draftView.SetYOffset(y)
+			return true, nil
 		case "up", "down", "k", "j":
 			if r.pending != nil {
 				return true, nil

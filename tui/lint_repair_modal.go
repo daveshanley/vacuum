@@ -109,6 +109,7 @@ func (m *ViolationResultTableModel) openRepairDetail() {
 		choice.Value = &value
 	}
 	r.draft, r.draftError = nil, ""
+	r.draftXOffset = 0
 	draft, err := r.review.Draft(choice)
 	if err != nil {
 		r.draftError = err.Error()
@@ -162,7 +163,9 @@ func (m *ViolationResultTableModel) setRepairDraftContent() {
 	if r.draft.NeedsValue {
 		afterText = "Value cleared. Press e to edit."
 	}
-	rows, target := repairSourceRows(r.draft.Before, afterText, width, !json.Valid(m.specContent))
+	r.draftMaxXOffset = repairSourceMaxOffset(r.draft.Before, afterText, width)
+	r.draftXOffset = min(r.draftXOffset, r.draftMaxXOffset)
+	rows, target := repairSourceRows(r.draft.Before, afterText, width, !json.Valid(m.specContent), r.draftXOffset)
 	for len(rows) < r.draftView.Height() {
 		rows = append(rows, repairColumnRow("", "", width))
 	}
@@ -217,9 +220,9 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 			accept = "enter: deselect"
 		}
 	}
-	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll"
+	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"
 	if ansi.StringWidth(controls) > width-4 {
-		controls = "↑↓: fix | enter: set | e: edit | a: save | pgup/dn: pan | esc: back"
+		controls = "↑↓: fix | enter: set | e: edit | a: save | ←→: pan | esc: back"
 	}
 	lines = append(lines, edge("├", "┴", "┤"), full(lipgloss.NewStyle().Foreground(color.RGBGrey).Render(controls)), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
 	return lipgloss.NewStyle().MaxWidth(width).MaxHeight(height).Render(strings.Join(lines, "\n"))
