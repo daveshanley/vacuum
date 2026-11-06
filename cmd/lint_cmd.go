@@ -68,7 +68,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().Bool("github-annotations", false, "Emit GitHub Actions file annotation lines; can be combined with --pipeline-output")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
-	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
+	cmd.Flags().Bool("fix", false, "Review and apply supported fixes")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
 	cmd.Flags().BoolP("abs-paths", "", false, "If --details(-d) flag is active then output absolute paths")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags

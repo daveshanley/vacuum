@@ -209,6 +209,7 @@ func TestDashboardRepairPendingVerificationDoesNotBlockModalKeys(t *testing.T) {
 	m.adoptRepairReview(review)
 	m.repair.onlyFixes = true
 	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
 	blocker.enabled.Store(true)
 	preview := repairKey(m, 'v', "v")
 	require.NotNil(t, preview)

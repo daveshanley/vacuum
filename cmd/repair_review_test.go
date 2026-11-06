@@ -1,0 +1,185 @@
+package cmd
+
+import (
+	"bytes"
+	"errors"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/pb33f/testify/require"
+)
+
+func TestConsoleRepairRequiresExactImpactAcceptance(t *testing.T) {
+	for _, tc := range []struct {
+		status   motor.RepairImpactStatus
+		answer   string
+		accepted bool
+	}{
+		{motor.RepairImpactNoBreaking, "yes\n", true},
+		{motor.RepairImpactNoBreaking, "\n", false},
+		{motor.RepairImpactBreaking, "yes\n", false},
+		{motor.RepairImpactBreaking, "accept breaking changes\n", true},
+		{motor.RepairImpactUnknown, "yes\n", false},
+		{motor.RepairImpactUnknown, "accept unknown impact\n", true},
+	} {
+		t.Run(string(tc.status)+tc.answer, func(t *testing.T) {
+			var out bytes.Buffer
+			p := &motor.FixPreview{Candidate: []byte("name: new\n"), Fixed: 1, Impact: motor.RepairImpact{Status: tc.status, Reason: "unsupported format"}}
+			accepted, err := reviewCLIRepair(strings.NewReader(tc.answer), &out, true, false, "api.yaml", []byte("name: old\n"), p)
+			require.NoError(t, err)
+			require.Equal(t, tc.accepted, accepted)
+			require.Contains(t, out.String(), "--- original")
+			require.Contains(t, out.String(), "name: new")
+			require.Less(t, strings.Index(out.String(), "name: new"), strings.Index(out.String(), "Type "))
+		})
+	}
+}
+
+func TestConsoleRepairCannotAcceptWithoutReview(t *testing.T) {
+	preview := &motor.FixPreview{Candidate: []byte("{}"), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+	var output bytes.Buffer
+	accepted, err := reviewCLIRepair(strings.NewReader("yes\n"), &output, false, false, "api.json", []byte("{}"), preview)
+	require.ErrorContains(t, err, "require terminal review")
+	require.False(t, accepted)
+	accepted, err = reviewCLIRepair(errorReader{}, &output, false, true, "api.json", []byte("{}"), preview)
+	require.NoError(t, err, "dry run must not read stdin")
+	require.False(t, accepted)
+	accepted, err = reviewCLIRepair(strings.NewReader("yes\n"), errorWriter{}, true, false, "api.json", []byte("{}"), preview)
+	require.ErrorContains(t, err, "cannot display fix review")
+	require.False(t, accepted)
+	accepted, err = reviewCLIRepair(strings.NewReader("yes\n"), shortReviewWriter{}, true, false, "api.json", []byte("{}"), preview)
+	require.ErrorContains(t, err, "short write")
+	require.False(t, accepted)
+	accepted, err = reviewCLIRepair(strings.NewReader("yes"), &output, true, false, "api.json", []byte("{}"), preview)
+	require.Error(t, err, "EOF without submitted line is not acceptance")
+	require.False(t, accepted)
+}
+
+type errorReader struct{}
+
+func (errorReader) Read([]byte) (int, error) { return 0, errors.New("must not read") }
+
+type errorWriter struct{}
+
+func (errorWriter) Write([]byte) (int, error) { return 0, errors.New("display failed") }
+
+func TestReviewedCLIRepairAcceptsExactCandidate(t *testing.T) {
+	original := []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat"]}}}}`)
+	for _, answer := range []string{"all\nyes\n", "all\n\n"} {
+		t.Run(answer, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "api.json")
+			require.NoError(t, os.WriteFile(path, original, 0600))
+			execution := &motor.RuleSetExecution{Spec: original, SpecFileName: path, SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"duplicated-entry-in-enum": rulesets.GetAllBuiltInRules()["duplicated-entry-in-enum"]}}}
+			var output bytes.Buffer
+			result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true}, nil, strings.NewReader(answer), &output, true)
+			defer result.ReleaseOwnedResources()
+			require.Empty(t, result.Errors)
+			require.Contains(t, output.String(), "No breaking changes detected")
+			saved, err := os.ReadFile(path)
+			require.NoError(t, err)
+			require.Equal(t, original, saved, "review does not write")
+			if answer == "all\nyes\n" {
+				require.NotEmpty(t, result.ModifiedSpec)
+				require.Len(t, result.FixedResults, 1)
+				require.NoError(t, writeFixedFile(result, path, ""))
+				saved, err = os.ReadFile(path)
+				require.NoError(t, err)
+				require.Equal(t, result.ModifiedSpec, saved)
+			} else {
+				require.Empty(t, result.ModifiedSpec)
+			}
+		})
+	}
+}
+
+func TestConsoleRepairSelectionRejectsUnknownAndDuplicateNumbers(t *testing.T) {
+	options := []motor.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "rule", Path: "$.info"}}}
+	for _, answer := range []string{"1\n", "3 3\n", "yes\n"} {
+		_, err := selectCLIRepairs(strings.NewReader(answer), &bytes.Buffer{}, options)
+		require.Error(t, err)
+	}
+	choices, err := selectCLIRepairs(strings.NewReader("3\n"), &bytes.Buffer{}, options)
+	require.NoError(t, err)
+	require.Equal(t, []motor.FixChoice{{Index: 2}}, choices)
+}
+
+type shortReviewWriter struct{}
+
+func (shortReviewWriter) Write(data []byte) (int, error) { return len(data) - 1, nil }
+
+func TestReviewedCLIAllDeclinesConflictingFixesWithoutWrites(t *testing.T) {
+	original := []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat"]}}}}`)
+	path := filepath.Join(t.TempDir(), "api.json")
+	require.NoError(t, os.WriteFile(path, original, 0600))
+	builtins := rulesets.GetAllBuiltInRules()
+	execution := &motor.RuleSetExecution{Spec: original, SpecFileName: path, SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"duplicated-entry-in-enum": builtins["duplicated-entry-in-enum"], "oas3-unused-component": builtins["oas3-unused-component"]}}}
+	var output bytes.Buffer
+	result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true}, nil, strings.NewReader("all\nyes\n"), &output, true)
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Empty(t, result.ModifiedSpec)
+	require.NotEmpty(t, result.RepairWarnings)
+	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "repairs declined")
+	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "together")
+	require.NotContains(t, output.String(), "Type ", "invalid selection must not reach acceptance")
+	require.Len(t, result.Results, 2, "both original findings must remain")
+	saved, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
+}
+
+func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
+	for _, tc := range []struct{ name, original, candidate string }{
+		{"separated", "first: old\n" + strings.Repeat("same: value\n", 300) + "last: old\n", "first: new\n" + strings.Repeat("same: value\n", 300) + "last: new\n"},
+		{"long-json", `{"padding":"` + strings.Repeat("a", 10000) + `","last":"old"}`, `{"padding":"` + strings.Repeat("a", 10000) + `","last":"new"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			preview := &motor.FixPreview{Candidate: []byte(tc.candidate), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+			accepted, err := reviewCLIRepair(strings.NewReader("yes\n"), &output, true, false, "api.yaml", []byte(tc.original), preview)
+			require.NoError(t, err)
+			require.True(t, accepted)
+			if tc.name == "separated" {
+				require.Contains(t, output.String(), "-last: old\n")
+				require.Contains(t, output.String(), "+last: new\n")
+			} else {
+				require.Contains(t, output.String(), "-"+tc.original)
+				require.Contains(t, output.String(), "+"+tc.candidate)
+			}
+			require.NotContains(t, output.String(), "omitted")
+			require.NotContains(t, output.String(), "truncated")
+			require.Greater(t, strings.Index(output.String(), "Type "), strings.LastIndex(output.String(), "last"))
+		})
+	}
+}
+
+func TestConsoleAcceptanceStopsWhenFullDiffCannotBeWritten(t *testing.T) {
+	preview := &motor.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 1000)), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+	output := &limitedReviewWriter{remaining: 250}
+	accepted, err := reviewCLIRepair(errorReader{}, output, true, false, "api.yaml", []byte(strings.Repeat("old: value\n", 1000)), preview)
+	require.ErrorContains(t, err, "cannot display fix review")
+	require.False(t, accepted)
+	require.Contains(t, output.String(), "--- original")
+	require.NotContains(t, output.String(), "Type ")
+}
+
+type limitedReviewWriter struct {
+	bytes.Buffer
+	remaining int
+}
+
+func (w *limitedReviewWriter) Write(data []byte) (int, error) {
+	if len(data) > w.remaining {
+		n, _ := w.Buffer.Write(data[:w.remaining])
+		w.remaining = 0
+		return n, errors.New("display disconnected")
+	}
+	w.remaining -= len(data)
+	return w.Buffer.Write(data)
+}
+func (w *limitedReviewWriter) WriteString(text string) (int, error) { return w.Write([]byte(text)) }
