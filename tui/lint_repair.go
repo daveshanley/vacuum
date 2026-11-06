@@ -288,6 +288,23 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	}
 	if m.uiState.ActiveModal == ModalRepair {
 		switch key.String() {
+		case "up", "down", "k", "j":
+			if r.pending != nil {
+				return true, nil
+			}
+			direction := 1
+			if key.String() == "up" || key.String() == "k" {
+				direction = -1
+			}
+			for i := m.table.Cursor() + direction; i >= 0 && i < len(m.filteredResults); i += direction {
+				if o := m.repairOption(m.filteredResults[i]); o != nil && (o.Reason == "" || o.Editable) {
+					m.table.SetCursor(i)
+					m.UpdateDetailsViewContent()
+					m.openRepairDetail()
+					break
+				}
+			}
+			return true, nil
 		case "esc", "q":
 			m.CloseActiveModal()
 			return true, nil
