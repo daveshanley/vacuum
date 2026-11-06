@@ -1075,7 +1075,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 		Name:         "Check operation security",
 		Id:           Oas3OperationSecurityDefined,
 		Formats:      model.OAS3AllFormat,
-		Description:  "`security` values must match a scheme defined in components.securitySchemes",
+		Description:  "`security` requirements must identify a declared security scheme",
 		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,

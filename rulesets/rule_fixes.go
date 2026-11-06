@@ -137,8 +137,8 @@ const (
 	oas3UnusedComponentFix string = "Orphaned components are not used by anything. You might have plans to use them later, " +
 		"or they could be older schemas that never got cleaned up. A clean spec is a happy spec. Prune your orphaned components."
 
-	oas3SecurityDefinedFix string = "When defining security values for operations, you need to ensure they match the globally " +
-		"defined security schemes. Check $.components.securitySchemes to make sure your values align."
+	oas3SecurityDefinedFix string = "Use a declared security scheme name. In OpenAPI 3.2, a local URI such as " +
+		"#/components/securitySchemes/ApiKey can also identify a scheme in the document containing the requirement."
 
 	oas2SecurityDefinedFix string = "When defining security definitions for operations, you need to ensure they match the globally " +
 		"defined security schemes. Check $.securityDefinitions to make sure your values align."
