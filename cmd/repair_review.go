@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/repair"
 	"github.com/daveshanley/vacuum/utils"
@@ -95,42 +96,54 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 	if preview == nil {
 		return false, fmt.Errorf("verified fix preview is unavailable")
 	}
+	console := newRepairConsole(output)
 	var display strings.Builder
-	fmt.Fprintf(&display, "\nReview fixes: %s\n%d fixes; %d findings remain. No files written.\n", source, preview.Fixed, len(preview.Results))
+	display.WriteString(console.heading("Review fixes: " + source))
+	display.WriteString(console.paint(color.ASCIIYellow, fmt.Sprintf(" %d fixes; %d findings remain.", preview.Fixed, len(preview.Results))))
+	display.WriteString(console.paint(color.ASCIIGrey, " No files written.\n\n"))
 	if err := writeRepairReview(output, display.String()); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
 	}
 	display.Reset()
+	diffBuffer := bufio.NewWriter(repairConsoleCheckedWriter{output})
+	diffOutput := &repairConsoleDiffWriter{output: diffBuffer, console: console}
 	if dryRun {
-		display.WriteString(utils.RepairDiff(original, preview.Candidate))
-	} else if err := utils.WriteRepairDiff(output, original, preview.Candidate); err != nil {
+		if err := writeRepairReview(diffOutput, utils.RepairDiff(original, preview.Candidate)); err != nil {
+			return false, fmt.Errorf("cannot display fix review: %w", err)
+		}
+	} else if err := utils.WriteRepairDiff(diffOutput, original, preview.Candidate); err != nil {
+		return false, fmt.Errorf("cannot display fix review: %w", err)
+	}
+	if err := diffBuffer.Flush(); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
 	}
 	phrase := "yes"
 	switch preview.Impact.Status {
 	case motor.RepairImpactNoBreaking:
-		display.WriteString("\nNo breaking changes detected.\n")
+		display.WriteString(console.paint(color.ASCIIGreen, "\n No breaking changes detected.\n"))
 	case motor.RepairImpactBreaking:
-		fmt.Fprintf(&display, "\nBreaking changes detected: %d\n", preview.Impact.BreakingChanges)
+		display.WriteString(console.paint(color.ASCIIRed, fmt.Sprintf("\n Breaking changes detected: %d\n", preview.Impact.BreakingChanges)))
 		phrase = "accept breaking changes"
 	default:
-		fmt.Fprintf(&display, "\nContract impact unknown: %s\n", preview.Impact.Reason)
+		display.WriteString(console.paint(color.ASCIIYellow, fmt.Sprintf("\n Contract impact unknown: %s\n", repairConsoleText(preview.Impact.Reason))))
 		phrase = "accept unknown impact"
 	}
 	for _, change := range preview.Impact.Changes {
 		if change == nil || !change.Breaking {
 			continue
 		}
-		fmt.Fprintf(&display, "  %s: %q -> %q", change.Property, change.Original, change.New)
+		fmt.Fprintf(&display, "  %s: %q -> %q", repairConsoleText(change.Property), change.Original, change.New)
 		if change.Context != nil && change.Context.OriginalLine != nil {
 			fmt.Fprintf(&display, " (original line %d)", *change.Context.OriginalLine)
 		}
 		display.WriteByte('\n')
 	}
 	if dryRun {
-		display.WriteString("Preview only. No files written.\n")
+		display.WriteString(console.paint(color.ASCIIGrey, " Preview only. No files written.\n"))
 	} else if interactive {
-		fmt.Fprintf(&display, "Type %q to apply these changes. Press Enter to cancel: ", phrase)
+		display.WriteString(console.paint(color.ASCIIPink, " "+strings.Repeat("─", max(1, console.width-2))+"\n"))
+		display.WriteString(console.paint(color.ASCIIGrey, fmt.Sprintf(" Type %q to apply these changes | enter: cancel\n", phrase)))
+		display.WriteString(console.paint(color.ASCIIYellow, " > "))
 	}
 	if err := writeRepairReview(output, display.String()); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
@@ -146,7 +159,7 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 		return false, fmt.Errorf("fix review was not accepted: %w; no files written", err)
 	}
 	if strings.TrimSpace(answer) != phrase {
-		if _, err := io.WriteString(output, "Canceled. No files written.\n"); err != nil {
+		if err := writeRepairReview(output, console.paint(color.ASCIIGrey, " Canceled. No files written.\n")); err != nil {
 			return false, err
 		}
 		return false, nil
@@ -174,8 +187,7 @@ func readRepairAnswer(input io.Reader) (string, error) {
 }
 
 func selectCLIRepairs(input io.Reader, output io.Writer, options []motor.FixOption) ([]motor.FixChoice, error) {
-	var display strings.Builder
-	display.WriteString("\nAvailable fixes:\n")
+	console := newRepairConsole(output)
 	available := make(map[int]bool)
 	var all []motor.FixChoice
 	for _, option := range options {
@@ -184,10 +196,8 @@ func selectCLIRepairs(input io.Reader, output io.Writer, options []motor.FixOpti
 		}
 		available[option.Index+1] = true
 		all = append(all, motor.FixChoice{Index: option.Index})
-		fmt.Fprintf(&display, "  %d: %s at %s\n", option.Index+1, option.Result.RuleId, option.Result.Path)
 	}
-	display.WriteString("Enter fix numbers separated by spaces, or all. Press Enter to cancel: ")
-	if err := writeRepairReview(output, display.String()); err != nil {
+	if err := writeRepairReview(output, console.options(options)); err != nil {
 		return nil, err
 	}
 	answer, err := readRepairAnswer(input)
