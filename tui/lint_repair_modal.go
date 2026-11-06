@@ -84,6 +84,10 @@ func (m *ViolationResultTableModel) resizeRepairModal() {
 	m.repair.input.SetWidth(max(1, width-8))
 	m.repair.draftView.SetWidth(max(1, width-2))
 	m.repair.draftView.SetHeight(m.repairBodyHeight(width, height))
+	if m.repair.save != nil {
+		m.repair.save.input.SetWidth(max(1, width-8))
+		m.repair.save.view.SetWidth(max(1, width-4))
+	}
 	m.setRepairDraftContent()
 }
 func (m *ViolationResultTableModel) openRepairDetail() {
@@ -210,9 +214,9 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 			accept = "enter: deselect"
 		}
 	}
-	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | esc: back | pgup/pgdn: scroll"
+	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll"
 	if ansi.StringWidth(controls) > width-4 {
-		controls = "↑↓: fix | enter: set | e: edit | v: check | pgup/dn: pan | esc: back"
+		controls = "↑↓: fix | enter: set | e: edit | a: save | pgup/dn: pan | esc: back"
 	}
 	lines = append(lines, edge("├", "┴", "┤"), full(lipgloss.NewStyle().Foreground(color.RGBGrey).Render(controls)), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
 	return lipgloss.NewStyle().MaxWidth(width).MaxHeight(height).Render(strings.Join(lines, "\n"))

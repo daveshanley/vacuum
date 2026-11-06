@@ -20,13 +20,27 @@ import (
 // RepairConfig connects dashboard review to the command's lint settings and
 // source-checked writer. Write must reject a changed original source.
 type RepairConfig struct {
-	Open  func(source []byte) (*motor.FixReview, error)
-	Write func(original, candidate []byte) error
+	SourcePath string
+	Open       func(source []byte) (*motor.FixReview, error)
+	Write      func(original, candidate []byte) error
+	// PreviewOutput verifies the selected fixes and the requested output options.
+	PreviewOutput func(review *motor.FixReview, choices []motor.FixChoice, save RepairSaveOptions) (*motor.FixPreview, error)
+	// Save publishes the exact preview bytes. A nonempty OutputPath creates a new
+	// file and must never replace an existing destination.
+	Save func(original, candidate []byte, save RepairSaveOptions) error
 	// Reload accepts the effective rules and ignores after a successful watcher lint.
 	Reload func(*rulesets.RuleSet, model.IgnoredItems)
 }
 
+// RepairSaveOptions describes where and how a reviewed specification is saved.
+// An empty OutputPath updates the source; a nonempty path creates a new file.
+type RepairSaveOptions struct {
+	OutputPath string
+	BundleMode string
+}
+
 type dashboardRepair struct {
+	save          *repairSaveState
 	confirmImpact bool
 	diff          string
 	byIdentity    map[string]int
@@ -109,6 +123,7 @@ func (r *dashboardRepair) invalidate() {
 }
 func (r *dashboardRepair) close() {
 	r.invalidate()
+	r.save = nil
 	r.pulseID++
 	r.pulse = 0
 	r.automatic, r.suggested, r.needsInput = 0, 0, 0
@@ -215,6 +230,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		preview, err := done.job.take()
 		if err != nil {
 			r.status = "Preview failed: " + err.Error()
+			if r.save != nil && r.save.step == repairSaveVerifying {
+				r.save.fail(r.status, repairSaveBundle)
+			}
 			return true, nil
 		}
 		if preview == nil {
@@ -227,12 +245,21 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		_ = utils.WriteRepairDiff(&diff, r.source, preview.Candidate)
 		r.diff = repairImpactDetails(preview.Impact) + "\n" + diff.String()
 		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score) + " | " + repairImpactLabel(preview.Impact)
+		if r.save != nil && r.save.step == repairSaveVerifying {
+			r.save.step = repairSavePreview
+			r.save.view.SetContent(r.diff)
+			r.save.view.GotoTop()
+			return true, nil
+		}
 		if m.uiState.ViewMode != ViewModeTableWithSplit {
 			m.ToggleSplitView()
 		}
 		m.UpdateDetailsViewContent()
 		m.table.SetHeight(max(MinTableHeight, m.height-SplitViewHeight-SplitViewMargin))
 		return true, nil
+	}
+	if m.uiState.ActiveModal == ModalRepairSave {
+		return m.handleRepairSave(msg)
 	}
 	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
@@ -274,7 +301,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.editing = false
 			r.input.Blur()
 			r.invalidate()
-			r.status = "Value saved for review · v preview before applying"
+			r.status = "Value saved for review · a to save · v to preview"
 			m.refreshRepairRows()
 			m.finishRepairEdit()
 			return true, nil
@@ -381,7 +408,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		if o := m.currentRepairOption(); o != nil && (o.Reason == "" || o.Editable) {
 			r.selected[o.Index] = !r.selected[o.Index]
 			r.invalidate()
-			r.status = "Selection changed · v preview before applying"
+			r.status = "Selection changed · a to save · v to preview"
 			m.refreshRepairRows()
 		}
 		return true, nil
@@ -422,17 +449,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		if r.review == nil {
 			return true, nil
 		}
-		var choices []motor.FixChoice
-		for _, o := range r.options {
-			if r.selected[o.Index] {
-				choice := motor.FixChoice{Index: o.Index}
-				if o.Editable {
-					v := r.values[o.Index]
-					choice.Value = &v
-				}
-				choices = append(choices, choice)
-			}
-		}
+		choices := r.selectedChoices()
 		if len(choices) == 0 {
 			r.status = "Select a fix or enter a value first"
 			return true, nil
@@ -444,50 +461,54 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		r.status = "Verifying selected fixes · no files written"
 		return true, func() tea.Msg { p, err := review.Preview(choices); job.finish(p, err); return repairPreviewMsg{job} }
 	case "a":
-		if r.preview == nil || r.source == nil {
-			r.status = "Preview the current selection before applying"
-			return true, nil
-		}
-		if r.config.Write == nil {
-			r.status = "This source is read-only"
-			return true, nil
-		}
-		p := r.preview
-		if p.Impact.Status != motor.RepairImpactNoBreaking && !r.confirmImpact {
-			r.confirmImpact = true
-			r.status = repairImpactLabel(p.Impact) + " | a: accept impact and apply | esc: cancel"
-			return true, nil
-		}
-		if err := r.config.Write(r.source, p.Candidate); err != nil {
-			r.status = "Apply failed: " + err.Error()
-			return true, nil
-		}
-		// Retain final nodes until a subsequent review or quit releases the preview.
-		m.allResults = p.Results
-		m.specContent = append([]byte(nil), p.Candidate...)
-		r.onlyFixes = false
-		m.uiState.FilterState = FilterAll
-		m.uiState.CategoryFilter = ""
-		m.uiState.RuleFilter = ""
-		m.categories = extractCategories(m.allResults)
-		m.rules = extractRules(m.allResults)
-		m.ApplyFilter()
-		m.UpdateDetailsViewContent()
-		r.status = fmt.Sprintf("APPLIED: %d fixes · %d remain · E %d→%d W %d→%d · score %d→%d", p.Fixed, len(p.Results), p.Before.Errors, p.After.Errors, p.Before.Warnings, p.After.Warnings, p.Before.Score, p.After.Score)
-		// Keep the completed preview as the owner of displayed results, but prevent
-		// applying it again. A new review will release both old owners.
-		r.options = nil
-		r.selected = nil
-		r.source = nil
-		r.diff = ""
-		old := r.review
-		r.review = nil
-		if old != nil {
-			go old.Close()
-		}
+		m.openRepairSave()
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *dashboardRepair) selectedChoices() []motor.FixChoice {
+	var choices []motor.FixChoice
+	for _, option := range r.options {
+		if r.selected[option.Index] {
+			choice := motor.FixChoice{Index: option.Index}
+			if option.Editable {
+				value := r.values[option.Index]
+				choice.Value = &value
+			}
+			choices = append(choices, choice)
+		}
+	}
+	return choices
+}
+
+// adoptSavedRepair refreshes the source dashboard only after an in-place save.
+func (m *ViolationResultTableModel) adoptSavedRepair() {
+	r := m.repair
+	p := r.preview
+	// Retain final nodes until a subsequent review or quit releases the preview.
+	m.allResults = p.Results
+	m.specContent = append([]byte(nil), p.Candidate...)
+	r.onlyFixes = false
+	m.uiState.FilterState = FilterAll
+	m.uiState.CategoryFilter = ""
+	m.uiState.RuleFilter = ""
+	m.categories = extractCategories(m.allResults)
+	m.rules = extractRules(m.allResults)
+	m.ApplyFilter()
+	m.UpdateDetailsViewContent()
+	r.status = fmt.Sprintf("APPLIED: %d fixes · %d remain · E %d→%d W %d→%d · score %d→%d", p.Fixed, len(p.Results), p.Before.Errors, p.After.Errors, p.Before.Warnings, p.After.Warnings, p.Before.Score, p.After.Score)
+	// Keep the completed preview as the owner of displayed results, but prevent
+	// applying it again. A new review will release both old owners.
+	r.options = nil
+	r.selected = nil
+	r.source = nil
+	r.diff = ""
+	old := r.review
+	r.review = nil
+	if old != nil {
+		go old.Close()
+	}
 }
 func (m *ViolationResultTableModel) repairDetails() string {
 	r := m.repair

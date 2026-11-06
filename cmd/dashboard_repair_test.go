@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/pb33f/testify/require"
 )
 
@@ -56,7 +58,127 @@ func TestDashboardRepairReadOnlyInputs(t *testing.T) {
 		_, err := config.Open(nil)
 		require.Error(t, err)
 		require.Error(t, config.Write(nil, []byte("changed")))
+		require.Error(t, config.Save(nil, []byte("changed"), tui.RepairSaveOptions{}))
+		_, err = config.PreviewOutput(nil, nil, tui.RepairSaveOptions{})
+		require.Error(t, err)
 	}
+}
+
+func TestDashboardRepairSaveReviewedOutput(t *testing.T) {
+	for _, tc := range []struct {
+		name, output string
+		jsonOutput   bool
+	}{
+		{name: "update"},
+		{name: "json copy", output: "fixed.JSON", jsonOutput: true},
+		{name: "yaml copy", output: "fixed.yml"},
+		{name: "preserve custom extension", output: "fixed.openapi"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config, review, choices, source := dashboardRepairSaveFixture(t)
+			save := tui.RepairSaveOptions{OutputPath: tc.output, BundleMode: "keep"}
+			preview, err := config.PreviewOutput(review, choices, save)
+			require.NoError(t, err)
+			defer preview.Close()
+			require.Equal(t, 1, preview.Fixed)
+			require.Equal(t, tc.jsonOutput, json.Valid(preview.Candidate))
+			target := config.SourcePath
+			if tc.output != "" {
+				target = filepath.Join(filepath.Dir(config.SourcePath), tc.output)
+				_, err = os.Lstat(target)
+				require.True(t, os.IsNotExist(err), "preview must not write a file")
+			}
+			actual, err := os.ReadFile(config.SourcePath)
+			require.NoError(t, err)
+			require.Equal(t, source, actual)
+			require.NoError(t, config.Save(source, preview.Candidate, save))
+			actual, err = os.ReadFile(target)
+			require.NoError(t, err)
+			require.Equal(t, preview.Candidate, actual)
+			if tc.output != "" {
+				actual, err = os.ReadFile(config.SourcePath)
+				require.NoError(t, err)
+				require.Equal(t, source, actual, "copy must preserve the source")
+			}
+		})
+	}
+}
+
+func TestDashboardRepairCopyChecksSourceAndLateDestination(t *testing.T) {
+	for _, stale := range []bool{false, true} {
+		t.Run(map[bool]string{false: "late destination", true: "changed source"}[stale], func(t *testing.T) {
+			config, review, choices, source := dashboardRepairSaveFixture(t)
+			save := tui.RepairSaveOptions{OutputPath: "fixed.yaml"}
+			preview, err := config.PreviewOutput(review, choices, save)
+			require.NoError(t, err)
+			defer preview.Close()
+			target := filepath.Join(filepath.Dir(config.SourcePath), save.OutputPath)
+			external := []byte("external edit")
+			if stale {
+				require.NoError(t, os.WriteFile(config.SourcePath, external, 0600))
+			} else {
+				require.NoError(t, os.WriteFile(target, external, 0600))
+			}
+			require.Error(t, config.Save(source, preview.Candidate, save))
+			actual, err := os.ReadFile(target)
+			if stale {
+				require.True(t, os.IsNotExist(err))
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, external, actual)
+			}
+		})
+	}
+}
+
+func TestDashboardRepairOutputPathValidation(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "api.yaml")
+	require.NoError(t, os.WriteFile(source, []byte("source"), 0600))
+	for _, name := range []string{"existing.yaml", "linked.yaml", "symlink.yaml"} {
+		path := filepath.Join(dir, name)
+		switch name {
+		case "linked.yaml":
+			require.NoError(t, os.Link(source, path))
+		case "symlink.yaml":
+			require.NoError(t, os.Symlink(source, path))
+		default:
+			require.NoError(t, os.WriteFile(path, []byte("keep"), 0600))
+		}
+		_, err := dashboardRepairOutputPath(source, name)
+		require.Error(t, err)
+	}
+	for _, name := range []string{"api.yaml", source, "  ", "missing/fixed.yaml"} {
+		_, err := dashboardRepairOutputPath(source, name)
+		require.Error(t, err)
+	}
+	output, err := dashboardRepairOutputPath(source, "./fixed.yaml")
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(dir, "fixed.yaml"), output)
+	output, err = dashboardRepairOutputPath(source, "")
+	require.NoError(t, err)
+	require.Empty(t, output)
+}
+
+func dashboardRepairSaveFixture(t *testing.T) (*tui.RepairConfig, *motor.FixReview, []motor.FixChoice, []byte) {
+	t.Helper()
+	source := []byte("openapi: 3.1.0\ninfo:\n  title: Test\n  version: '1'\npaths: {}\ncomponents:\n  schemas:\n    Pet:\n      type: string\n      enum: [a, a]\n")
+	path := filepath.Join(t.TempDir(), "api.yaml")
+	require.NoError(t, os.WriteFile(path, source, 0600))
+	execution := &motor.RuleSetExecution{Spec: source, SpecFileName: path, SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"duplicated-entry-in-enum": rulesets.GetAllBuiltInRules()["duplicated-entry-in-enum"]}}}
+	config := dashboardRepairConfig(path, execution, nil, nil, "")
+	require.Equal(t, path, config.SourcePath)
+	review, err := config.Open(source)
+	require.NoError(t, err)
+	t.Cleanup(review.Close)
+	var choices []motor.FixChoice
+	for _, option := range review.Options() {
+		if option.Available {
+			choices = append(choices, motor.FixChoice{Index: option.Index})
+		}
+	}
+	require.Len(t, choices, 1)
+	return config, review, choices, source
 }
 
 func TestDashboardRepairReloadUsesCurrentRulesAndIgnores(t *testing.T) {
