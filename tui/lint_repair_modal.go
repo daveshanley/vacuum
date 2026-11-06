@@ -220,7 +220,7 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 			accept = "enter: deselect"
 		}
 	}
-	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"
+	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify fix | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"
 	if ansi.StringWidth(controls) > width-4 {
 		controls = "↑↓: fix | enter: set | e: edit | a: save | ←→: pan | esc: back"
 	}

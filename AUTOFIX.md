@@ -61,7 +61,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | Page Up / Page Down | Scroll the current comparison |
 | ← / → | Pan long source lines horizontally |
 | `e` | Open the value editor modal |
-| `v` | Verify selected edits in memory and open the full change view |
+| `v` | Verify the displayed proposal, or selected fixes from the list, and open the change view |
 | `x` | Open the code view or expand the verified preview |
 | `[` / `]` | Move between changes in a verified preview |
 | `t` | Switch between the change view and complete file diff |
@@ -81,6 +81,12 @@ The verified save diff also scrolls horizontally instead of wrapping source line
 comparison, with one pipe-separated control row. The proposal uses formatted
 excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` for a preview without saving, or press `a` to start the save flow.
+In Currently / Autofixed, `v` verifies only the displayed proposal, including
+your edited value. It does not select that fix for saving. From the fix list,
+`v` verifies all selected fixes. Pressing `v` in an existing verified view keeps
+the current change and scroll position. The `a` save flow always checks the full
+selected batch with its output options.
+
 Verified previews use the same change renderer as OpenAPI Changes. Each card
 shows the action, value change, contract impact, and source context. Large values
 and source blocks use marked excerpts. Press `t` to inspect the complete file
