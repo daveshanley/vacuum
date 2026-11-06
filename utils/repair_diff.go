@@ -6,19 +6,24 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode"
+
+	"github.com/aymanbagabas/go-udiff"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-// RepairDiff renders a bounded, line-oriented review of a candidate. It uses a
-// single changed range, with three context lines, so time stays linear even for
-// large generated specs. Truncated output is marked and is not an applyable patch.
+// RepairDiff renders diff hunks with three context lines. Preview limits are
+// marked explicitly; bounded previews are not patches.
 func RepairDiff(original, candidate []byte) string {
 	var out strings.Builder
-	_ = writeRepairDiff(&out, original, candidate, true)
+	if err := writeRepairDiff(&out, original, candidate, true); err != nil {
+		return fmt.Sprintf("Cannot display fix preview: %v\n", err)
+	}
 	return out.String()
 }
 
-// WriteRepairDiff writes every changed line without truncation. It shares the
-// linear changed-range calculation with RepairDiff, but is suitable for review
+// WriteRepairDiff writes every changed line in contextual diff hunks without
+// truncation. It omits unchanged gaps between hunks and is suitable for review
 // before acceptance. Control bytes are escaped to prevent terminal commands.
 // Output errors, including short writes, stop review and are returned to callers.
 func WriteRepairDiff(output io.Writer, original, candidate []byte) error {
@@ -43,13 +48,7 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 		}
 		return bytes.LastIndexByte(data[:end], '\n') + 1
 	}
-	count := func(data []byte) int {
-		n := bytes.Count(data, []byte{'\n'})
-		if len(data) > 0 && data[len(data)-1] != '\n' {
-			n++
-		}
-		return n
-	}
+
 	first, line := 0, 1
 	for first < len(original) && first < len(candidate) {
 		a, b := next(original, first), next(candidate, first)
@@ -79,59 +78,82 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 	for i := 0; i < 3 && endB < len(candidate); i++ {
 		endB = next(candidate, endB)
 	}
-	fmt.Fprintf(out, "--- original\n+++ candidate\n@@ -%d,%d +%d,%d @@\n", line, count(original[start:endA]), line, count(candidate[start:endB]))
-	write := func(prefix string, data []byte) {
-		for offset, n := 0, 0; offset < len(data); n++ {
-			if bounded && n == 200 {
-				fmt.Fprintf(out, "... %d more lines omitted from this view ...\n", count(data[offset:]))
-				break
+	// Trim common outer content before matching, so a large unchanged tail
+	// does not allocate a line table for the entire document.
+	before, after := string(original[start:endA]), string(candidate[start:endB])
+	edits, err := repairLineEdits(before, after)
+	if err != nil {
+		return err
+	}
+	diff, err := udiff.ToUnifiedDiff("original", "candidate", before, edits, 3)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(out, "--- original\n+++ candidate\n")
+	write := func(prefix, segment string) {
+		hasNewline := strings.HasSuffix(segment, "\n")
+		segment = strings.TrimSuffix(segment, "\n")
+		truncated := bounded && len(segment) > 4096
+		if truncated {
+			segment = segment[:4096]
+		}
+		out.WriteString(prefix)
+		// Escape terminal controls without reflowing YAML/JSON or copying a long line.
+		start := 0
+		for i, c := range []byte(segment) {
+			if (c < 32 && c != '\t') || c == 127 {
+				out.WriteString(segment[start:i])
+				fmt.Fprintf(out, "\\x%02x", c)
+				start = i + 1
 			}
-			end := next(data, offset)
-			segment := data[offset:end]
-			hasNewline := segment[len(segment)-1] == '\n'
-			if hasNewline {
-				segment = segment[:len(segment)-1]
-			}
-			truncated := bounded && len(segment) > 4096
-			if truncated {
-				segment = segment[:4096]
-			}
-			out.WriteString(prefix)
-			if bounded {
-				safe := strings.Map(func(r rune) rune {
-					if (r < 32 && r != '\t') || r == 127 {
-						return '�'
-					}
-					return r
-				}, string(segment))
-				out.WriteString(safe)
-			} else {
-				// Write source slices directly; a minified document must not
-				// require a second document-sized string merely for display.
-				start := 0
-				for i, c := range segment {
-					if (c < 32 && c != '\t') || c == 127 {
-						out.Write(segment[start:i])
-						fmt.Fprintf(out, "\\x%02x", c)
-						start = i + 1
-					}
-				}
-				out.Write(segment[start:])
-			}
-			if truncated {
-				out.WriteString(" ... line truncated")
-			}
-			out.WriteByte('\n')
-			if !hasNewline {
-				out.WriteString("\\ No newline at end of file\n")
-			}
-			offset = end
+		}
+		out.WriteString(segment[start:])
+		if truncated {
+			out.WriteString(" ... line truncated")
+		}
+		out.WriteByte('\n')
+		if !hasNewline {
+			out.WriteString("\\ No newline at end of file\n")
 		}
 	}
-	write(" ", original[start:first])
-	write("-", original[first:ae])
-	write("+", candidate[first:be])
-	write(" ", original[ae:endA])
+
+	for _, hunk := range diff.Hunks {
+		fromCount, toCount := 0, 0
+		for _, row := range hunk.Lines {
+			if row.Kind != udiff.Insert {
+				fromCount++
+			}
+			if row.Kind != udiff.Delete {
+				toCount++
+			}
+		}
+		from, to := hunk.FromLine+line-1, hunk.ToLine+line-1
+		if fromCount == 0 {
+			from--
+		}
+		if toCount == 0 {
+			to--
+		}
+		fmt.Fprintf(out, "@@ -%d,%d +%d,%d @@\n", from, fromCount, to, toCount)
+		for index, row := range hunk.Lines {
+			if bounded && index == 200 {
+				fmt.Fprintf(out, "... %d more lines omitted from this view ...\n", len(hunk.Lines)-index)
+				break
+			}
+			prefix := " "
+			if row.Kind == udiff.Delete {
+				prefix = "-"
+			}
+			if row.Kind == udiff.Insert {
+				prefix = "+"
+			}
+			write(prefix, row.Content)
+		}
+		if err := out.Flush(); err != nil {
+			return err
+		}
+	}
+
 	return out.Flush()
 }
 
@@ -144,4 +166,57 @@ func (w repairDiffWriter) Write(data []byte) (int, error) {
 		err = io.ErrShortWrite
 	}
 	return n, err
+}
+
+// Match whole lines with a linear-space bisect search. Disable the deadline:
+// timing out must not label unchanged source as a replacement during review.
+func repairLineEdits(before, after string) ([]udiff.Edit, error) {
+	// go-diff skips surrogate code points and three reserved rune values.
+	if err := checkRepairDiffLineLimit(before, after, unicode.MaxRune-2048-3); err != nil {
+		return nil, err
+	}
+	matcher := diffmatchpatch.New()
+	matcher.DiffTimeout = 0
+	left, right, lines := matcher.DiffLinesToRunes(before, after)
+	changes := matcher.DiffCharsToLines(matcher.DiffMainRunes(left, right, false), lines)
+	var edits []udiff.Edit
+	offset := 0
+	for _, change := range changes {
+		switch change.Type {
+		case diffmatchpatch.DiffEqual:
+			offset += len(change.Text)
+		case diffmatchpatch.DiffDelete:
+			edits = append(edits, udiff.Edit{Start: offset, End: offset + len(change.Text)})
+			offset += len(change.Text)
+		case diffmatchpatch.DiffInsert:
+			// Keep an adjacent replacement together for the hunk formatter.
+			if len(edits) > 0 && edits[len(edits)-1].End == offset && edits[len(edits)-1].New == "" {
+				edits[len(edits)-1].New = change.Text
+			} else {
+				edits = append(edits, udiff.Edit{Start: offset, End: offset, New: change.Text})
+			}
+		}
+	}
+	return edits, nil
+}
+
+// Only count distinct lines near the encoder limit. Common lines in the two
+// versions share a token and must not cause a false rejection.
+func checkRepairDiffLineLimit(before, after string, limit int) error {
+	if strings.Count(before, "\n")+strings.Count(after, "\n")+2 <= limit {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	for _, text := range []string{before, after} {
+		for line := range strings.SplitAfterSeq(text, "\n") {
+			if line == "" {
+				continue
+			}
+			seen[line] = struct{}{}
+			if len(seen) > limit {
+				return fmt.Errorf("fix diff exceeds %d distinct lines; no files written", limit)
+			}
+		}
+	}
+	return nil
 }
