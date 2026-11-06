@@ -223,7 +223,8 @@ func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
 
 func TestConsoleAcceptanceStopsWhenFullDiffCannotBeWritten(t *testing.T) {
 	preview := &motor.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 1000)), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
-	output := &limitedReviewWriter{remaining: 250}
+	// Allow the styled table heading, then fail partway through the full diff.
+	output := &limitedReviewWriter{remaining: 1024}
 	accepted, err := reviewCLIRepair(errorReader{}, output, true, false, "api.yaml", []byte(strings.Repeat("old: value\n", 1000)), preview)
 	require.ErrorContains(t, err, "cannot display fix review")
 	require.False(t, accepted)
