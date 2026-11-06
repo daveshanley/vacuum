@@ -1,6 +1,9 @@
 package repair
 
-import "github.com/pb33f/go-yaml"
+import (
+	"github.com/pb33f/go-yaml"
+	"strings"
+)
 
 // EditableFields identifies supported absent metadata fields in an unambiguous
 // authored document. Keys are the original finding indices; values are field names.
@@ -12,6 +15,7 @@ func EditableFields(data []byte, findings []Finding) map[int]string {
 		return fields
 	}
 	nodes := sourceNodes(doc.Content[0])
+	version := field(doc.Content[0], "openapi")
 	for _, finding := range findings {
 		name := policyField(finding.RuleID)
 		if name == "" || finding.Unavailable != "" || (finding.Code != "" && finding.Code != name+"-missing") {
@@ -19,6 +23,11 @@ func EditableFields(data []byte, findings []Finding) map[int]string {
 		}
 		owner := nodes[finding.Pointer]
 		if owner != nil && owner.Kind == yaml.MappingNode && field(owner, name) == nil {
+			// OAS 3.0 Reference Objects cannot gain annotation siblings. The
+			// referenced owner's description needs its own source-owned finding.
+			if version != nil && strings.HasPrefix(version.Value, "3.0.") && field(owner, "$ref") != nil {
+				continue
+			}
 			fields[finding.Index] = name
 		}
 	}
