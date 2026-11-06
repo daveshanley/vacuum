@@ -210,7 +210,11 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 			accept = "enter: deselect"
 		}
 	}
-	lines = append(lines, edge("├", "┴", "┤"), full(lipgloss.NewStyle().Foreground(color.RGBGrey).Render(accept+" | e: edit | v: verify | ↑↓: scroll | esc: back")), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
+	controls := "↑↓: fixes | " + accept + " | e: edit | v: verify | esc: back | pgup/pgdn: scroll"
+	if ansi.StringWidth(controls) > width-4 {
+		controls = "↑↓: fix | enter: set | e: edit | v: check | pgup/dn: pan | esc: back"
+	}
+	lines = append(lines, edge("├", "┴", "┤"), full(lipgloss.NewStyle().Foreground(color.RGBGrey).Render(controls)), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
 	return lipgloss.NewStyle().MaxWidth(width).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 func (m *ViolationResultTableModel) finishRepairEdit() {

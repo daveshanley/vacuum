@@ -32,6 +32,8 @@ indicator calls attention to supported repairs after discovery finishes:
 | `f` | Open review and filter supported fixes |
 | Space | Select or skip a fix |
 | Enter | Open before/after; select or skip the displayed proposal; save a value in the editor |
+| ↑ / ↓ | Move to the previous or next fix while the comparison stays open |
+| Page Up / Page Down | Scroll the current comparison |
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
