@@ -61,7 +61,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | Page Up / Page Down | Scroll the current comparison |
 | ← / → | Pan long source lines horizontally |
 | `e` | Open the value editor modal |
-| `v` | Apply selected edits in memory and verify the candidate |
+| `v` | Verify selected edits in memory and open the full change view |
 | `x` | Open the code view or expand the verified preview |
 | `[` / `]` | Move between changes in a verified preview |
 | `t` | Switch between the change view and complete file diff |
