@@ -672,7 +672,7 @@ func buildSchemaValidationResult(failure *errors.SchemaValidationFailure, rule *
 	if reason == "" {
 		reason = "schema validation failed"
 	}
-	return model.RuleFunctionResult{
+	res := model.RuleFunctionResult{
 		Message:   "schema invalid: " + reason,
 		StartNode: node,
 		EndNode:   vacuumUtils.BuildEndNode(node),
@@ -680,10 +680,35 @@ func buildSchemaValidationResult(failure *errors.SchemaValidationFailure, rule *
 		Paths:     []string{location},
 		Rule:      rule,
 	}
+	// Repair only the authored array identified by the validator's instance path.
+	if strings.HasSuffix(failure.KeywordLocation, "/uniqueItems") {
+		res.RepairNode = validationInstanceNode(root, failure.InstancePath)
+		res.DiagnosticCode = "schema-unique-items"
+	}
+	return res
 }
 
 // errorKindToString converts a jsonschema ErrorKind to a human-readable string.
 // Deprecated: Use DefaultErrorFormatter.Format instead.
 func errorKindToString(ek jsonschema.ErrorKind) string {
 	return DefaultErrorFormatter{}.Format(ErrorContext{ErrorKind: ek})
+}
+
+func validationInstanceNode(root *yaml.Node, path []string) *yaml.Node {
+	node := documentContentNode(root)
+	for _, token := range path {
+		if node == nil {
+			return nil
+		}
+		if node.Kind == yaml.SequenceNode {
+			i, err := strconv.Atoi(token)
+			if err != nil || i < 0 || i >= len(node.Content) || strconv.Itoa(i) != token {
+				return nil
+			}
+			node = node.Content[i]
+		} else {
+			node = mappingValueNode(node, token)
+		}
+	}
+	return node
 }
