@@ -64,6 +64,23 @@ jobs:
           cache: npm
           cache-dependency-path: html-report/ui/package-lock.json
 
+      # browser/build.sh runs wasm-opt from WASM_OPT to shrink the browser build.
+      - name: Install Binaryen
+        env:
+          BINARYEN_VERSION: version_133
+          BINARYEN_SHA256: 2dc9c7813f5375db93d96ead4b78222fcc3e2677bbb832297af4797782a37489
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/binaryen"
+          mkdir -p "$dir"
+          curl -fsSL --retry 3 -o "$dir/binaryen.tar.gz" \
+            "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz"
+          echo "$BINARYEN_SHA256  $dir/binaryen.tar.gz" | sha256sum -c -
+          tar -xzf "$dir/binaryen.tar.gz" -C "$dir"
+          wasm_opt="$dir/binaryen-$BINARYEN_VERSION/bin/wasm-opt"
+          "$wasm_opt" --version
+          echo "WASM_OPT=$wasm_opt" >> "$GITHUB_ENV"
+
       - name: Set up Cosign
         uses: sigstore/cosign-installer@v4.1.2
 
