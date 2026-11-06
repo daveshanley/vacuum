@@ -38,16 +38,23 @@ components:
 `
 	for _, tc := range []struct {
 		name, replacement string
+		self              string
 		invalid           bool
 	}{
-		{"local URI", "'#/components/securitySchemes/ApiKey': []", false},
-		{"named scheme", "ApiKey: []", false},
-		{"missing URI", "'#/components/securitySchemes/Missing': []", true},
-		{"second missing scheme", "ApiKey: []\n          Missing: []", true},
+		{"local URI", "'#/components/securitySchemes/ApiKey': []", "", false},
+		{"named scheme", "ApiKey: []", "", false},
+		{"missing URI", "'#/components/securitySchemes/Missing': []", "", true},
+		{"second missing scheme", "ApiKey: []\n          Missing: []", "", true},
+		{"absolute self URI", "'https://example.test/security.yaml#/components/securitySchemes/ApiKey': []", "https://example.test/security.yaml", false},
+		{"relative self URI", "'./security.yaml#/components/securitySchemes/ApiKey': []", "https://example.test/security.yaml", false},
+		{"missing self target", "'https://example.test/security.yaml#/components/securitySchemes/Missing': []", "https://example.test/security.yaml", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			input := filepath.Join(t.TempDir(), "security.yaml")
 			contents := strings.Replace(spec, "'#/components/securitySchemes/ApiKey': []", tc.replacement, 1)
+			if tc.self != "" {
+				contents = "$self: " + tc.self + "\n" + contents
+			}
 			require.NoError(t, os.WriteFile(input, []byte(contents), 0600))
 			out, _, err := exportCommand(t, "lint", input, "--format", "json", "--fail-severity", "error")
 			if tc.invalid {

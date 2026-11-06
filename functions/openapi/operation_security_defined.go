@@ -10,7 +10,7 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"strings"
+	"net/url"
 )
 
 // OperationSecurityDefined checks that security requirements identify declared security schemes.
@@ -80,6 +80,7 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 	securityDefinitions := securityByIndex[context.Index]
 	localDefinitions := securityDefinitions
 	locatedSource := false
+	var documentURI *url.URL
 
 	// Every key in a requirement object names a scheme that must be defined.
 	for i, securityItem := range securityNode.Content {
@@ -89,13 +90,14 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 		for j := 0; j+1 < len(securityItem.Content); j += 2 {
 			name := securityItem.Content[j]
 			if name != nil {
-				if allowURI && !locatedSource && strings.HasPrefix(name.Value, "#") && securityDefinitions[securitySchemePrefix+name.Value] == nil {
+				if allowURI && !locatedSource && securityDefinitions[securitySchemePrefix+name.Value] == nil {
 					locatedSource = true
 					// Locate URI ownership once per security block; named schemes stay rooted.
 					source := securitySchemeSource(context.Index, securityNode)
 					if source == nil {
 						allowURI = false
 					} else {
+						documentURI = securityDocumentURI(source)
 						if version, ok := source.ResolveDocumentVersion(); ok {
 							allowURI = version == 3.2
 						}
@@ -107,7 +109,7 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 					}
 				}
 
-				if securitySchemeKey(name.Value, securityDefinitions, localDefinitions, allowURI) == "" {
+				if securitySchemeKey(name.Value, securityDefinitions, localDefinitions, allowURI, documentURI) == "" {
 
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("Security definition points a non-existent "+

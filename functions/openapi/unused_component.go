@@ -60,13 +60,14 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	// does not refer to a same-named component in the root document.
 	usedSecuritySchemes := make(map[string]bool)
 	allowURI := allowsSecuritySchemeURI(context)
+	documentURI := securityDocumentURI(context.Index)
 	collectSecurity := func(source *index.SpecIndex) {
 		for name := range source.GetSecurityRequirementReferences() {
 			if context.SpecInfo != nil && context.SpecInfo.SpecType == utils.OpenApi2 {
 				allRefs[fmt.Sprintf("#/securityDefinitions/%s", name)] = &index.Reference{}
 				continue
 			}
-			if key := securitySchemeKey(name, securitySchemes, securitySchemes, allowURI && source == context.Index); key != "" {
+			if key := securitySchemeKey(name, securitySchemes, securitySchemes, allowURI && source == context.Index, documentURI); key != "" {
 				usedSecuritySchemes[key] = true
 			}
 		}
