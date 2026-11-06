@@ -88,3 +88,13 @@ func TestRepairYAMLPreservesFinalNewlines(t *testing.T) {
 		require.Equal(t, strings.Replace(source, "[a, a, b]", "[a, b]", 1), string(actual))
 	}
 }
+
+func TestRepairYAMLAcceptsLegacyIndentDefaults(t *testing.T) {
+	source := []byte("schema:\n enum: [a, a, b]\n")
+	root := removeFormatFixtureDuplicate(t, source)
+	for _, format := range []RepairYAMLFormat{{}, CaptureRepairYAMLFormat(root)} {
+		actual, err := RenderRepairYAML(root, source, format)
+		require.NoError(t, err)
+		require.Equal(t, "schema:\n  enum: [a, b]\n", string(actual))
+	}
+}
