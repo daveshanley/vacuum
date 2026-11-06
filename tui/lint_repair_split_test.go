@@ -86,6 +86,8 @@ func TestRepairSplitLongHeaderAndSmallTerminal(t *testing.T) {
 	require.Contains(t, view, "Currently")
 	require.Contains(t, view, "Autofixed")
 	require.Contains(t, view, "esc: back")
+	require.Contains(t, view, "pgup/dn: pan")
+	require.Contains(t, view, "↑↓: fix")
 	require.Equal(t, 18, lipgloss.Height(view))
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
 	view = ansi.Strip(m.buildRepairModal())
