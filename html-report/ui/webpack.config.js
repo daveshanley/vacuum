@@ -6,7 +6,6 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 module.exports = {
   entry: {
     vacuumReport: './src/ts/vacuum-report.ts',
-    hydrate: './src/ts/hydrate.ts',
   },
   module: {
     rules: [

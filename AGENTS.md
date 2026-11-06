@@ -153,7 +153,7 @@ When adding or changing flags, check every command surface that shares the behav
 ## HTML Report UI
 
 - `html-report/assets_stub.go` is used when the `html_report_ui` tag is absent.
-- `html-report/assets_html_report_ui.go` embeds `html-report/ui/build/static/js/vacuumReport.js` and `hydrate.js` when the tag is present.
+- `html-report/assets_html_report_ui.go` embeds `html-report/ui/build/static/js/vacuumReport.js` when the tag is present.
 - `./scripts/build-ui-assets.sh` runs `npm ci` and `npm run build` in `html-report/ui`, using `.cache/npm` unless `NPM_CACHE_DIR` is set.
 - The script removes `html-report/ui/node_modules` unless `KEEP_NODE_MODULES=1`.
 - Official releases and `make build` build with `-tags html_report_ui`.

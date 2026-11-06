@@ -5,7 +5,6 @@ package html_report
 import (
 	"bytes"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	stdhtml "html"
 	"sort"
@@ -31,9 +30,6 @@ var reportTemplate string
 //go:embed templates/header.gohtml
 var header string
 
-//go:embed templates/footer.gohtml
-var footer string
-
 //go:embed ui/src/css/report.css
 var reportCSS string
 
@@ -54,7 +50,6 @@ const MaxViolations = 100
 
 type ReportData struct {
 	BundledJS        string                    `json:"bundledJS"`
-	HydrateJS        string                    `json:"hydrateJS"`
 	ShoelaceJS       string                    `json:"shoelaceJS"`
 	ReportCSS        string                    `json:"reportCSS"`
 	Statistics       *reports.ReportStatistics `json:"reportStatistics"`
@@ -89,13 +84,6 @@ type htmlReport struct {
 func (html htmlReport) GenerateReport(test bool, version string) []byte {
 
 	templateFuncs := template.FuncMap{
-		"totalIssues": func(stats *reports.ReportStatistics) int {
-			return stats.TotalErrors + stats.TotalWarnings + stats.TotalInfo + stats.TotalHints
-		},
-		"renderJSON": func(data interface{}) string {
-			b, _ := json.Marshal(data)
-			return string(b)
-		},
 		"sortResults": func(results []*model.RuleFunctionResult) []*model.RuleFunctionResult {
 			sort.Slice(results, func(i, j int) bool {
 				if results[i].StartNode == nil {
@@ -200,11 +188,7 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 	tmpl := template.New("header")
 	tmpl.Funcs(templateFuncs)
 	t, _ := tmpl.Parse(header)
-	_, err := t.New("footer").Parse(footer)
-	if err != nil {
-		return nil
-	}
-	_, err = t.New("report").Parse(reportTemplate)
+	_, err := t.New("report").Parse(reportTemplate)
 	if err != nil {
 		return nil
 	}
@@ -241,7 +225,6 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
-		HydrateJS:      hydrateJS,
 		ReportCSS:      reportCSS,
 		Statistics:     html.stats,
 		RuleCategories: catsFiltered,

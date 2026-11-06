@@ -3,6 +3,5 @@
 package html_report
 
 var bundledJS = ""
-var hydrateJS = ""
 
 const htmlReportUIEnabled = false

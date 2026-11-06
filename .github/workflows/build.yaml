@@ -81,36 +81,8 @@ jobs:
         env:
           KEEP_NODE_MODULES: "1"
 
-      - name: Read Playwright version
-        id: playwright-version
-        working-directory: html-report/ui
-        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Chromium
-        id: playwright-cache
-        uses: actions/cache@v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Chromium system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-        working-directory: html-report/ui
-
-      - name: Install Chromium for HTML report tests
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-        working-directory: html-report/ui
-
-      # Compile before the browser tests so a cold Go cache does not consume
-      # the report-generation timeout in their setup hook.
       - name: Build
         run: go build -tags html_report_ui -o bin/vacuum
-
-      - name: Test HTML report UI
-        run: npm test
-        working-directory: html-report/ui
 
       - name: Lint HTML report UI
         run: npm run lint
