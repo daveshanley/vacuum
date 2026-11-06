@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"strings"
 	"testing"
@@ -56,8 +57,11 @@ func TestRepairConsoleDiffPreservesCompleteSourceAcrossWrites(t *testing.T) {
 			require.Equal(t, len(data), n)
 		}
 		require.Equal(t, plain.String(), ansi.Strip(styled.String()))
-		require.Contains(t, styled.String(), color.ASCIIBlue+"-name: old")
-		require.Contains(t, styled.String(), color.ASCIIYellow+"+name: new")
+		require.Contains(t, styled.String(), color.ASCIIRed+repairDiffRedBackground+ansi.EraseLineRight+"-name: old")
+		require.Contains(t, styled.String(), color.ASCIIGreen+repairDiffGreenBackground+ansi.EraseLineRight+"+name: new")
+		require.Contains(t, styled.String(), "-name: old"+color.ASCIIReset+"\n")
+		require.Contains(t, styled.String(), "+name: new"+color.ASCIIReset+"\n")
+		require.Contains(t, styled.String(), " control: \\x1b[2J"+color.ASCIIReset+"\n", "context must not receive a row highlight")
 		require.NotContains(t, styled.String(), "\x1b[2J")
 	}
 	for _, out := range []io.Writer{shortReviewWriter{}, errorWriter{}} {
@@ -89,7 +93,7 @@ func (w *repairConsoleCountingWriter) Write(p []byte) (int, error) {
 func TestRepairConsoleDiffBatchesWritesAndRejectsFlushFailure(t *testing.T) {
 	preview := &motor.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 10000)), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
 	output := &repairConsoleCountingWriter{}
-	accepted, err := reviewCLIRepair(strings.NewReader("yes\n"), output, true, false, "api.yaml", []byte("old: value\n"), preview)
+	accepted, err := reviewCLIRepair(strings.NewReader("\r"), output, true, false, "api.yaml", []byte("old: value\n"), preview)
 	require.NoError(t, err)
 	require.True(t, accepted)
 	require.Less(t, output.writes, 100, "diff writes must be batched")
@@ -105,4 +109,25 @@ func TestRepairConsoleDiffBatchesWritesAndRejectsFlushFailure(t *testing.T) {
 		}
 		require.ErrorIs(t, err, io.ErrShortWrite)
 	}
+}
+
+func TestRepairConsolePromptUsesBlueKeysAndIgnoresNavigation(t *testing.T) {
+	var output bytes.Buffer
+	keys := []string{"up", "home", "3", "backspace", "8", "enter"}
+	next := func() (string, error) { key := keys[0]; keys = keys[1:]; return key, nil }
+	answer, canceled, err := readRepairPrompt(context.Background(), &output, repairConsole{styled: true}, true, false, next)
+	require.NoError(t, err)
+	require.False(t, canceled)
+	require.Equal(t, "8", answer)
+	require.Contains(t, output.String(), color.ASCIIBlue+"enter: review")
+	require.Contains(t, output.String(), color.ASCIIBlue+"esc: cancel")
+	output.Reset()
+	_, canceled, err = readRepairPrompt(context.Background(), &output, repairConsole{styled: true}, false, false, func() (string, error) { return "enter", nil })
+	require.NoError(t, err)
+	require.False(t, canceled)
+	require.Contains(t, output.String(), color.ASCIIBlue+"enter: apply")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err = readRepairPrompt(ctx, &output, repairConsole{}, false, false, func() (string, error) { t.Fatal("must not read after interruption"); return "", nil })
+	require.ErrorIs(t, err, context.Canceled)
 }

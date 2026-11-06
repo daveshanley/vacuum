@@ -57,7 +57,10 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	}
 	repairConsoleMu.Lock()
 	defer repairConsoleMu.Unlock()
-	reader := bufio.NewReader(input)
+	reader := io.Reader(repairPromptInput{Reader: input})
+	if options != nil {
+		reader = repairPromptInput{Reader: input, ctx: options.Context}
+	}
 	if interactive && !flags.DryRun && !quiet {
 		choices, err = selectCLIRepairs(reader, writer, available)
 		if err != nil {
@@ -117,16 +120,13 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 	if err := diffBuffer.Flush(); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
 	}
-	phrase := "yes"
 	switch preview.Impact.Status {
 	case motor.RepairImpactNoBreaking:
 		display.WriteString(console.paint(color.ASCIIGreen, "\n No breaking changes detected.\n"))
 	case motor.RepairImpactBreaking:
 		display.WriteString(console.paint(color.ASCIIRed, fmt.Sprintf("\n Breaking changes detected: %d\n", preview.Impact.BreakingChanges)))
-		phrase = "accept breaking changes"
 	default:
 		display.WriteString(console.paint(color.ASCIIYellow, fmt.Sprintf("\n Contract impact unknown: %s\n", repairConsoleText(preview.Impact.Reason))))
-		phrase = "accept unknown impact"
 	}
 	for _, change := range preview.Impact.Changes {
 		if change == nil || !change.Breaking {
@@ -142,8 +142,6 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 		display.WriteString(console.paint(color.ASCIIGrey, " Preview only. No files written.\n"))
 	} else if interactive {
 		display.WriteString(console.paint(color.ASCIIPink, " "+strings.Repeat("─", max(1, console.width-2))+"\n"))
-		display.WriteString(console.paint(color.ASCIIGrey, fmt.Sprintf(" Type %q to apply these changes | enter: cancel\n", phrase)))
-		display.WriteString(console.paint(color.ASCIIYellow, " > "))
 	}
 	if err := writeRepairReview(output, display.String()); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
@@ -154,36 +152,17 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 	if !interactive {
 		return false, fmt.Errorf("fixes require terminal review; use --fix --dry-run to preview or dashboard to review and apply; no files written")
 	}
-	answer, err := readRepairAnswer(input)
+	_, canceled, err := readRepairKeys(input, output, false)
 	if err != nil {
 		return false, fmt.Errorf("fix review was not accepted: %w; no files written", err)
 	}
-	if strings.TrimSpace(answer) != phrase {
+	if canceled {
 		if err := writeRepairReview(output, console.paint(color.ASCIIGrey, " Canceled. No files written.\n")); err != nil {
 			return false, err
 		}
 		return false, nil
 	}
 	return true, nil
-}
-
-func readRepairAnswer(input io.Reader) (string, error) {
-	reader, ok := input.(*bufio.Reader)
-	if !ok {
-		reader = bufio.NewReader(input)
-	}
-	var answer strings.Builder
-	for answer.Len() < 1024 {
-		b, err := reader.ReadByte()
-		if err != nil {
-			return "", err
-		}
-		if b == '\n' {
-			return answer.String(), nil
-		}
-		answer.WriteByte(b)
-	}
-	return "", fmt.Errorf("review answer exceeds 1024 bytes")
 }
 
 func selectCLIRepairs(input io.Reader, output io.Writer, options []motor.FixOption) ([]motor.FixChoice, error) {
@@ -200,12 +179,15 @@ func selectCLIRepairs(input io.Reader, output io.Writer, options []motor.FixOpti
 	if err := writeRepairReview(output, console.options(options)); err != nil {
 		return nil, err
 	}
-	answer, err := readRepairAnswer(input)
+	answer, canceled, err := readRepairKeys(input, output, true)
 	if err != nil {
 		return nil, fmt.Errorf("fix selection was not submitted: %w", err)
 	}
+	if canceled {
+		return nil, nil
+	}
 	answer = strings.TrimSpace(answer)
-	if answer == "all" {
+	if answer == "all" || answer == "" {
 		return all, nil
 	}
 	var selected []motor.FixChoice
