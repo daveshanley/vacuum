@@ -95,6 +95,9 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	if err := repairCanceled(options); err != nil {
 		return nil, err
 	}
+	if err := repair.ValidateReviewedExamples(candidate, plan); err != nil {
+		return nil, err
+	}
 	parsed, err := repair.ParseDocument(candidate)
 	if err != nil {
 		return nil, err
@@ -125,6 +128,9 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	fail := func(err error) (*RepairVerification, error) { after.ReleaseOwnedResources(); return nil, err }
 	if len(after.Errors) > 0 {
 		return fail(fmt.Errorf("repair validation did not complete: %w", after.Errors[0]))
+	}
+	if err := verifyRepairIntegrity(before, after, correspondence, options); err != nil {
+		return fail(err)
 	}
 	after.Results = utils.FilterIgnoredResultsWithOptions(after.Results, e.RepairIgnores, utils.IgnoreMatcherOptions{RootNode: e.CanonicalDocument, SpecBytes: e.Spec, LookupTimeout: e.NodeLookupTimeout})
 	beforeFindings, err := repairFindings(before.RuleSetExecution, before.Results)
@@ -188,6 +194,7 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 
 func repairExecution(source *RuleSetExecution, data []byte) *RuleSetExecution {
 	e := *source
+	e.captureRepairSources = true
 	e.Spec = append([]byte(nil), data...)
 	e.SpecInfo = nil
 	e.IndexUnresolved = nil
@@ -203,6 +210,9 @@ func repairExecution(source *RuleSetExecution, data []byte) *RuleSetExecution {
 }
 func diagnosticIdentity(r model.RuleFunctionResult) string {
 	message := r.Message
+	if r.RuleId == "resolving-references" {
+		message = referenceDiagnosticMessage(message)
+	}
 	if r.DiagnosticCode != "" {
 		message = r.DiagnosticCode
 	}
@@ -268,7 +278,7 @@ func externalRepairInputs(root *yaml.Node) bool {
 				if (key == "$ref" || key == "$dynamicRef" || key == "$recursiveRef") && value != "" && !strings.HasPrefix(value, "#") {
 					return true
 				}
-				if key == "sourceDescriptions" {
+				if key == "sourceDescriptions" && (n.Content[i+1].Kind != yaml.SequenceNode || len(n.Content[i+1].Content) != 0) {
 					return true
 				}
 			}
@@ -403,4 +413,12 @@ func originalDiagnosticLines(message string, correspondence *repair.Corresponden
 		}
 		return part
 	})
+}
+
+// Resolver coordinates are presentation data. Canonical pointer and error text
+// identify the defect when rendering moves an unchanged reference to a new line.
+var resolverPosition = regexp.MustCompile(` \[([0-9]+):([0-9]+)\]$`)
+
+func referenceDiagnosticMessage(message string) string {
+	return resolverPosition.ReplaceAllString(message, "")
 }

@@ -19,12 +19,13 @@ import (
 )
 
 // FixOption describes one finding in a review. Index is stable for this review,
-// independent of table sorting or filtering. Editable values are plain text,
-// except contact and license values, which are JSON objects.
+// independent of table sorting or filtering. Text metadata uses plain text;
+// structured proposals use JSON. Compound transformations are not editable.
 type FixOption struct {
 	Index       int
 	Result      *model.RuleFunctionResult
 	Description string
+	Available   bool // Available is independent of the caller's selection.
 	Editable    bool
 	Value       string
 	Selected    bool
@@ -32,7 +33,7 @@ type FixOption struct {
 	Reason      string
 }
 
-// FixChoice includes one finding in a preview. Value supplies edited metadata;
+// FixChoice includes one finding in a preview. Value supplies an edited value;
 // nil keeps the proposed default. Omitted findings are not selected.
 type FixChoice struct {
 	Index int
@@ -48,11 +49,14 @@ type FixStats struct {
 // FixPreview holds a verified candidate and its final findings. Close releases
 // their parser resources. It never writes files and grants no write authority.
 type FixPreview struct {
+	Impact    RepairImpact
 	Candidate []byte
 	Results   []*model.RuleFunctionResult
 	Fixed     int
 	Before    FixStats
 	After     FixStats
+	original  []byte
+	fixed     []model.RuleFunctionResult
 	final     *RuleSetExecutionResult
 }
 
@@ -72,19 +76,26 @@ type FixReview struct {
 	execution *RuleSetExecution
 	options   ExecutionOptions
 	baseline  *RuleSetExecutionResult
+	policy    *repair.Policy
 	proposal  repair.Plan
 	findings  []repair.Finding
 	choices   []FixOption
+	edits     map[int]repair.Operation
 	fields    map[int]string
 }
 
-// NewFixReview lints one snapshot and derives supported mechanical and metadata
-// fixes. It performs no writes. Unsupported findings remain visible with reasons.
+// NewFixReview lints one snapshot and derives supported repair proposals.
+// It performs no writes. Unsupported findings remain visible with reasons.
 func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixReview, error) {
+	return NewFixReviewWithPolicy(execution, options, nil)
+}
+
+// NewFixReviewWithPolicy includes exact caller-supplied values in the review.
+func NewFixReviewWithPolicy(execution *RuleSetExecution, options *ExecutionOptions, policy *repair.Policy) (*FixReview, error) {
 	if execution == nil || execution.RuleSet == nil {
 		return nil, fmt.Errorf("fix review requires an execution and ruleset")
 	}
-	r := &FixReview{execution: repairExecution(execution, execution.Spec)}
+	r := &FixReview{execution: repairExecution(execution, execution.Spec), policy: policy}
 	if options != nil {
 		r.options = *options
 	}
@@ -92,7 +103,7 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 	checked, cancel := repairRunOptions(&r.options)
 	defer cancel()
 	var err error
-	r.proposal, r.baseline, err = PlanFixes(r.execution, checked)
+	r.proposal, r.baseline, err = PlanFixesWithPolicy(r.execution, checked, policy)
 	if err != nil {
 		r.Close()
 		return nil, err
@@ -102,13 +113,36 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 		r.Close()
 		return nil, err
 	}
+	originalProposal := r.proposal
+	reviewPlan, err := repair.ReviewedPlanWithSources(r.execution.SpecFileName, r.execution.Spec, r.findings, r.reviewSourceNodes())
+	if err != nil {
+		r.Close()
+		return nil, err
+	}
+	reviewPlan, err = repair.ApplyPolicy(reviewPlan, r.execution.Spec, r.findings, policy)
+	if err != nil {
+		r.Close()
+		return nil, err
+	}
+	reviewPlan.Sources = r.proposal.Sources
+	r.proposal = reviewPlan
+	r.edits = make(map[int]repair.Operation)
 	r.fields = repair.EditableFields(r.execution.Spec, r.findings)
 	// A frozen-source failure must also prevent metadata proposals.
 	if _, _, err := freezeRepairSources(r.baseline); err != nil {
 		r.fields = nil
+		r.proposal = originalProposal
+	}
+	if r.fields == nil {
+		r.fields = make(map[int]string)
 	}
 	available := make(map[string]repair.Target)
 	declined := make(map[string]string)
+	for _, finding := range r.findings {
+		if len(r.proposal.ReviewedProposals[fixKey(finding.RuleID, finding.Pointer)]) > 0 {
+			available[fixKey(finding.RuleID, finding.Pointer)] = repair.Target{RuleID: finding.RuleID, Pointer: finding.Pointer, Code: "reviewed-proposal"}
+		}
+	}
 	for _, t := range r.proposal.Targets {
 		available[fixKey(t.RuleID, t.Pointer)] = t
 	}
@@ -117,6 +151,7 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 	}
 	root := r.baseline.RuleSetExecution.CanonicalDocument
 	var usedIDs map[string]bool
+	var usedDescriptions map[string]bool
 	for _, name := range r.fields {
 		if name == "operationId" {
 			usedIDs = fixOperationIDs(root)
@@ -127,10 +162,26 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 		result := r.baseline.Results[finding.Index]
 		option := FixOption{Index: finding.Index, Result: &result, Reason: declined[fixKey(finding.RuleID, finding.Pointer)]}
 		if target, ok := available[fixKey(finding.RuleID, finding.Pointer)]; ok {
-			option.Selected = true
+			option.Available = true
+			option.Generated = target.Code == "reviewed-proposal"
 			option.Description = "Apply " + strings.ReplaceAll(target.Code, "-", " ")
 			option.Reason = ""
+			if op, ok := editableProposalOperation(r.proposal, finding.RuleID, finding.Pointer, r.fields[finding.Index]); ok {
+				option.Editable = true
+				option.Generated = true
+				option.Value = string(op.Value)
+				option.Description = "Edit proposed JSON value"
+				r.fields[finding.Index] = "$proposal-json"
+				var text string
+				if len(op.Value) > 0 && op.Value[0] == '"' && json.Unmarshal(op.Value, &text) == nil {
+					option.Value = text
+					option.Description = "Edit proposed value"
+					r.fields[finding.Index] = "$proposal-string"
+				}
+				r.edits[finding.Index] = op
+			}
 		} else if name := r.fields[finding.Index]; name != "" {
+			option.Available = true
 			option.Editable = true
 			option.Description = "Enter " + name
 			if name == "contact" || name == "license" {
@@ -138,6 +189,12 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 			}
 			option.Reason = "Value required"
 			option.Value = suggestedFixValue(name, finding.Pointer, fixNodeAt(root, finding.Pointer), usedIDs)
+			if name == "description" || name == "summary" {
+				if usedDescriptions == nil {
+					usedDescriptions = fixDescriptionValues(root)
+				}
+				option.Value = uniqueFixDescription(option.Value, name, usedDescriptions)
+			}
 			if option.Value != "" {
 				option.Generated = true
 				option.Description = "Add " + name
@@ -145,6 +202,11 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 			}
 		} else if option.Reason == "" {
 			option.Reason = "No supported automatic repair"
+		}
+		if !option.Available && finding.RuleID == "component-description" &&
+			strings.HasPrefix(fixScalar(root, "openapi"), "3.0.") &&
+			fixNodeAt(fixNodeAt(root, finding.Pointer), "/$ref") != nil {
+			option.Reason = "OpenAPI 3.0 reference metadata must be edited at the referenced source"
 		}
 		r.choices = append(r.choices, option)
 	}
@@ -211,7 +273,15 @@ func (r *FixReview) Preview(choices []FixChoice) (*FixPreview, error) {
 	for _, target := range plan.Targets {
 		targets[fixKey(target.RuleID, target.Pointer)] = true
 	}
-	return &FixPreview{Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(r.baseline.Results), After: fixStats(verification.Final.Results), final: verification.Final}, nil
+	var fixed []model.RuleFunctionResult
+	for _, f := range r.findings {
+		if targets[fixKey(f.RuleID, f.Pointer)] {
+			result := r.baseline.Results[f.Index]
+			result.AutoFixed = true
+			fixed = append(fixed, result)
+		}
+	}
+	return &FixPreview{original: append([]byte(nil), r.execution.Spec...), fixed: fixed, Impact: assessRepairImpact(r.baseline, verification.Final, options), Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(r.baseline.Results), After: fixStats(verification.Final.Results), final: verification.Final}, nil
 }
 
 // planChoices derives providers and policy values from the current selection.
@@ -222,6 +292,7 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 	}
 	selected := make([]repair.Finding, 0, len(choices))
 	entries := make([]repair.PolicyEntry, 0)
+	overrides := make(map[string]json.RawMessage)
 	seen := make(map[int]bool)
 	for _, choice := range choices {
 		if choice.Index < 0 || choice.Index >= len(r.choices) || seen[choice.Index] {
@@ -230,13 +301,28 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		seen[choice.Index] = true
 		option := r.choices[choice.Index]
 		finding := r.findings[choice.Index]
-		if !option.Selected && !option.Editable {
+		if !option.Available {
 			return repair.Plan{}, fmt.Errorf("fix is unavailable: %s", option.Reason)
 		}
 		if option.Editable {
 			value := option.Value
 			if choice.Value != nil {
 				value = *choice.Value
+			}
+			if op, ok := r.edits[choice.Index]; ok {
+				encoded := json.RawMessage(value)
+				if r.fields[choice.Index] == "$proposal-string" {
+					encoded, _ = json.Marshal(value)
+				}
+				if !json.Valid(encoded) {
+					return repair.Plan{}, fmt.Errorf("proposed value must be valid JSON")
+				}
+				if old, exists := overrides[op.Path]; exists && string(old) != string(encoded) {
+					return repair.Plan{}, fmt.Errorf("conflicting proposed values at %s", op.Path)
+				}
+				overrides[op.Path] = encoded
+				selected = append(selected, finding)
+				continue
 			}
 			node, err := fixValue(r.fields[choice.Index], value)
 			if err != nil {
@@ -248,7 +334,11 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		}
 		selected = append(selected, finding)
 	}
-	plan, err := repair.BuiltinPlan(r.execution.SpecFileName, r.execution.Spec, selected)
+	plan, err := repair.ReviewedPlanWithSources(r.execution.SpecFileName, r.execution.Spec, selected, r.reviewSourceNodes())
+	if err != nil {
+		return repair.Plan{}, err
+	}
+	plan, err = repair.ApplyPolicy(plan, r.execution.Spec, selected, r.policy)
 	if err != nil {
 		return repair.Plan{}, err
 	}
@@ -275,6 +365,11 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		plan, err = repair.ApplyPolicy(plan, r.execution.Spec, selected, policy)
 		if err != nil {
 			return repair.Plan{}, err
+		}
+	}
+	for i := range plan.Operations {
+		if value, ok := overrides[plan.Operations[i].Path]; ok && (plan.Operations[i].Op == "add" || plan.Operations[i].Op == "replace") {
+			plan.Operations[i].Value = value
 		}
 	}
 	plan.Sources = r.proposal.Sources
@@ -587,6 +682,15 @@ func suggestedFixValue(field, pointer string, owner *yaml.Node, usedIDs map[stri
 		return ""
 	}
 	if len(parts) >= 3 && parts[0] == "paths" {
+		// A path-level parameter applies to all methods. An operation parameter
+		// has a method owner; both need context because names recur across paths.
+		if name, location := fixScalar(owner, "name"), fixScalar(owner, "in"); name != "" && location != "" {
+			context := parts[1]
+			if parts[2] != "parameters" {
+				context = strings.ToUpper(parts[2]) + " " + context
+			}
+			return name + " " + location + " parameter for " + context + "."
+		}
 		operation := strings.ToUpper(parts[2]) + " " + parts[1]
 		if len(parts) == 3 {
 			return operation + "."
@@ -746,4 +850,12 @@ func suggestedOperationID(pointer string) string {
 		id += string(chars)
 	}
 	return id
+}
+
+// reviewSourceNodes exposes only sources already loaded and frozen by discovery.
+func (r *FixReview) reviewSourceNodes() map[string]*yaml.Node {
+	if r.baseline != nil && r.baseline.RuleSetExecution.Arazzo != nil {
+		return r.baseline.RuleSetExecution.Arazzo.Sources
+	}
+	return nil
 }
