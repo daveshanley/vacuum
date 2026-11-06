@@ -50,10 +50,14 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	if len(choices) == 0 {
 		return review.TakeBaselineResult()
 	}
+	quiet := flags.repairWarningsSilenced || flags.SilentFlag && !flags.FormattedOutput
+	if quiet {
+		writer = io.Discard
+	}
 	repairConsoleMu.Lock()
 	defer repairConsoleMu.Unlock()
 	reader := bufio.NewReader(input)
-	if interactive && !flags.DryRun {
+	if interactive && !flags.DryRun && !quiet {
 		choices, err = selectCLIRepairs(reader, writer, available)
 		if err != nil {
 			return fail(err)
@@ -69,6 +73,9 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 		return baseline
 	}
 	defer preview.Close()
+	if quiet && !flags.DryRun {
+		return fail(fmt.Errorf("fixes require visible review; use --fix --dry-run with --silent; no files written"))
+	}
 	accepted, err := reviewCLIRepair(reader, writer, interactive, flags.DryRun, execution.SpecFileName, execution.Spec, preview)
 	if err != nil {
 		return fail(err)
