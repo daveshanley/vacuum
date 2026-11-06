@@ -279,3 +279,26 @@ func TestRepairSaveCompactChoicesNeverHideAnOption(t *testing.T) {
 		}
 	}
 }
+
+func TestRepairSaveDividerAndControlsTouchBottomBorder(t *testing.T) {
+	m, _ := repairTestModel(t)
+	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
+	prepareRepairSave(t, m)
+	for _, size := range []tea.WindowSizeMsg{{Width: 80, Height: 30}, {Width: 180, Height: 40}} {
+		m.Update(size)
+		for _, step := range []repairSaveStep{repairSaveDestination, repairSaveFilename, repairSaveBundle, repairSaveVerifying, repairSavePreview, repairSaveError, repairSaveDone} {
+			m.repair.save.step = step
+			rendered := m.renderActiveModal()
+			rows := strings.Split(ansi.Strip(rendered), "\n")
+			width, height := m.repairModalSize()
+			require.Len(t, rows, height, "step %d", step)
+			require.Equal(t, "├"+strings.Repeat("─", width-2)+"┤", rows[len(rows)-3], "step %d", step)
+			require.Contains(t, rows[len(rows)-2], "esc", "controls must be the final content row")
+			require.Equal(t, "└"+strings.Repeat("─", width-2)+"┘", rows[len(rows)-1])
+			for _, row := range rows {
+				require.Equal(t, width, ansi.StringWidth(row))
+			}
+		}
+	}
+}
