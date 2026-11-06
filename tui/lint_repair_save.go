@@ -377,7 +377,20 @@ func (m *ViolationResultTableModel) buildRepairSaveModal() string {
 	content := lipgloss.NewStyle().Width(inner).MaxWidth(inner).Height(height - 6).MaxHeight(height - 6).Render(body)
 	header := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true).Render(title)
 	controls := lipgloss.NewStyle().Foreground(color.RGBGrey).Render(ansi.Truncate(footer, inner, ""))
-	return frame.Render(lipgloss.NewStyle().Padding(0, 1).Render(header + "\n\n" + content + "\n" + controls))
+	// Draw the footer as part of the frame so no automatic padding can put
+	// an empty row below the controls. Match the comparison modal's divider.
+	pink := lipgloss.NewStyle().Foreground(color.RGBPink)
+	row := func(text string) string {
+		cell := lipgloss.NewStyle().Width(inner).MaxWidth(inner).Height(1).MaxHeight(1).Render(text)
+		return pink.Render("│") + " " + cell + " " + pink.Render("│")
+	}
+	edge := strings.Repeat("─", width-2)
+	lines := []string{pink.Render("┌" + edge + "┐"), row(header), row("")}
+	for _, line := range strings.Split(content, "\n") {
+		lines = append(lines, row(line))
+	}
+	lines = append(lines, pink.Render("├"+edge+"┤"), row(controls), pink.Render("└"+edge+"┘"))
+	return strings.Join(lines, "\n")
 }
 
 // repairDiffViewport keeps native navigation but crops visible source lines at
