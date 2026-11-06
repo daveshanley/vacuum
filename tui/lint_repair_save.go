@@ -386,7 +386,7 @@ func repairDiffViewport(view viewport.Model) string {
 	offset, width := view.XOffset(), view.Width()
 	view.SetXOffset(0)
 	crop := lipgloss.NewStyle().Transform(func(line string) string {
-		return ansi.Truncate(repairSourceTail(line, offset), width, "")
+		return repairSourceSlice(line, offset, width)
 	})
 	view.StyleLineFunc = func(int) lipgloss.Style { return crop }
 	return view.View()
