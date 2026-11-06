@@ -30,6 +30,9 @@
     "ts-loader": "^9.6.2",
     "typescript": "^6.0.3"
   },
+  "overrides": {
+    "minimatch": "11.0.1"
+  },
   "prettier": {
     "singleQuote": true,
     "arrowParens": "avoid"
