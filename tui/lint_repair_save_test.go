@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/pb33f/testify/require"
 )
@@ -95,7 +96,11 @@ func TestRepairSaveCopyKeepsSourceAndFindings(t *testing.T) {
 	require.NotNil(t, m.repair.review)
 	require.Nil(t, m.repair.preview)
 	require.Contains(t, m.repair.save.summary, "Original specification and findings unchanged")
-	require.Contains(t, ansi.Strip(m.renderActiveModal()), filepath.Join(filepath.Dir(m.repair.config.SourcePath), "copy.yaml"))
+	require.Equal(t, filepath.Join(filepath.Dir(m.repair.config.SourcePath), "copy.yaml"), m.repairSavePath())
+	// A long path may wrap in the compact completion modal, but no characters vanish.
+	plain := ansi.Strip(m.renderActiveModal())
+	compact := strings.Join(strings.Fields(strings.ReplaceAll(plain, "│", "")), "")
+	require.Contains(t, compact, m.repairSavePath())
 }
 
 func TestRepairSaveCancelAndLateCompletion(t *testing.T) {
@@ -221,4 +226,56 @@ func TestRepairSaveShortTerminalShowsFullScrollableError(t *testing.T) {
 	repairKey(m, tea.KeyEnter, "")
 	require.Equal(t, repairSaveBundle, m.repair.save.step)
 	require.Equal(t, original, string(*disk))
+}
+
+func TestRepairSaveFilenameUsesSourceDirectoryAndCompactYellowInput(t *testing.T) {
+	m, _ := repairTestModel(t)
+	m.repair.config.SourcePath = "/apis/api.yaml"
+	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
+	repairKey(m, 'a', "a")
+	require.Equal(t, "/apis/api.fixed.yaml", m.repair.save.input.Value())
+	repairKey(m, tea.KeyDown, "")
+	repairKey(m, tea.KeyEnter, "")
+	rendered := m.renderActiveModal()
+	require.Contains(t, rendered, lipgloss.NewStyle().Foreground(color.RGBYellow).Render("/apis/api.fixed.yaml"))
+	require.Contains(t, ansi.Strip(rendered), "source spec directory")
+	require.Contains(t, ansi.Strip(rendered), "enter: continue | esc: back")
+	width, height := m.repairModalSize()
+	require.Equal(t, width, lipgloss.Width(rendered))
+	require.Equal(t, height, lipgloss.Height(rendered))
+	require.LessOrEqual(t, height, 14)
+	require.LessOrEqual(t, width, 100)
+	x, y := m.calculateModalPosition()
+	require.Equal(t, (m.width-width)/2, x)
+	require.Equal(t, (m.height-height)/2, y)
+	// Relative source paths use the same source-directory default, not a temp directory.
+	repairKey(m, tea.KeyEscape, "")
+	repairKey(m, tea.KeyEscape, "")
+	m.repair.config.SourcePath = filepath.Join("specs", "api.json")
+	repairKey(m, 'a', "a")
+	expected, err := filepath.Abs(filepath.Join("specs", "api.fixed.json"))
+	require.NoError(t, err)
+	require.Equal(t, expected, m.repair.save.input.Value())
+}
+
+func TestRepairSaveCompactChoicesNeverHideAnOption(t *testing.T) {
+	m, _ := repairTestModel(t)
+	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
+	repairKey(m, 'a', "a")
+	repairKey(m, tea.KeyEnter, "")
+	for _, height := range []int{16, 20, 40} {
+		m.Update(tea.WindowSizeMsg{Width: 80, Height: height})
+		rendered := ansi.Strip(m.renderActiveModal())
+		require.LessOrEqual(t, lipgloss.Height(rendered), height)
+		if height == 16 {
+			require.Contains(t, rendered, "Enlarge terminal")
+		} else {
+			require.Contains(t, rendered, "Keep references as they are")
+			require.Contains(t, rendered, "Inline external references")
+			require.Contains(t, rendered, "Compose reusable components")
+			require.Contains(t, rendered, "enter: continue | esc: back")
+		}
+	}
 }

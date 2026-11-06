@@ -60,6 +60,11 @@ func (m *ViolationResultTableModel) openRepairSave() {
 	input := textinput.New()
 	input.SetValue(strings.TrimSuffix(path, ext) + ".fixed" + ext)
 	input.CharLimit = 4096
+	styles := input.Styles()
+	styles.Focused.Text = styles.Focused.Text.Foreground(color.RGBYellow)
+	styles.Blurred.Text = styles.Blurred.Text.Foreground(color.RGBYellow)
+	styles.Cursor.Color = color.RGBYellow
+	input.SetStyles(styles)
 	r.save = &repairSaveState{input: input, view: viewport.New()}
 	r.save.view.SoftWrap = true
 	m.OpenModal(ModalRepairSave)
@@ -267,18 +272,30 @@ func (m *ViolationResultTableModel) repairSavePath() string {
 	return filepath.Join(filepath.Dir(source), s.options.OutputPath)
 }
 
-func (m *ViolationResultTableModel) buildRepairSaveModal() string {
+// repairSaveModalSize keeps choices and filenames compact. Only the diff and
+// error views need the full scrollable area. Blink state never affects sizing.
+func (m *ViolationResultTableModel) repairSaveModalSize(width, height int) (int, int) {
+	s := m.repair.save
+	if s.step == repairSavePreview || s.step == repairSaveError {
+		return width, height
+	}
+	preferred := 72
+	if s.step == repairSaveFilename {
+		preferred = max(preferred, min(100, ansi.StringWidth(s.input.Value())+8))
+	} else if s.step == repairSaveVerifying || s.step == repairSaveDone {
+		preferred = max(preferred, min(100, ansi.StringWidth(m.repairSavePath())+4))
+	}
+	width = min(width, preferred)
+	_, body, _ := m.repairSaveContent(width, height)
+	content := lipgloss.NewStyle().Width(max(1, width-4)).MaxWidth(max(1, width-4)).Render(body)
+	return width, min(height, lipgloss.Height(content)+6)
+}
+
+func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string, string, string) {
 	r := m.repair
-	if r == nil || r.save == nil {
-		return ""
-	}
 	s := r.save
-	width, height := m.repairModalSize()
 	inner := max(1, width-4)
-	frame := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(color.RGBPink).Width(max(1, width-2)).Height(max(1, height-2)).MaxWidth(width).MaxHeight(height)
-	if width < 50 || height < 14 {
-		return frame.Render("Enlarge terminal to save fixes")
-	}
+	s.input.SetWidth(max(1, width-8))
 	title := "Save fixes"
 	footer := "↑↓: choose | enter: continue | esc: back"
 	var body string
@@ -297,20 +314,20 @@ func (m *ViolationResultTableModel) buildRepairSaveModal() string {
 		body = fmt.Sprintf("%d fixes selected. Where do you want to save them?\n\n", len(r.selectedChoices())) + choices([]string{"Update the current specification", "Create a new specification"}, s.destination)
 	case repairSaveFilename:
 		title = "Create a new specification"
-		body = "Filename\n\n" + s.input.View() + "\n\nThe original file stays unchanged. Existing files cannot be replaced.\nUse .yaml or .json to choose the output format."
+		body = "Filename\n\n" + s.input.View() + "\n\nDefault: the source spec directory. Use .yaml or .json.\nExisting files will not be replaced."
 		footer = "enter: continue | esc: back"
 	case repairSaveBundle:
 		title = "Bundle references"
 		body = choices([]string{"Keep references as they are", "Inline external references", "Compose reusable components"}, s.bundle) + "\n\nThe final output will be checked before you save it."
 	case repairSaveVerifying:
 		title = "Checking final output"
-		body = m.repairSavePath() + "\n\nChecking fixes, references, document structure, and contract impact.\nNo files have been written."
+		body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n\nChecking fixes, references, document structure, and contract impact.\nNo files have been written."
 		footer = "esc: cancel"
 	case repairSavePreview:
 		title = "Review and save"
 		p := r.preview
 		if p != nil {
-			body = m.repairSavePath() + "\n" + fmt.Sprintf("%d fixes · findings %d → %d · score %d → %d", p.Fixed, p.Before.Errors+p.Before.Warnings+p.Before.Info, p.After.Errors+p.After.Warnings+p.After.Info, p.Before.Score, p.After.Score) + "\n"
+			body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n" + fmt.Sprintf("%d fixes · findings %d → %d · score %d → %d", p.Fixed, p.Before.Errors+p.Before.Warnings+p.Before.Info, p.After.Errors+p.After.Warnings+p.After.Info, p.Before.Score, p.After.Score) + "\n"
 			prefix := lipgloss.NewStyle().Width(inner).Render(body)
 			s.view.SetWidth(inner)
 			s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
@@ -328,11 +345,29 @@ func (m *ViolationResultTableModel) buildRepairSaveModal() string {
 		footer = "enter: back | ↑↓/pgup/pgdn: scroll | esc: cancel"
 	case repairSaveDone:
 		title = "Specification saved"
-		body = m.repairSavePath() + "\n\n" + s.summary
+		body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n\n" + s.summary
 		footer = "enter/esc: close"
 	}
 	if s.err != "" && s.step != repairSaveError {
 		body += "\n\n" + lipgloss.NewStyle().Foreground(color.RGBYellow).Render(s.err)
+	}
+	return title, body, footer
+}
+
+func (m *ViolationResultTableModel) buildRepairSaveModal() string {
+	if m.repair == nil || m.repair.save == nil {
+		return ""
+	}
+	width, height := m.repairModalSize()
+	inner := max(1, width-4)
+	frame := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(color.RGBPink).Width(width).Height(height).MaxWidth(width).MaxHeight(height)
+	title, body, footer := m.repairSaveContent(width, height)
+	minimumHeight := lipgloss.Height(lipgloss.NewStyle().Width(inner).MaxWidth(inner).Render(body)) + 6
+	if m.repair.save.step == repairSavePreview || m.repair.save.step == repairSaveError {
+		minimumHeight = 14
+	}
+	if width < 50 || height < minimumHeight {
+		return frame.Render("Enlarge terminal to save fixes")
 	}
 	content := lipgloss.NewStyle().Width(inner).MaxWidth(inner).Height(height - 6).MaxHeight(height - 6).Render(body)
 	header := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true).Render(title)

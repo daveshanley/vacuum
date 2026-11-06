@@ -74,6 +74,9 @@ func (m *ViolationResultTableModel) repairModalSize() (int, int) {
 	if m.uiState.ActiveModal == ModalRepairEdit {
 		height = min(height, 12)
 	}
+	if m.uiState.ActiveModal == ModalRepairSave && m.repair != nil && m.repair.save != nil {
+		width, height = m.repairSaveModalSize(width, height)
+	}
 	return min(max(1, m.width), width), min(max(1, m.height), height)
 }
 func (m *ViolationResultTableModel) resizeRepairModal() {
