@@ -821,7 +821,7 @@ Collection flags accept comma-separated values. For example,
 
 ## Auto-fixing rule violations
 
-Use `--fix` to apply supported built-in repairs and configured plugin fixes:
+Use `--fix` to review and apply supported built-in repairs:
 
 ```sh
 vacuum lint api.yaml --fix
@@ -830,10 +830,15 @@ vacuum lint api.yaml --fix --fix-file api.fixed.yaml
 vacuum schema schema.json --fix
 ```
 
-`--fix --dry-run` applies and verifies changes in memory, displays the proposed
-changes, and leaves source, output and backup files untouched. `--fix-file`
-writes the verified result to a separate file. In-place repairs create a backup.
-A rule must be enabled before it can supply a repair.
+`--fix` lists available fixes. Enter their numbers or `all`, review the verified
+diff and contract impact, then accept the displayed changes. Every fix requires
+review. A rule must be enabled before it can supply a proposal. Conflicting
+selections are declined; choose a smaller set in the dashboard.
+
+`--fix --dry-run` verifies all available proposals in memory and leaves source,
+output and backup files untouched. It does not read an acceptance response.
+Noninteractive `--fix` cannot write files. After acceptance, `--fix-file` writes
+the verified result to a separate file. In-place repairs create a backup.
 
 To review and edit fixes interactively, run `vacuum dashboard api.yaml` and
 press `f`, then Enter to compare the current source with a proposed fix.
@@ -842,12 +847,23 @@ selection, and `a` to apply the verified result. Generated text suggestions are
 labelled and require selection or confirmation. The code view (`x`) shows the
 verified preview diff. Editing or reloading the source invalidates the preview.
 
-Repairs reparse and relint the candidate before writing, and check that the
-source has not changed. Unsupported or ambiguous findings remain for review.
+Repairs check document integrity independently of the selected lint rules,
+then relint the full selection and compare OpenAPI contracts with libopenapi.
+The review shows breaking changes, no breaking changes detected, or unknown
+impact. Breaking and unknown results require explicit acceptance. No result
+proves runtime compatibility. A new structural or reference defect blocks the
+repair. The source must still match the reviewed version before writing.
+
+Supported proposals include generated metadata and schema-derived examples.
+Generated content remains editable in the dashboard. Unsupported or ambiguous
+findings remain visible with a reason.
 Use `--fix-policy policy.yaml` with `--fix` to supply exact metadata values;
 see [Autofix usage, policies and limits](AUTOFIX.md).
 
-If you have a rule that doesn't need a human to look at it, and the change can be reliably automated you can configure an `AutoFixFunction` on the rule. When you then run the `lint` command you can pass the `--fix` flag and the violation will be automatically fixed.
+Library integrations can configure an `AutoFixFunction` on a rule. The callback
+APIs below retain their existing behavior. CLI `--fix` currently declines
+configured custom fix callbacks because they do not yet supply reviewed
+proposals. It does not run those callbacks or write their output.
 
 ### Set up
 
@@ -936,7 +952,7 @@ A callback error rolls back its rule transaction. `RunPluginRepairs` also reject
 > [!TIP]
 > When using `vacuum` as a library You can access the fixed yaml content in the `RuleSetExecutionResult.ModifiedSpec`, and choose where to write the file.
 > 
-> When using `vacuum` as a cli, the `--fix` flag will overwrite the spec file in place, and `--fix-file` flag lets you specify an alternative file to write the content to, if you want to compare the outputs.
+> With the CLI, reviewed built-in fixes write in place only after acceptance. `--fix-file` selects a separate output file. Custom callback setup below applies to library use.
 
 ### Usage
 

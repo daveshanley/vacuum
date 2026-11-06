@@ -1,18 +1,19 @@
 # Autofix
 
-`vacuum lint api.yaml --fix` applies supported built-in repairs and configured
-plugin fixes. A rule must be enabled in the active ruleset before it can supply
-a repair. Automatic repairs do not invent descriptions, contact details or
-other values that require the API author's decision.
+`vacuum lint api.yaml --fix` proposes supported built-in repairs. Every fix
+requires review before it is written. A rule must be enabled in the active
+ruleset before it can supply a proposal. Supported cases include structural
+repairs, generated metadata, and schema-derived examples. A rule can have
+supported and unsupported cases; the rule ID alone does not guarantee a fix.
 
 ```sh
 # Verify and inspect changes without writing files.
 vacuum lint api.yaml --fix --dry-run
 
-# Write a separate output file.
+# Review fixes, then write a separate output file after acceptance.
 vacuum lint api.yaml --fix --fix-file api.fixed.yaml
 
-# Apply repairs to a JSON Schema document.
+# Review repairs to a JSON Schema document.
 vacuum schema schema.json --fix
 ```
 
@@ -20,6 +21,28 @@ Dry run performs real application and verification in memory. Its report shows
 the candidate's remaining findings. Human-readable output includes a bounded
 diff; omitted portions are marked. Structured reports retain their usual
 format. No source, output or backup file is written by dry run.
+
+## Review in the console
+
+The console lists available fixes with numbers. Enter numbers separated by
+spaces, or `all`. Press Enter to cancel. Vacuum verifies the complete selection,
+then displays every changed line in full and the contract impact:
+
+| Result | Required response |
+| --- | --- |
+| No breaking changes detected | `yes` |
+| Breaking changes detected | `accept breaking changes` |
+| Contract impact unknown | `accept unknown impact` |
+
+Any other response cancels the write. Use the dashboard to edit values or
+inspect individual proposals. A conflicting selection is declined in full;
+Vacuum does not silently remove selected fixes to make the batch pass.
+
+Noninteractive `--fix` cannot write. Use `--fix --dry-run` in automation to
+inspect projected results. Dry run attempts all available proposals and reports
+conflicts or validation failures without writing. Review text and decline
+reasons use standard error, so structured reports on standard output retain
+their format. The source is checked again before an accepted candidate is written.
 
 ## Review in the dashboard
 
@@ -37,7 +60,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
-| `a` | Write the current verified candidate |
+| `a` | Apply the current verified candidate; confirm breaking or unknown impact when requested |
 | Escape | Cancel an edit, close a modal, or cancel review |
 
 Descriptions, summaries and operation IDs accept plain text. Contact and
@@ -51,31 +74,38 @@ Unchanged lines keep their normal syntax colors. Solid pink borders frame the
 comparison, with one pipe-separated control row. The proposal uses formatted
 excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` to verify the selected batch; the
-preview diff shows the actual candidate edits, with omitted sections marked.
+verified preview diff shows every changed line in full. Scroll this view to
+inspect the complete changes before applying them.
 
 Supported editable fixes open with proposed content already inserted in the
 right-hand source pane. The dashboard drafts descriptions, summaries and unique
 operation IDs from source context. Contact proposals contain a name, without
 invented email addresses or URLs. License proposals use `Unspecified`, without
-asserting a license grant. Generated values are labelled and start unselected.
+asserting a license grant. Generated values are labelled. All fixes start unselected.
 Press Enter to select the displayed proposal, or `e` to change its prefilled
-value. Review generated wording and metadata before applying. These dashboard
-suggestions do not change CLI `--fix` behavior. Verification rejects a proposal
-if the active rules require more information or it introduces another finding.
+value. Review generated wording and metadata before applying. The console uses
+the same proposals. Verification rejects a proposal if it introduces a new integrity defect or lint finding, or leaves its target unresolved.
+An invalid example can be replaced with a validated instance generated from its
+schema. Existing valid data is preferred where supported. Generation is bounded
+and deterministic; unsupported constraints or failed validation cause a decline.
+Example generation does not authorize replacing a schema default.
 
 Editing uses a separate modal. Enter saves the value for review; Escape keeps
 the prior value. Cursor blinking does not resize the surrounding content.
 
-The preview header shows verified repairs, severity counts and the existing
-quality score before and after. Apply refreshes the table with remaining
+The preview shows contract impact, verified repairs, severity counts and the
+existing quality score before and after. Apply refreshes the table with remaining
 findings and reports actual results. A successful repair does not guarantee a
 score of 100: other findings may remain. Editing a selection or value invalidates
 the preview. Source reloads also discard the previous review.
 
 Saved reports and remote URLs are read-only. Open the local specification to
 apply changes. Comparison views using `--original` or `--changes` direct users
-to the full lint view for repairs. Dashboard review covers built-in mechanical
-and metadata repairs; configured plugin callbacks run through CLI `--fix`.
+to the full lint view for repairs. Dashboard and console review cover supported
+built-in proposals. CLI `--fix`
+currently declines configured custom fix callbacks, including in dry-run mode.
+The library callback APIs retain their existing behavior; they do not provide
+CLI review or acceptance.
 
 ## Supply exact metadata values
 
@@ -125,11 +155,22 @@ wildcard scopes and remote catalogs are not accepted.
 ## Verification and file handling
 
 Repairs must resolve their targeted findings without introducing new diagnostics
-or changing inline ignore directives. Verification uses the active rules,
-severities, ignores and reference settings. Relinting does not prove that an
-arbitrary API contract change preserves its intended meaning; built-in repairs
-therefore have narrow eligibility checks. If candidate verification fails, the
-CLI keeps the baseline report, writes no candidate bytes, and explains the
+or changing inline ignore directives. An internal integrity check compares
+baseline and candidate defects independently of the selected lint rules and
+ignores. It checks structure, references and identifiers through the existing
+format validators. Existing unrelated defects can remain; new defects block
+application. The selected lint rules also verify the repair targets.
+
+For supported OpenAPI documents, libopenapi compares the original contract with
+the complete selected candidate. A breaking result includes the detected changes.
+An unsupported format, incomplete comparison, or comparison error produces
+unknown impact. No breaking changes detected is not a guarantee of runtime
+compatibility. The current native comparator can report breaking changes for
+description-only edits in union schemas. Review the source diff when assessing
+that warning; Vacuum does not suppress the native result.
+User acceptance of breaking or unknown impact cannot override a
+failed integrity check. Changing a value or selection invalidates verification
+and the impact result. If candidate verification fails, the CLI keeps the baseline report, writes no candidate bytes, and explains the
 declined repair on standard error (unless `--silent` is set).
 
 The CLI checks original source bytes before writing, stages the candidate in
@@ -139,7 +180,8 @@ are rejected. Replacing one path leaves other hardlinks on their original
 inode. The source check and rename are not a filesystem compare-and-swap.
 
 Only the root file is written. OpenAPI verification reuses captured external
-reference bytes. AsyncAPI/Arazzo documents with external sources are refused
+reference bytes. Arazzo verification also reuses captured source bytes and redirect
+aliases; it does not read files or fetch URLs again. AsyncAPI documents with external sources are refused
 for repair until equivalent frozen-source verification is available. LSP
 repairs return versioned editor edits and do not write files directly.
 
