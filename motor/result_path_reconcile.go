@@ -83,6 +83,7 @@ func populateResultOrigins(
 		cacheRolodex = resolvedRolodex
 	}
 	nodeOwnerCache := buildNodeOwnerCache(cacheRolodex)
+	fallbackOrigins := make(map[*yaml.Node]*index.NodeOrigin)
 	rootPath := ""
 	if rootIdx := resolvedRolodex.GetRootIndex(); rootIdx != nil {
 		rootPath = rootIdx.GetSpecAbsolutePath()
@@ -105,9 +106,20 @@ func populateResultOrigins(
 				Index:            ownerIdx,
 			}
 		} else {
-			origin = resolvedRolodex.FindNodeOrigin(results[i].StartNode)
-			if origin != nil && rootPath != "" && origin.AbsoluteLocation == rootPath {
-				origin.AbsoluteLocation = specFileName
+			// Root-level JS findings can share a node absent from the owner cache.
+			// Cache misses too, so each distinct node is looked up only once here.
+			var cached bool
+			origin, cached = fallbackOrigins[results[i].StartNode]
+			if !cached {
+				origin = resolvedRolodex.FindNodeOrigin(results[i].StartNode)
+				if origin != nil && rootPath != "" && origin.AbsoluteLocation == rootPath {
+					origin.AbsoluteLocation = specFileName
+				}
+				fallbackOrigins[results[i].StartNode] = origin
+			} else if origin != nil {
+				// Keep each result's origin independently mutable.
+				originCopy := *origin
+				origin = &originCopy
 			}
 		}
 		if origin != nil {
