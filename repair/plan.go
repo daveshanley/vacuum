@@ -58,6 +58,11 @@ type KeyRemoval struct {
 // authority. Data operations use RFC 6902 ordering; presentation edits apply
 // first. Duplicate-key removals must be applied in a separate batch.
 type Plan struct {
+	// ReviewedProposals keeps each finding's review-only operation group, including
+	// groups that conflict in a combined batch. It is private discovery metadata,
+	// not a serialized patch or permission to apply unverified operations.
+	ReviewedProposals map[string][]Operation `json:"-"`
+
 	Version     int               `json:"version"`
 	Source      string            `json:"source"`
 	SHA256      string            `json:"sha256"`
