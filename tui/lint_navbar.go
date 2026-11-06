@@ -47,7 +47,7 @@ func (m *ViolationResultTableModel) buildNavBar() string {
 		baseNavText += " | f: fixes"
 	}
 	if m.repair != nil && m.repair.onlyFixes {
-		baseNavText = "↑↓: move | enter: review | space: select | e: edit | v: verify | a: apply | f: all findings | esc: cancel | q: quit"
+		baseNavText = "↑↓: move | enter: review | space: select | e: edit | v: verify | a: save | f: all findings | esc: cancel | q: quit"
 		if m.repair.editing {
 			baseNavText = "enter: save value | esc: cancel edit"
 		}
