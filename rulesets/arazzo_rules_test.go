@@ -21,7 +21,9 @@ func TestArazzoRulesetAliasesAndOverrides(t *testing.T) {
 			loaded := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
 			require.NoError(t, loaded.LoadError())
 			if mode == VacuumOff {
-				require.Empty(t, loaded.Rules)
+				// a severity turns on just that rule, like Spectral does
+				require.Len(t, loaded.Rules, 1)
+				require.Equal(t, model.SeverityWarn, loaded.Rules["arazzo-reference"].Severity)
 				continue
 			}
 			require.Equal(t, model.SeverityWarn, loaded.Rules["arazzo-reference"].Severity)
