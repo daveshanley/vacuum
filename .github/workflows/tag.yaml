@@ -8,6 +8,8 @@ on:
 
 jobs:
   tag:
+    permissions:
+      contents: write # Push the release tag with the checkout token.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
