@@ -16,6 +16,8 @@ on:
 
 jobs:
   lint-jsonschema:
+    permissions:
+      contents: write # Commit and push schema lint fixes.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
