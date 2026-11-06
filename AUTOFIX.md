@@ -25,16 +25,12 @@ format. No source, output or backup file is written by dry run.
 ## Review in the console
 
 The console lists available fixes with numbers. Enter numbers separated by
-spaces, or `all`. Press Enter to cancel. Vacuum verifies the complete selection,
-then displays every changed line in full and the contract impact:
+spaces, or press Enter to review all available fixes. Esc cancels.
+Vacuum verifies the selection, then shows contextual diff snippets and the
+contract impact, including any breaking changes or unknown impact.
 
-| Result | Required response |
-| --- | --- |
-| No breaking changes detected | `yes` |
-| Breaking changes detected | `accept breaking changes` |
-| Contract impact unknown | `accept unknown impact` |
-
-Any other response cancels the write. Use the dashboard to edit values or
+Press Enter to apply the reviewed changes. Press Esc to cancel without writing.
+Use the dashboard to edit values or
 inspect individual proposals. A conflicting selection is declined in full;
 Vacuum does not silently remove selected fixes to make the batch pass.
 

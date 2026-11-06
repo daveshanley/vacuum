@@ -11,6 +11,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
+	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/dop251/goja v0.0.0-20261021140635-64adc8bb4d51
 	github.com/dop251/goja_nodejs v0.0.0-20260918173711-b481721df8a2
@@ -36,6 +37,7 @@ require (
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
+	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
 )
@@ -51,7 +53,6 @@ require (
 	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
 	github.com/charmbracelet/x/exp/slice v0.1.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
@@ -91,7 +92,6 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	modernc.org/libc v1.79.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
