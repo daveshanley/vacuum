@@ -42,7 +42,9 @@ Noninteractive `--fix` cannot write. Use `--fix --dry-run` in automation to
 inspect projected results. Dry run attempts all available proposals and reports
 conflicts or validation failures without writing. Review text and decline
 reasons use standard error, so structured reports on standard output retain
-their format. The source is checked again before an accepted candidate is written.
+their format. `--silent` suppresses dry-run review output and cannot accept
+changes through an unseen prompt. The source is checked again before an accepted
+candidate is written.
 
 ## Review in the dashboard
 
