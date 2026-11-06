@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
 )
 
 // repairSourceRows aligns the bounded draft excerpts by unchanged lines. Only
 // changed lines receive diff colors; context uses the normal source highlighter.
-func repairSourceRows(before, after string, width int, isYAML bool) ([]string, int) {
+func repairSourceRows(before, after string, width int, isYAML bool, offset int) ([]string, int) {
 	lines := func(source string) []string {
 		if source == "" {
 			return nil
@@ -49,18 +50,9 @@ func repairSourceRows(before, after string, width int, isYAML bool) ([]string, i
 			a = ApplySyntaxHighlightingToLine(a, isYAML)
 			b = ApplySyntaxHighlightingToLine(b, isYAML)
 		}
-		aLines := strings.Split(lipgloss.NewStyle().Width(max(1, lw-2)).MaxWidth(max(1, lw-2)).Render(a), "\n")
-		bLines := strings.Split(lipgloss.NewStyle().Width(max(1, rw-2)).MaxWidth(max(1, rw-2)).Render(b), "\n")
-		for n := 0; n < max(len(aLines), len(bLines)); n++ {
-			a, b := "", ""
-			if n < len(aLines) {
-				a = aLines[n]
-			}
-			if n < len(bLines) {
-				b = bLines[n]
-			}
-			rows = append(rows, repairColumnRow(a, b, width))
-		}
+		// One source line stays on one screen row. Cropping is explicit and can
+		// be panned horizontally; presentation must not invent YAML/JSON newlines.
+		rows = append(rows, repairColumnRow(repairSourceWindow(a, max(1, lw-2), offset), repairSourceWindow(b, max(1, rw-2), offset), width))
 	}
 	for i, j := 0, 0; i < len(left) || j < len(right); {
 		if i < len(left) && j < len(right) && left[i] == right[j] {
@@ -92,4 +84,46 @@ func repairSourceRows(before, after string, width int, isYAML bool) ([]string, i
 		}
 	}
 	return rows, max(0, firstChange)
+}
+
+// repairSourceWindow shows a terminal-cell slice with explicit crop markers.
+func repairSourceWindow(line string, width, offset int) string {
+	length := ansi.StringWidth(line)
+	if offset >= length {
+		return ""
+	}
+	// A terminal-cell offset can land inside a wide grapheme. Move to its
+	// next boundary so the final glyph stays reachable without splitting it.
+	tail := ansi.TruncateLeft(line, offset, "")
+	for length-ansi.StringWidth(tail) < offset {
+		offset++
+		tail = ansi.TruncateLeft(line, offset, "")
+	}
+	marker := lipgloss.NewStyle().Foreground(color.RGBGrey)
+	prefix, suffix := "", ""
+	available := width
+	if offset > 0 {
+		prefix = marker.Render("‹")
+		available--
+	}
+	if ansi.StringWidth(tail) > available {
+		suffix = marker.Render("›")
+		available--
+	}
+	return prefix + ansi.Truncate(tail, max(0, available), "") + suffix
+}
+
+func repairSourceMaxOffset(before, after string, width int) int {
+	longest := 0
+	for _, source := range []string{before, after} {
+		for _, line := range strings.Split(source, "\n") {
+			longest = max(longest, ansi.StringWidth(line))
+		}
+	}
+	left, right := repairColumns(width)
+	visible := max(1, min(left, right)-2)
+	if longest <= visible {
+		return 0
+	}
+	return max(0, longest-visible+1)
 }

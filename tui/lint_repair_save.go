@@ -40,6 +40,7 @@ type repairSaveState struct {
 
 func (s *repairSaveState) fail(message string, retry repairSaveStep) {
 	s.err, s.retry, s.step = message, retry, repairSaveError
+	s.view.SoftWrap = true
 	s.view.SetContent(message)
 	s.view.GotoTop()
 }
@@ -66,7 +67,7 @@ func (m *ViolationResultTableModel) openRepairSave() {
 	styles.Cursor.Color = color.RGBYellow
 	input.SetStyles(styles)
 	r.save = &repairSaveState{input: input, view: viewport.New()}
-	r.save.view.SoftWrap = true
+	r.save.view.SoftWrap = false
 	m.OpenModal(ModalRepairSave)
 	m.resizeRepairModal()
 }
@@ -242,6 +243,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 	case repairSaveError:
 		if key.String() == "enter" {
 			s.step, s.err = s.retry, ""
+			s.view.SoftWrap = s.step != repairSavePreview
 			s.view.SetContent(r.diff)
 			s.view.GotoTop()
 			return true, nil
@@ -333,7 +335,10 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 			s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
 			body = prefix + "\n" + s.view.View()
 		}
-		footer = "enter: save | e: options | ↑↓/pgup/pgdn: scroll | esc: cancel"
+		footer = "enter: save | e: options | ↑↓/pgup/pgdn: scroll | ←→: pan | esc: cancel"
+		if ansi.StringWidth(footer) > inner {
+			footer = "enter: save | e: options | ↑↓: scroll | ←→: pan | esc: cancel"
+		}
 		if r.confirmImpact {
 			footer = "enter: accept impact and save | esc: cancel"
 		}

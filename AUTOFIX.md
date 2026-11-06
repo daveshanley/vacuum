@@ -59,6 +59,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | Enter | Open before/after; select or skip the displayed proposal; save a value in the editor |
 | ↑ / ↓ | Move to the previous or next fix while the comparison stays open |
 | Page Up / Page Down | Scroll the current comparison |
+| ← / → | Pan long source lines horizontally |
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
@@ -72,7 +73,9 @@ repairs support selection, not arbitrary patch editing.
 The fix modal shows the selected issue above two source panes: Currently and
 Autofixed. Both use the dashboard's syntax highlighting. Removed or changed
 lines are blue on the left; added or changed lines are yellow on the right.
-Unchanged lines keep their normal syntax colors. Solid pink borders frame the
+Unchanged lines keep their normal syntax colors. YAML and JSON source lines do
+not wrap. Crop markers show hidden text; use Left and Right to pan both panes.
+The verified save diff also scrolls horizontally instead of wrapping source lines. Solid pink borders frame the
 comparison, with one pipe-separated control row. The proposal uses formatted
 excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` for a preview without saving, or press `a` to start the save flow.
