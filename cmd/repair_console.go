@@ -92,8 +92,8 @@ func (c repairConsole) options(options []motor.FixOption) string {
 }
 
 const (
-	repairDiffRedBackground   = "\x1b[48;5;52m"
-	repairDiffGreenBackground = "\x1b[48;5;22m"
+	repairDiffRedBackground   = "\x1b[48;2;42;25;29m"
+	repairDiffGreenBackground = "\x1b[48;2;23;40;30m"
 )
 
 // Stream color around diff lines without buffering or wrapping source text.
