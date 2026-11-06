@@ -824,19 +824,6 @@ Collection flags accept comma-separated values. For example,
 `VACUUM_INCLUDE_TAG='public,partner'` sets the included tags for
 `apply-overlay`.
 
-For colored `lint` findings in a pipe or CI log, set `FORCE_COLOR=1`:
-
-```sh
-FORCE_COLOR=1 vacuum lint --details openapi.yaml
-```
-
-`--no-style` and a non-empty `NO_COLOR` take precedence over `FORCE_COLOR`.
-`FORCE_COLOR=0` disables styling. Any other set value, including an empty value,
-enables the existing color palette. Without these overrides, `lint` disables
-styling when stdout is not a terminal. `--pipeline-output` keeps its Markdown
-summary format; use `--details` for colored findings. JSON reports and GitHub
-annotations remain free of color codes.
-
 
 ## Auto-fixing rule violations
 
