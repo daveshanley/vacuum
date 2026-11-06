@@ -15,6 +15,7 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
@@ -259,16 +260,23 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	return flags
 }
 
-// SetupVacuumEnvironment configures the environment based on flags
+// SetupVacuumEnvironment configures styling and prints the banner when requested.
+// No-style and non-empty NO_COLOR take precedence over FORCE_COLOR. FORCE_COLOR=0
+// disables styling; any other set value enables styling even when stdout is piped.
 func SetupVacuumEnvironment(flags *LintFlags) {
-	if !flags.NoStyleFlag && !flags.PipelineOutput {
-		fileInfo, _ := os.Stdout.Stat()
-		if (fileInfo.Mode() & os.ModeCharDevice) == 0 {
+	if !flags.NoStyleFlag {
+		forceColor, forceColorSet := os.LookupEnv("FORCE_COLOR")
+		switch {
+		case os.Getenv("NO_COLOR") != "":
 			flags.NoStyleFlag = true
+		case forceColorSet:
+			flags.NoStyleFlag = forceColor == "0"
+		case !flags.PipelineOutput:
+			flags.NoStyleFlag = !term.IsTerminal(int(os.Stdout.Fd()))
 		}
 	}
 
-	if flags.NoStyleFlag && !flags.PipelineOutput {
+	if flags.NoStyleFlag {
 		color.DisableColors()
 	}
 
