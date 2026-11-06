@@ -16,18 +16,18 @@ import (
 	"github.com/pb33f/testify/require"
 )
 
-func TestConsoleRepairRequiresExactImpactAcceptance(t *testing.T) {
+func TestConsoleRepairEnterAppliesAndEscapeCancels(t *testing.T) {
 	for _, tc := range []struct {
 		status   motor.RepairImpactStatus
 		answer   string
 		accepted bool
 	}{
-		{motor.RepairImpactNoBreaking, "yes\n", true},
-		{motor.RepairImpactNoBreaking, "\n", false},
-		{motor.RepairImpactBreaking, "yes\n", false},
-		{motor.RepairImpactBreaking, "accept breaking changes\n", true},
-		{motor.RepairImpactUnknown, "yes\n", false},
-		{motor.RepairImpactUnknown, "accept unknown impact\n", true},
+		{motor.RepairImpactNoBreaking, "\r", true},
+		{motor.RepairImpactNoBreaking, "\x1b", false},
+		{motor.RepairImpactBreaking, "\r", true},
+		{motor.RepairImpactBreaking, "\x1b", false},
+		{motor.RepairImpactUnknown, "\n", true},
+		{motor.RepairImpactUnknown, "\x1b", false},
 	} {
 		t.Run(string(tc.status)+tc.answer, func(t *testing.T) {
 			var out bytes.Buffer
@@ -37,7 +37,7 @@ func TestConsoleRepairRequiresExactImpactAcceptance(t *testing.T) {
 			require.Equal(t, tc.accepted, accepted)
 			require.Contains(t, out.String(), "--- original")
 			require.Contains(t, out.String(), "name: new")
-			require.Less(t, strings.Index(out.String(), "name: new"), strings.Index(out.String(), "Type "))
+			require.Less(t, strings.Index(out.String(), "name: new"), strings.Index(out.String(), "enter: apply"))
 		})
 	}
 }
@@ -45,16 +45,16 @@ func TestConsoleRepairRequiresExactImpactAcceptance(t *testing.T) {
 func TestConsoleRepairCannotAcceptWithoutReview(t *testing.T) {
 	preview := &motor.FixPreview{Candidate: []byte("{}"), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
 	var output bytes.Buffer
-	accepted, err := reviewCLIRepair(strings.NewReader("yes\n"), &output, false, false, "api.json", []byte("{}"), preview)
+	accepted, err := reviewCLIRepair(strings.NewReader("\r"), &output, false, false, "api.json", []byte("{}"), preview)
 	require.ErrorContains(t, err, "require terminal review")
 	require.False(t, accepted)
 	accepted, err = reviewCLIRepair(errorReader{}, &output, false, true, "api.json", []byte("{}"), preview)
 	require.NoError(t, err, "dry run must not read stdin")
 	require.False(t, accepted)
-	accepted, err = reviewCLIRepair(strings.NewReader("yes\n"), errorWriter{}, true, false, "api.json", []byte("{}"), preview)
+	accepted, err = reviewCLIRepair(strings.NewReader("\r"), errorWriter{}, true, false, "api.json", []byte("{}"), preview)
 	require.ErrorContains(t, err, "cannot display fix review")
 	require.False(t, accepted)
-	accepted, err = reviewCLIRepair(strings.NewReader("yes\n"), shortReviewWriter{}, true, false, "api.json", []byte("{}"), preview)
+	accepted, err = reviewCLIRepair(strings.NewReader("\r"), shortReviewWriter{}, true, false, "api.json", []byte("{}"), preview)
 	require.ErrorContains(t, err, "short write")
 	require.False(t, accepted)
 	accepted, err = reviewCLIRepair(strings.NewReader("yes"), &output, true, false, "api.json", []byte("{}"), preview)
@@ -133,7 +133,7 @@ func TestSilentDryRunSuppressesReviewOutput(t *testing.T) {
 
 func TestReviewedCLIRepairAcceptsExactCandidate(t *testing.T) {
 	original := []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat"]}}}}`)
-	for _, answer := range []string{"all\nyes\n", "all\n\n"} {
+	for _, answer := range []string{"all\n\r", "all\n\x1b"} {
 		t.Run(answer, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "api.json")
 			require.NoError(t, os.WriteFile(path, original, 0600))
@@ -146,7 +146,7 @@ func TestReviewedCLIRepairAcceptsExactCandidate(t *testing.T) {
 			saved, err := os.ReadFile(path)
 			require.NoError(t, err)
 			require.Equal(t, original, saved, "review does not write")
-			if answer == "all\nyes\n" {
+			if answer == "all\n\r" {
 				require.NotEmpty(t, result.ModifiedSpec)
 				require.Len(t, result.FixedResults, 1)
 				require.NoError(t, writeFixedFile(result, path, ""))
@@ -182,14 +182,14 @@ func TestReviewedCLIAllDeclinesConflictingFixesWithoutWrites(t *testing.T) {
 	builtins := rulesets.GetAllBuiltInRules()
 	execution := &motor.RuleSetExecution{Spec: original, SpecFileName: path, SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"duplicated-entry-in-enum": builtins["duplicated-entry-in-enum"], "oas3-unused-component": builtins["oas3-unused-component"]}}}
 	var output bytes.Buffer
-	result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true}, nil, strings.NewReader("all\nyes\n"), &output, true)
+	result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true}, nil, strings.NewReader("all\n\r"), &output, true)
 	defer result.ReleaseOwnedResources()
 	require.Empty(t, result.Errors)
 	require.Empty(t, result.ModifiedSpec)
 	require.NotEmpty(t, result.RepairWarnings)
 	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "repairs declined")
 	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "together")
-	require.NotContains(t, output.String(), "Type ", "invalid selection must not reach acceptance")
+	require.NotContains(t, output.String(), "enter: apply", "invalid selection must not reach acceptance")
 	require.Len(t, result.Results, 2, "both original findings must remain")
 	saved, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var output bytes.Buffer
 			preview := &motor.FixPreview{Candidate: []byte(tc.candidate), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
-			accepted, err := reviewCLIRepair(strings.NewReader("yes\n"), &output, true, false, "api.yaml", []byte(tc.original), preview)
+			accepted, err := reviewCLIRepair(strings.NewReader("\r"), &output, true, false, "api.yaml", []byte(tc.original), preview)
 			require.NoError(t, err)
 			require.True(t, accepted)
 			if tc.name == "separated" {
@@ -216,7 +216,7 @@ func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
 			}
 			require.NotContains(t, output.String(), "omitted")
 			require.NotContains(t, output.String(), "truncated")
-			require.Greater(t, strings.Index(output.String(), "Type "), strings.LastIndex(output.String(), "last"))
+			require.Greater(t, strings.Index(output.String(), "enter: apply"), strings.LastIndex(output.String(), "last"))
 		})
 	}
 }
@@ -229,7 +229,7 @@ func TestConsoleAcceptanceStopsWhenFullDiffCannotBeWritten(t *testing.T) {
 	require.ErrorContains(t, err, "cannot display fix review")
 	require.False(t, accepted)
 	require.Contains(t, output.String(), "--- original")
-	require.NotContains(t, output.String(), "Type ")
+	require.NotContains(t, output.String(), "enter: apply")
 }
 
 type limitedReviewWriter struct {
@@ -247,3 +247,17 @@ func (w *limitedReviewWriter) Write(data []byte) (int, error) {
 	return w.Buffer.Write(data)
 }
 func (w *limitedReviewWriter) WriteString(text string) (int, error) { return w.Write([]byte(text)) }
+
+func TestConsoleSelectionEnterReviewsAllAndEscapeCancels(t *testing.T) {
+	options := []motor.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "test", Path: "$.info"}}}
+	for _, tc := range []struct {
+		keys  string
+		count int
+	}{{"\r", 1}, {"\x1b", 0}, {"3\x7f3\r", 1}} {
+		var output bytes.Buffer
+		selected, err := selectCLIRepairs(strings.NewReader(tc.keys), &output, options)
+		require.NoError(t, err)
+		require.Len(t, selected, tc.count)
+		require.NotContains(t, output.String(), "enter: cancel")
+	}
+}

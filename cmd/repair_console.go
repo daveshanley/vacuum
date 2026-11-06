@@ -86,10 +86,15 @@ func (c repairConsole) options(options []motor.FixOption) string {
 		}
 	}
 	fmt.Fprintf(&out, " %s\n", c.paint(color.ASCIIPink, strings.Repeat("─", max(1, c.width-2))))
-	out.WriteString(c.paint(color.ASCIIGrey, " Enter fix numbers separated by spaces | all: select all | enter: cancel\n"))
-	out.WriteString(c.paint(color.ASCIIYellow, " > "))
+	out.WriteString(c.paint(color.ASCIIGrey, " Enter fix numbers separated by spaces (default: all)\n"))
+
 	return out.String()
 }
+
+const (
+	repairDiffRedBackground   = "\x1b[48;5;52m"
+	repairDiffGreenBackground = "\x1b[48;5;22m"
+)
 
 // Stream color around diff lines without buffering or wrapping source text.
 // A line can cross any number of writes, including a large minified document.
@@ -111,16 +116,26 @@ func (w *repairConsoleDiffWriter) Write(data []byte) (int, error) {
 	for len(data) > 0 {
 		if !w.inLine {
 			style := ""
+			highlighted := false
 			switch data[0] {
 			case '-':
-				style = color.ASCIIBlue
+				style = color.ASCIIRed + repairDiffRedBackground
+				highlighted = true
 			case '+':
-				style = color.ASCIIYellow
+				style = color.ASCIIGreen + repairDiffGreenBackground
+				highlighted = true
 			case '@':
 				style = color.ASCIIPink
 			}
 			if w.console.styled {
 				if err := writeRepairReview(w.output, style); err != nil {
+					return consumed, err
+				}
+			}
+			// Fill the row before writing text; clearing after a full-width line
+			// would erase its last character on terminals with pending auto-wrap.
+			if highlighted {
+				if err := writeRepairReview(w.output, ansi.EraseLineRight); err != nil {
 					return consumed, err
 				}
 			}
