@@ -21,15 +21,17 @@ func CaptureRepairYAMLFormat(root *yaml.Node) RepairYAMLFormat {
 }
 
 // RenderRepairYAML retains the source's block and sequence indentation, line
-// endings and final newline while encoding the repaired node tree.
+// endings and final newline without introducing automatic scalar wrapping.
 func RenderRepairYAML(root *yaml.Node, original []byte, format RepairYAMLFormat) ([]byte, error) {
 	var out bytes.Buffer
-	encoder := yaml.NewEncoder(&out)
-	encoder.SetIndent(format.indent)
-	if format.compact {
-		encoder.CompactSeqIndent()
+	// The legacy encoder wraps at 80 columns. Repairs must not reflow unrelated
+	// long values, so use the same defaults with wrapping explicitly disabled.
+	encoder, err := yaml.NewDumper(&out, yaml.WithV3Defaults(),
+		yaml.WithIndent(max(2, format.indent)), yaml.WithCompactSeqIndent(format.compact), yaml.WithLineWidth(-1))
+	if err != nil {
+		return nil, err
 	}
-	if err := encoder.Encode(root); err != nil {
+	if err := encoder.Dump(root); err != nil {
 		_ = encoder.Close()
 		return nil, err
 	}
