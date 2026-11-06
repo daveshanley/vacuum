@@ -96,7 +96,7 @@ func TestRepairSplitCompactMessageAndSingleGrayFooter(t *testing.T) {
 	}
 	require.Contains(t, plain, "Currently")
 	require.Contains(t, plain, "Autofixed")
-	require.Contains(t, view, lipgloss.NewStyle().Foreground(color.RGBGrey).Render("↑↓: fixes | enter: accept | e: edit | v: verify | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"))
+	require.Contains(t, view, lipgloss.NewStyle().Foreground(color.RGBGrey).Render("↑↓: fixes | enter: accept | e: edit | v: verify fix | a: save | esc: back | pgup/pgdn: scroll | ←→: pan"))
 	rows := strings.Split(plain, "\n")
 	require.Contains(t, rows[len(rows)-3], "┴")
 	require.Contains(t, rows[len(rows)-2], "enter: accept")

@@ -338,6 +338,17 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		m.quitting = true
 		return true, tea.Quit
 	}
+	// An open verified view is immutable. Repeated V must not reset its card or scroll.
+	if m.uiState.ActiveModal == ModalCode && key.String() == "v" && m.hasRepairPreview() {
+		return true, nil
+	}
+	var currentChoice *motor.FixChoice
+	if m.uiState.ActiveModal == ModalRepair && key.String() == "v" {
+		if option := m.currentRepairOption(); option != nil {
+			choice := r.choice(option)
+			currentChoice = &choice
+		}
+	}
 	if m.uiState.ActiveModal == ModalRepair {
 		switch key.String() {
 		case "left", "right":
@@ -481,7 +492,12 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		if r.review == nil {
 			return true, nil
 		}
-		choices := r.selectedChoices()
+		var choices []motor.FixChoice
+		if currentChoice != nil {
+			choices = []motor.FixChoice{*currentChoice}
+		} else {
+			choices = r.selectedChoices()
+		}
 		if len(choices) == 0 {
 			r.status = "Select a fix or enter a value first"
 			return true, nil
@@ -491,6 +507,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		r.pending = job
 		review := r.review
 		r.status = "Verifying selected fixes · no files written"
+		if currentChoice != nil {
+			r.status = "Verifying current fix · selection unchanged · no files written"
+		}
 		return true, func() tea.Msg { p, err := review.Preview(choices); job.finish(p, err); return repairPreviewMsg{job} }
 	case "a":
 		m.openRepairSave()
@@ -499,16 +518,21 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	return false, nil
 }
 
+// choice copies the displayed value so asynchronous verification owns its input.
+func (r *dashboardRepair) choice(option *motor.FixOption) motor.FixChoice {
+	choice := motor.FixChoice{Index: option.Index}
+	if option.Editable {
+		value := r.values[option.Index]
+		choice.Value = &value
+	}
+	return choice
+}
+
 func (r *dashboardRepair) selectedChoices() []motor.FixChoice {
 	var choices []motor.FixChoice
 	for _, option := range r.options {
 		if r.selected[option.Index] {
-			choice := motor.FixChoice{Index: option.Index}
-			if option.Editable {
-				value := r.values[option.Index]
-				choice.Value = &value
-			}
-			choices = append(choices, choice)
+			choices = append(choices, r.choice(&option))
 		}
 	}
 	return choices
