@@ -77,6 +77,9 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 		m.table.SetHeight(msg.Height - 4)
 	}
 
+	if m.uiState.ActiveModal == ModalCode {
+		m.PrepareCodeViewport()
+	}
 	color.ApplyLintDetailsTableStyles(&m.table)
 	m.resizeRepairModal()
 
@@ -90,6 +93,12 @@ func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cm
 	}
 
 	switch key {
+	case "left":
+		m.codeViewport.SetXOffset(max(0, m.codeViewport.XOffset()-8))
+		return true, nil
+	case "right":
+		m.codeViewport.SetXOffset(m.codeViewport.XOffset() + 8)
+		return true, nil
 	case "up", "k":
 		m.codeViewport.ScrollUp(1)
 		return true, nil

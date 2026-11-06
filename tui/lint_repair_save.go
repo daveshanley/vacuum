@@ -195,6 +195,9 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			}
 		}
 	case repairSavePreview:
+		if m.changeRepairView(key.String()) {
+			return true, nil
+		}
 		switch strings.ToLower(key.String()) {
 		case "e":
 			r.invalidate()
@@ -244,7 +247,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 		if key.String() == "enter" {
 			s.step, s.err = s.retry, ""
 			s.view.SoftWrap = s.step != repairSavePreview
-			s.view.SetContent(r.diff)
+			s.view.SetContent(m.repairReviewContent(s.view.Width()))
 			s.view.GotoTop()
 			return true, nil
 		}
@@ -331,13 +334,16 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 		if p != nil {
 			body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n" + fmt.Sprintf("%d fixes · findings %d → %d · score %d → %d", p.Fixed, p.Before.Errors+p.Before.Warnings+p.Before.Info, p.After.Errors+p.After.Warnings+p.After.Info, p.Before.Score, p.After.Score) + "\n"
 			prefix := lipgloss.NewStyle().Width(inner).Render(body)
-			s.view.SetWidth(inner)
+			if s.view.Width() != inner {
+				s.view.SetWidth(inner)
+				s.view.SetContent(m.repairReviewContent(inner))
+			}
 			s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
 			body = prefix + "\n" + repairDiffViewport(s.view)
 		}
-		footer = "enter: save | e: options | ↑↓/pgup/pgdn: scroll | ←→: pan | esc: cancel"
+		footer = "enter: save | e: options | []: changes | t: file diff | ↑↓: scroll | ←→: pan | esc: cancel"
 		if ansi.StringWidth(footer) > inner {
-			footer = "enter: save | e: options | ↑↓: scroll | ←→: pan | esc: cancel"
+			footer = "enter: save | e: options | []: changes | t: diff | esc: cancel"
 		}
 		if r.confirmImpact {
 			footer = "enter: accept impact and save | esc: cancel"

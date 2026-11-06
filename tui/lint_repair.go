@@ -43,6 +43,7 @@ type dashboardRepair struct {
 	save            *repairSaveState
 	confirmImpact   bool
 	diff            string
+	changes         repairChangeView
 	byIdentity      map[string]int
 	config          *RepairConfig
 	review          *motor.FixReview
@@ -113,6 +114,7 @@ func (j *repairPreviewJob) take() (*motor.FixPreview, error) {
 func (r *dashboardRepair) invalidate() {
 	r.confirmImpact = false
 	r.diff = ""
+	r.changes = repairChangeView{}
 	if r.preview != nil {
 		r.preview.Close()
 		r.preview = nil
@@ -242,15 +244,18 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		}
 		r.preview = preview
 		var diff strings.Builder
-		// strings.Builder cannot fail. The verified view must expose every edit
-		// before acceptance; only the individual proposal modal uses excerpts.
+		// strings.Builder cannot fail. Keep the complete byte diff available
+		// alongside the bounded semantic change cards.
 		_ = utils.WriteRepairDiff(&diff, r.source, preview.Candidate)
 		r.diff = repairImpactDetails(preview.Impact) + "\n" + diff.String()
+		r.initChangeView()
 		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score) + " | " + repairImpactLabel(preview.Impact)
 		if r.save != nil && r.save.step == repairSaveVerifying {
 			r.save.step = repairSavePreview
 			r.save.view.SoftWrap = false
-			r.save.view.SetContent(r.diff)
+			width, _ := m.repairModalSize()
+			r.save.view.SetWidth(max(1, width-4))
+			r.save.view.SetContent(m.repairReviewContent(r.save.view.Width()))
 			r.save.view.SetXOffset(0)
 			r.save.view.GotoTop()
 			return true, nil
@@ -287,6 +292,10 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		}
 		return false, nil
 	}
+	if (m.uiState.ActiveModal == ModalNone || m.uiState.ActiveModal == ModalCode) && m.changeRepairView(key.String()) {
+		return true, nil
+	}
+
 	if r.editing {
 		switch key.String() {
 		case "esc":
@@ -518,6 +527,7 @@ func (m *ViolationResultTableModel) adoptSavedRepair() {
 	r.selected = nil
 	r.source = nil
 	r.diff = ""
+	r.changes = repairChangeView{}
 	old := r.review
 	r.review = nil
 	if old != nil {
@@ -556,12 +566,6 @@ func (m *ViolationResultTableModel) repairDetails() string {
 		text += "\n" + o.Reason
 	}
 	return text
-}
-func (m *ViolationResultTableModel) repairDiff() string {
-	if m.repair == nil || m.repair.preview == nil || m.repair.source == nil {
-		return ""
-	}
-	return m.repair.diff
 }
 func (m *ViolationResultTableModel) repairStatus() string {
 	if m.repair == nil {
