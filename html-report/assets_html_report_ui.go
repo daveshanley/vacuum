@@ -9,7 +9,4 @@ import _ "embed"
 //go:embed ui/build/static/js/vacuumReport.js
 var bundledJS string
 
-//go:embed ui/build/static/js/hydrate.js
-var hydrateJS string
-
 const htmlReportUIEnabled = true

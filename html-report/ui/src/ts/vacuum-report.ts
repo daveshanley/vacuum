@@ -1,5 +1,4 @@
 import 'terminal.css';
-import '../components/charts/category-piechart-component.init';
 import '../components/rule-category-navigation/rule-category-navigation-component';
 import '../components/rule-category-navigation/rule-category-link-component';
 import '../components/html-report/html-report-component';
