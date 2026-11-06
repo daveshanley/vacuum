@@ -96,7 +96,7 @@ func TestDashboardFixReviewEditPreviewApply(t *testing.T) {
 	require.NotNil(t, m.repair.preview)
 	require.Equal(t, 2, m.repair.preview.Fixed)
 	require.Equal(t, original, *disk)
-	require.Contains(t, m.repairDiff(), "Edited info-description")
+	require.Contains(t, m.repairReviewContent(100), "Edited info-description")
 	require.Contains(t, m.BuildDetailsView(), "Edited")
 	prepareRepairSave(t, m)
 	repairKey(m, tea.KeyEnter, "")

@@ -53,6 +53,9 @@ func (m *ViolationResultTableModel) buildNavBar() string {
 		}
 	}
 
+	if m.repair != nil && m.repair.preview != nil && m.repair.source != nil && m.uiState.ViewMode == ViewModeTableWithSplit {
+		baseNavText = "[]: changes | t: file diff | x: expand | a: save | enter: fixes | esc: cancel | q: quit"
+	}
 	if watchIndicator != "" {
 		var indicatorColor string
 		if m.watchState == WatchStateProcessing {
