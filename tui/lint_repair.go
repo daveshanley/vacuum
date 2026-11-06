@@ -27,32 +27,33 @@ type RepairConfig struct {
 }
 
 type dashboardRepair struct {
-	diff         string
-	byIdentity   map[string]int
-	config       *RepairConfig
-	review       *motor.FixReview
-	options      []motor.FixOption
-	selected     map[int]bool
-	values       map[int]string
-	preview      *motor.FixPreview
-	pending      *repairPreviewJob
-	source       []byte
-	status       string
-	onlyFixes    bool
-	editing      bool
-	editIndex    int
-	input        textinput.Model
-	discovery    *repairDiscoveryJob
-	pulse        int
-	pulseID      int
-	draft        *motor.FixDraft
-	draftError   string
-	draftHeading string
-	draftView    viewport.Model
-	editReturn   bool
-	automatic    int
-	suggested    int
-	needsInput   int
+	confirmImpact bool
+	diff          string
+	byIdentity    map[string]int
+	config        *RepairConfig
+	review        *motor.FixReview
+	options       []motor.FixOption
+	selected      map[int]bool
+	values        map[int]string
+	preview       *motor.FixPreview
+	pending       *repairPreviewJob
+	source        []byte
+	status        string
+	onlyFixes     bool
+	editing       bool
+	editIndex     int
+	input         textinput.Model
+	discovery     *repairDiscoveryJob
+	pulse         int
+	pulseID       int
+	draft         *motor.FixDraft
+	draftError    string
+	draftHeading  string
+	draftView     viewport.Model
+	editReturn    bool
+	automatic     int
+	suggested     int
+	needsInput    int
 }
 
 // A command owns its result until the UI takes it. Cancellation also releases a
@@ -94,6 +95,7 @@ func (j *repairPreviewJob) take() (*motor.FixPreview, error) {
 }
 
 func (r *dashboardRepair) invalidate() {
+	r.confirmImpact = false
 	r.diff = ""
 	if r.preview != nil {
 		r.preview.Close()
@@ -219,8 +221,12 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		r.preview = preview
-		r.diff = utils.RepairDiff(r.source, preview.Candidate)
-		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score)
+		var diff strings.Builder
+		// strings.Builder cannot fail. The verified view must expose every edit
+		// before acceptance; only the individual proposal modal uses excerpts.
+		_ = utils.WriteRepairDiff(&diff, r.source, preview.Candidate)
+		r.diff = repairImpactDetails(preview.Impact) + "\n" + diff.String()
+		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score) + " | " + repairImpactLabel(preview.Impact)
 		if m.uiState.ViewMode != ViewModeTableWithSplit {
 			m.ToggleSplitView()
 		}
@@ -447,6 +453,11 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		p := r.preview
+		if p.Impact.Status != motor.RepairImpactNoBreaking && !r.confirmImpact {
+			r.confirmImpact = true
+			r.status = repairImpactLabel(p.Impact) + " | a: accept impact and apply | esc: cancel"
+			return true, nil
+		}
 		if err := r.config.Write(r.source, p.Candidate); err != nil {
 			r.status = "Apply failed: " + err.Error()
 			return true, nil

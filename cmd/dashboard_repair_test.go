@@ -23,7 +23,8 @@ func TestDashboardRepairPreviewAndSourceCheckedApply(t *testing.T) {
 	defer review.Close()
 	var choices []motor.FixChoice
 	for _, option := range review.Options() {
-		if option.Selected {
+		require.False(t, option.Selected, "a fix must start unselected")
+		if option.Available {
 			choices = append(choices, motor.FixChoice{Index: option.Index})
 		}
 	}

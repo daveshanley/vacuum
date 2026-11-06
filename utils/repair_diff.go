@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -10,8 +12,24 @@ import (
 // single changed range, with three context lines, so time stays linear even for
 // large generated specs. Truncated output is marked and is not an applyable patch.
 func RepairDiff(original, candidate []byte) string {
+	var out strings.Builder
+	_ = writeRepairDiff(&out, original, candidate, true)
+	return out.String()
+}
+
+// WriteRepairDiff writes every changed line without truncation. It shares the
+// linear changed-range calculation with RepairDiff, but is suitable for review
+// before acceptance. Control bytes are escaped to prevent terminal commands.
+// Output errors, including short writes, stop review and are returned to callers.
+func WriteRepairDiff(output io.Writer, original, candidate []byte) error {
+	return writeRepairDiff(output, original, candidate, false)
+}
+
+func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool) error {
+	out := bufio.NewWriterSize(repairDiffWriter{output}, 16384)
 	if bytes.Equal(original, candidate) {
-		return "No changes.\n"
+		_, _ = out.WriteString("No changes.\n")
+		return out.Flush()
 	}
 	next := func(data []byte, offset int) int {
 		if n := bytes.IndexByte(data[offset:], '\n'); n >= 0 {
@@ -61,12 +79,11 @@ func RepairDiff(original, candidate []byte) string {
 	for i := 0; i < 3 && endB < len(candidate); i++ {
 		endB = next(candidate, endB)
 	}
-	var out strings.Builder
-	fmt.Fprintf(&out, "--- original\n+++ candidate\n@@ -%d,%d +%d,%d @@\n", line, count(original[start:endA]), line, count(candidate[start:endB]))
+	fmt.Fprintf(out, "--- original\n+++ candidate\n@@ -%d,%d +%d,%d @@\n", line, count(original[start:endA]), line, count(candidate[start:endB]))
 	write := func(prefix string, data []byte) {
 		for offset, n := 0, 0; offset < len(data); n++ {
-			if n == 200 {
-				fmt.Fprintf(&out, "... %d more lines omitted from this view ...\n", count(data[offset:]))
+			if bounded && n == 200 {
+				fmt.Fprintf(out, "... %d more lines omitted from this view ...\n", count(data[offset:]))
 				break
 			}
 			end := next(data, offset)
@@ -75,18 +92,32 @@ func RepairDiff(original, candidate []byte) string {
 			if hasNewline {
 				segment = segment[:len(segment)-1]
 			}
-			truncated := len(segment) > 4096
+			truncated := bounded && len(segment) > 4096
 			if truncated {
 				segment = segment[:4096]
 			}
-			safe := strings.Map(func(r rune) rune {
-				if (r < 32 && r != '\t') || r == 127 {
-					return '�'
-				}
-				return r
-			}, string(segment))
 			out.WriteString(prefix)
-			out.WriteString(safe)
+			if bounded {
+				safe := strings.Map(func(r rune) rune {
+					if (r < 32 && r != '\t') || r == 127 {
+						return '�'
+					}
+					return r
+				}, string(segment))
+				out.WriteString(safe)
+			} else {
+				// Write source slices directly; a minified document must not
+				// require a second document-sized string merely for display.
+				start := 0
+				for i, c := range segment {
+					if (c < 32 && c != '\t') || c == 127 {
+						out.Write(segment[start:i])
+						fmt.Fprintf(out, "\\x%02x", c)
+						start = i + 1
+					}
+				}
+				out.Write(segment[start:])
+			}
 			if truncated {
 				out.WriteString(" ... line truncated")
 			}
@@ -101,5 +132,16 @@ func RepairDiff(original, candidate []byte) string {
 	write("-", original[first:ae])
 	write("+", candidate[first:be])
 	write(" ", original[ae:endA])
-	return out.String()
+	return out.Flush()
+}
+
+// repairDiffWriter also checks large writes that bypass bufio's own buffer.
+type repairDiffWriter struct{ io.Writer }
+
+func (w repairDiffWriter) Write(data []byte) (int, error) {
+	n, err := w.Writer.Write(data)
+	if err == nil && n != len(data) {
+		err = io.ErrShortWrite
+	}
+	return n, err
 }

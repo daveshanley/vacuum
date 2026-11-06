@@ -78,7 +78,7 @@ func TestDashboardFixReviewEditPreviewApply(t *testing.T) {
 	original := append([]byte(nil), (*disk)...)
 	// A skipped mechanical fix remains a normal finding after metadata repairs.
 	selectRepairRule(t, m, "duplicated-entry-in-enum")
-	repairKey(m, ' ', " ")
+	require.False(t, m.repair.selected[m.currentRepairOption().Index])
 	for _, id := range []string{"info-description", "operation-description"} {
 		selectRepairRule(t, m, id)
 		repairKey(m, 'e', "e")
@@ -110,6 +110,8 @@ func TestDashboardFixReviewEditPreviewApply(t *testing.T) {
 
 func TestDashboardFixEditInvalidatesPreviewAndCancel(t *testing.T) {
 	m, disk := repairTestModel(t)
+	selectRepairRule(t, m, "duplicated-entry-in-enum")
+	repairKey(m, ' ', " ")
 	repairKey(m, 'f', "f")
 	original := append([]byte(nil), (*disk)...)
 	cmd := repairKey(m, 'v', "v")
@@ -134,6 +136,8 @@ func TestDashboardFixEditInvalidatesPreviewAndCancel(t *testing.T) {
 
 func TestDashboardFixStaleCompletionAndWriteFailure(t *testing.T) {
 	m, disk := repairTestModel(t)
+	selectRepairRule(t, m, "duplicated-entry-in-enum")
+	repairKey(m, ' ', " ")
 	original := append([]byte(nil), (*disk)...)
 	cmd := repairKey(m, 'v', "v")
 	require.NotNil(t, cmd)
@@ -184,6 +188,8 @@ func TestDashboardFixEditingAllowsWatchAndResize(t *testing.T) {
 
 func TestDashboardFixCanceledPreviewDoesNotQueueWork(t *testing.T) {
 	m, _ := repairTestModel(t)
+	selectRepairRule(t, m, "duplicated-entry-in-enum")
+	repairKey(m, ' ', " ")
 	first := repairKey(m, 'v', "v")
 	require.NotNil(t, first)
 	selectRepairRule(t, m, "duplicated-entry-in-enum")

@@ -60,7 +60,7 @@ func executeLintWithRepairs(execution *motor.RuleSetExecution, options *motor.Ex
 		}
 	}
 	execution.RepairIgnores = ignored
-	_, result := motor.RunRepairs(execution, options, policy, true)
+	result := runReviewedCLIRepair(execution, options, flags, policy)
 	writeRepairWarnings(result, flags)
 	return result
 }

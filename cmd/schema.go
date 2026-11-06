@@ -73,7 +73,7 @@ func GetSchemaCommand() *cobra.Command {
 
 func addSchemaLintFlags(cmd *cobra.Command) {
 	addRepairFlags(cmd)
-	cmd.Flags().Bool("fix", false, "Apply verified schema repairs")
+	cmd.Flags().Bool("fix", false, "Review and apply supported schema repairs")
 	cmd.Flags().String("fix-file", "", "Write repaired schema to a separate file")
 	cmd.Flags().BoolP("details", "d", false, "Show full details of schema linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")

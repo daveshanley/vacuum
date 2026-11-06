@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestFileProcessorPersistsRegisteredRepair(t *testing.T) {
+func TestFileProcessorDeclinesUnreviewedRegisteredRepair(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "spec.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("openapi: 3.0.3\ninfo: {title: Bad, version: '1'}\npaths: {}\n"), 0600))
 	rs, err := rulesets.CreateRuleSetFromData([]byte("rules:\n  title:\n    given: $.info.title\n    severity: error\n    autoFixFunction: clearTitle\n    then: {function: falsy}\n"))
@@ -26,12 +26,11 @@ func TestFileProcessorPersistsRegisteredRepair(t *testing.T) {
 			return n, nil
 		}},
 	})
-	require.NoError(t, result.Error)
-	require.Equal(t, 1, calls)
+	require.ErrorContains(t, result.Error, "custom fix callbacks need a reviewed proposal")
+	require.Equal(t, 0, calls)
 	saved, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.NotContains(t, string(saved), "Bad")
-	require.Contains(t, string(saved), "title: \"\"")
+	require.Contains(t, string(saved), "Bad")
 }
 
 func TestMultiFileRepairRejectsSharedOutput(t *testing.T) {
@@ -112,11 +111,10 @@ func TestFileProcessorDryRunVerifiesRegisteredRepairWithoutWriting(t *testing.T)
 			return n, nil
 		}},
 	})
-	require.NoError(t, result.Error)
-	require.Equal(t, 1, calls)
-	require.Len(t, result.FixedResults, 1)
-	require.Empty(t, result.Results)
-	require.Contains(t, string(result.RepairedSpec), "title: \"\"")
+	require.ErrorContains(t, result.Error, "custom fix callbacks need a reviewed proposal")
+	require.Equal(t, 0, calls)
+	require.Empty(t, result.FixedResults)
+	require.Empty(t, result.RepairedSpec)
 	saved, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)
