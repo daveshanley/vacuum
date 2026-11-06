@@ -260,11 +260,17 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.save.view.GotoTop()
 			return true, nil
 		}
+		// A may open save choices while an earlier V verification is running.
+		if m.uiState.ActiveModal == ModalRepairSave {
+			return true, nil
+		}
 		if m.uiState.ViewMode != ViewModeTableWithSplit {
 			m.ToggleSplitView()
 		}
 		m.UpdateDetailsViewContent()
 		m.table.SetHeight(max(MinTableHeight, m.height-SplitViewHeight-SplitViewMargin))
+		m.OpenModal(ModalCode)
+		m.PrepareCodeViewport()
 		return true, nil
 	}
 	if m.uiState.ActiveModal == ModalRepairSave {
@@ -381,6 +387,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.draftView, cmd = r.draftView.Update(msg)
 			return true, cmd
 		}
+	} else if m.uiState.ActiveModal == ModalCode && r.review != nil && (key.String() == "v" || (key.String() == "a" && m.hasRepairPreview())) {
+		// Leave the code modal before starting work so progress or errors stay visible.
+		m.CloseActiveModal()
 	} else if m.uiState.ActiveModal != ModalNone {
 		return false, nil
 	}

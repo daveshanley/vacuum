@@ -119,6 +119,8 @@ func TestDashboardFixEditInvalidatesPreviewAndCancel(t *testing.T) {
 	cmd := repairKey(m, 'v', "v")
 	m.Update(cmd())
 	require.NotNil(t, m.repair.preview)
+	repairKey(m, tea.KeyEscape, "") // Return from verified changes to the fix list.
+	require.NotNil(t, m.repair.preview)
 	selectRepairRule(t, m, "info-description")
 	repairKey(m, 'e', "e")
 	repairType(m, "A value")
