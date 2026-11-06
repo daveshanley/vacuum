@@ -35,7 +35,7 @@ func InitSyntaxStyles() {
 
 // PrepareCodeViewport prepares the code viewport with the full spec and highlights the error line
 func (m *ViolationResultTableModel) PrepareCodeViewport() {
-	if m.modalContent == nil || m.specContent == nil {
+	if !m.hasRepairPreview() && (m.modalContent == nil || m.specContent == nil) {
 		return
 	}
 
@@ -103,7 +103,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - ModalHeightMargin
 
-	if m.modalContent == nil {
+	if m.modalContent == nil && !m.hasRepairPreview() {
 		return ""
 	}
 
@@ -122,9 +122,9 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 		Width(modalWidth - 4)
 
 	targetLine := 0
-	if m.modalContent.StartNode != nil {
+	if m.modalContent != nil && m.modalContent.StartNode != nil {
 		targetLine = m.modalContent.StartNode.Line
-	} else if m.modalContent.Origin != nil {
+	} else if m.modalContent != nil && m.modalContent.Origin != nil {
 		targetLine = m.modalContent.Origin.Line
 	}
 
@@ -185,9 +185,9 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	}
 
 	if m.hasRepairPreview() {
-		controls := "[]: changes | t: file diff | ↑↓: scroll | ←→: pan | esc/x: close"
+		controls := "a: save | []: changes | t: file diff | ↑↓: scroll | ←→: pan | esc/x: close"
 		if lipgloss.Width(controls) > modalWidth-4 {
-			controls = "[]: changes | t: diff | ↑↓/←→: scroll | esc: close"
+			controls = "a: save | []: changes | t: diff | esc: close"
 		}
 		bottomBar = lipgloss.NewStyle().Foreground(color.RGBGrey).Render(ansi.Truncate(controls, max(1, modalWidth-4), ""))
 	}

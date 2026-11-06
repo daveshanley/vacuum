@@ -408,6 +408,10 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// file watcher messages
 	case fileChangeMsg:
 		if m.repair != nil {
+			if m.uiState.ActiveModal == ModalCode && m.hasRepairPreview() {
+				m.CloseActiveModal()
+				m.codeViewport.SetContent("")
+			}
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.editing = false
@@ -433,6 +437,10 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.allResults = msg.results
 		m.specContent = msg.specContent
 		if m.repair != nil {
+			if m.uiState.ActiveModal == ModalCode && m.hasRepairPreview() {
+				m.CloseActiveModal()
+				m.codeViewport.SetContent("")
+			}
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.onlyFixes = false
