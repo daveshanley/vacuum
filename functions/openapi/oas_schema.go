@@ -7,7 +7,6 @@ package openapi
 import (
 	"crypto/sha256"
 	"fmt"
-	"hash/fnv"
 	"sort"
 	"strconv"
 	"strings"
@@ -330,109 +329,49 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results // Return any nullable violations even if document is otherwise valid
 	}
 
-	// validation errors can appear multiple times across different schema branches; deduplicate by hash
-	seenDocumentResults := make(map[string]struct{})
-	seenSchemaFailures := make(map[string]*errors.SchemaValidationFailure)
-	for i := range validationErrors {
-		if len(validationErrors[i].SchemaValidationErrors) == 0 {
-			res := buildDocumentValidationResult(validationErrors[i], context.Rule, validationInfo.RootNode)
-			hash := hashDocumentValidationResult(&res)
-			if _, ok := seenDocumentResults[hash]; ok {
-				continue
-			}
-			results = append(results, res)
-			seenDocumentResults[hash] = struct{}{}
-			addResultToModelByLine(&res, context.DrDocument, validationErrors[i].SpecLine+1)
+	// Each flattened failure retains the same original tree. Read that tree once
+	// and report its individual document errors, rather than its schema branches.
+	seenTrees := make(map[*jsonschema.ValidationError]struct{})
+	seenResults := make(map[string]struct{})
+	appendResult := func(res model.RuleFunctionResult) {
+		hash := hashDocumentValidationResult(&res)
+		if _, ok := seenResults[hash]; ok {
+			return
+		}
+		seenResults[hash] = struct{}{}
+		results = append(results, res)
+		addResultToModelByLine(&res, context.DrDocument, res.StartNode.Line)
+	}
+	for _, validationError := range validationErrors {
+		if len(validationError.SchemaValidationErrors) == 0 {
+			appendResult(buildDocumentValidationResult(validationError, context.Rule, validationInfo.RootNode))
 			continue
 		}
-		for y := range validationErrors[i].SchemaValidationErrors {
-			if _, ok := seenSchemaFailures[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
+		for _, failure := range validationError.SchemaValidationErrors {
+			// Property-name children refer to the key string, not the document.
+			// Keep the validator's normalized key location and enhanced reason.
+			if strings.HasSuffix(failure.KeywordLocation, "/propertyNames") && len(failure.InstancePath) > 0 {
+				appendResult(propertyNameResult(validationInfo.RootNode, failure.InstancePath, failure.Reason, context.Rule))
 				continue
 			}
-			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-else failed" {
+			root := failure.OriginalJsonSchemaError
+			if root == nil {
+				appendResult(buildSchemaValidationResult(failure, context.Rule, validationInfo.RootNode))
 				continue
 			}
-			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-then failed" {
+			if _, ok := seenTrees[root]; ok {
 				continue
 			}
-			schemaFailure := validationErrors[i].SchemaValidationErrors[y]
-			// The validator already retains the offending key and its instance path.
-			// Child errors are relative to the key string, not the API document.
-			if strings.HasSuffix(schemaFailure.KeywordLocation, "/propertyNames") && len(schemaFailure.InstancePath) > 0 {
-				res := propertyNameResult(validationInfo.RootNode, schemaFailure.InstancePath, schemaFailure.Reason, context.Rule)
-				results = append(results, res)
-				seenSchemaFailures[hashResult(schemaFailure)] = schemaFailure
-				addResultToModelByLine(&res, context.DrDocument, res.StartNode.Line)
-				continue
-			}
-			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].KeywordLocation)
-			n := &yaml.Node{
-				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
-				Column: validationErrors[i].SchemaValidationErrors[y].Column,
-			}
-			var allPaths []string
-			var modelByLine []v3.Foundational
-			var modelErr error
-			if context.DrDocument != nil {
-				modelByLine, modelErr = context.DrDocument.LocateModelByLine(validationErrors[i].SchemaValidationErrors[y].Line + 1)
-				if modelErr == nil {
-					if modelByLine != nil && len(modelByLine) >= 1 {
-						allPaths = append(allPaths, location)
-						location = modelByLine[0].GenerateJSONPath()
-						for j := 0; j < len(modelByLine); j++ {
-							allPaths = append(allPaths, modelByLine[j].GenerateJSONPath())
-						}
-					}
+			seenTrees[root] = struct{}{}
+			for _, leaf := range extractLeafValidationErrors(root) {
+				leafFailure := &errors.SchemaValidationFailure{
+					InstancePath:            leaf.err.InstanceLocation,
+					Reason:                  leaf.message,
+					OriginalJsonSchemaError: leaf.err,
+					KeywordLocation:         leaf.err.SchemaURL,
 				}
+				appendResult(buildSchemaValidationResult(leafFailure, context.Rule, validationInfo.RootNode))
 			}
-
-			schemaErr := validationErrors[i].SchemaValidationErrors[y]
-			var reason string
-
-			// Always prefer leaf error extraction from OriginalError when available (issue #766)
-			if schemaErr.OriginalJsonSchemaError != nil {
-				leafErrors := extractLeafValidationErrors(schemaErr.OriginalJsonSchemaError)
-				if len(leafErrors) > 0 {
-					// Limit to last 3 leaf errors for readability
-					if len(leafErrors) > 3 {
-						leafErrors = leafErrors[len(leafErrors)-3:]
-					}
-					reason = strings.Join(leafErrors, "; ")
-				}
-			}
-
-			if isNotValidationError(schemaErr) {
-				notReason := formatSchemaValidationReason(schemaErr, "violates `not`")
-				if notReason != schemaErr.Reason {
-					reason = notReason
-				}
-			}
-
-			if reason == "" {
-				reason = schemaErr.Reason
-			}
-
-			// guard against empty reason from upstream validator
-			if reason == "" {
-				reason = "schema validation failed"
-			}
-			res := model.RuleFunctionResult{
-				Message:   fmt.Sprintf("schema invalid: %v", reason),
-				StartNode: n,
-				EndNode:   vacuumUtils.BuildEndNode(n),
-				Path:      location,
-				Rule:      context.Rule,
-			}
-			if len(allPaths) > 1 {
-				res.Paths = allPaths
-			}
-			results = append(results, res)
-			if len(modelByLine) > 0 {
-				if arr, ok := modelByLine[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
-				}
-			}
-			seenSchemaFailures[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
 		}
 	}
 	return results
@@ -503,6 +442,7 @@ func jsonPointerToJSONPath(pointer string, rootNode *yaml.Node) string {
 	path := "$"
 	node := documentContentNode(rootNode)
 	for _, segment := range strings.Split(pointer[1:], "/") {
+		node = utils.NodeAlias(node)
 		segment = strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~")
 		if node != nil && node.Kind == yaml.SequenceNode {
 			if index, err := strconv.Atoi(segment); err == nil && index >= 0 {
@@ -538,6 +478,7 @@ func documentContentNode(node *yaml.Node) *yaml.Node {
 }
 
 func mappingValueNode(node *yaml.Node, key string) *yaml.Node {
+	node = utils.ResolveMergeNodes(node)
 	if node == nil || node.Kind != yaml.MappingNode {
 		return nil
 	}
@@ -578,11 +519,6 @@ func specJSONForRead(info *datamodel.SpecInfo) (*map[string]interface{}, *[]byte
 		return reader.GetSpecJSON(), reader.GetSpecJSONBytes(), reader.GetSpecJSONError()
 	}
 	return info.SpecJSON, info.SpecJSONBytes, nil
-}
-
-func hashResult(sve *errors.SchemaValidationFailure) string {
-	return fmt.Sprintf("%x",
-		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.KeywordLocation, sve.Line, sve.Column, sve.Reason))))
 }
 
 func hashDocumentValidationResult(res *model.RuleFunctionResult) string {
@@ -629,81 +565,121 @@ func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunc
 // defaultFormatter is a package-level singleton to avoid repeated allocations
 var defaultFormatter = OpenAPIErrorFormatter{}
 
-// hashInstanceLocation creates a fast hash of an instance location for deduplication
-func hashInstanceLocation(s []string) uint64 {
-	h := fnv.New64a()
-	for _, str := range s {
-		h.Write([]byte(str))
-		h.Write([]byte{0})
-	}
-	return h.Sum64()
+type schemaLeafError struct {
+	err         *jsonschema.ValidationError
+	alternative *jsonschema.ValidationError
+	message     string
 }
 
-// addUniqueError appends a formatted error message if not already seen
-func addUniqueError(errors *[]string, seen map[string]bool, ctx ErrorContext) {
-	msg := defaultFormatter.Format(ctx)
-	fullMsg := "`" + ctx.InstancePath() + "` " + msg
-	if !seen[fullMsg] {
-		seen[fullMsg] = true
-		*errors = append(*errors, fullMsg)
+// extractLeafValidationErrors retains individual document locations while filtering
+// alternative-schema noise. A concrete failure only suppresses lower-priority
+// alternatives at that location, or below it within the same oneOf/anyOf.
+// Unrelated invalid fields must still appear.
+func extractLeafValidationErrors(err *jsonschema.ValidationError) []schemaLeafError {
+	var leaves []schemaLeafError
+	type errorLocation struct {
+		alternative *jsonschema.ValidationError
+		pointer     string
 	}
-}
-
-// extractLeafValidationErrors extracts meaningful validation errors from a jsonschema error tree.
-// It recursively walks to leaf nodes, classifies them by priority, and filters noise.
-// Returns high-priority errors if any exist, otherwise low-priority errors.
-// When high-priority errors exist, ALL low-priority errors are suppressed to reduce noise.
-// Addresses issues #524 (path validation), #766 (oneOf/anyOf noise).
-func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
-	highPriority := make([]string, 0, 10)
-	lowPriority := make([]string, 0, 5)
-	seen := make(map[string]bool, 100)
-	seenPaths := make(map[uint64]bool, 50)
-	// prevent stack overflow from deeply nested schemas
-	const maxDepth = 50
-
-	var extract func(e *jsonschema.ValidationError, depth int)
-	extract = func(e *jsonschema.ValidationError, depth int) {
-		if e == nil || depth > maxDepth {
-			return
+	highPriority := make(map[errorLocation]bool)
+	type pendingError struct {
+		err         *jsonschema.ValidationError
+		alternative *jsonschema.ValidationError
+	}
+	// An explicit stack handles deeply nested schema branches without recursion.
+	pending := []pendingError{{err: err}}
+	for len(pending) > 0 {
+		item := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		e := item.err
+		if e == nil {
+			continue
 		}
-
-		if len(e.Causes) == 0 {
-			ctx := NewErrorContext(e)
-			classification := ClassifyError(ctx)
-
-			if classification == ErrorClassNoise {
-				return
+		if _, ok := e.ErrorKind.(*kind.PropertyNames); ok {
+			continue // The validator supplies the offending key separately.
+		}
+		if len(e.Causes) > 0 {
+			switch e.ErrorKind.(type) {
+			case *kind.OneOf, *kind.AnyOf:
+				item.alternative = e
 			}
+			for _, cause := range e.Causes {
+				pending = append(pending, pendingError{err: cause, alternative: item.alternative})
+			}
+			continue
+		}
+		ctx := NewErrorContext(e)
+		classification := ClassifyError(ctx)
+		if classification == ErrorClassNoise {
+			continue
+		}
+		pointer := instancePointer(e.InstanceLocation)
+		leaves = append(leaves, schemaLeafError{err: e, alternative: item.alternative, message: "`" + pointer + "` " + defaultFormatter.Format(ctx)})
+		if classification == ErrorClassHighPriority {
+			highPriority[errorLocation{item.alternative, pointer}] = true
+		}
+	}
 
-			pathHash := hashInstanceLocation(ctx.InstanceLocation)
-
-			// seenPaths prevents low-priority errors for paths that already have high-priority errors
-			if classification == ErrorClassHighPriority {
-				if !seenPaths[pathHash] {
-					addUniqueError(&highPriority, seen, ctx)
-					seenPaths[pathHash] = true
+	seen := make(map[string]bool)
+	filtered := leaves[:0]
+	for _, leaf := range leaves {
+		ctx := NewErrorContext(leaf.err)
+		if ClassifyError(ctx) == ErrorClassLowPriority {
+			location := errorLocation{leaf.alternative, instancePointer(leaf.err.InstanceLocation)}
+			suppressed := highPriority[location]
+			// Rejected alternatives can fail an enum below a missing required field.
+			// Scope ancestor suppression to the nearest oneOf/anyOf error tree.
+			for !suppressed && location.alternative != nil {
+				slash := strings.LastIndexByte(location.pointer, '/')
+				if slash < 0 {
+					break
 				}
-			} else if !seenPaths[pathHash] {
-				addUniqueError(&lowPriority, seen, ctx)
+				location.pointer = location.pointer[:slash]
+				suppressed = highPriority[location]
+			}
+			if suppressed {
+				continue
 			}
 		}
-
-		for _, cause := range e.Causes {
-			extract(cause, depth+1)
+		if !seen[leaf.message] {
+			seen[leaf.message] = true
+			filtered = append(filtered, leaf)
 		}
 	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].message < filtered[j].message })
+	return filtered
+}
 
-	extract(err, 0)
-
-	// Validator traversal can follow map iteration order. Stabilize the selected
-	// messages before callers truncate or join them into a diagnostic.
-	if len(highPriority) > 0 {
-		sort.Strings(highPriority)
-		return highPriority
+func instancePointer(path []string) string {
+	var pointer strings.Builder
+	for _, segment := range path {
+		pointer.WriteByte('/')
+		pointer.WriteString(strings.ReplaceAll(strings.ReplaceAll(segment, "~", "~0"), "/", "~1"))
 	}
-	sort.Strings(lowPriority)
-	return lowPriority
+	return pointer.String()
+}
+
+func buildSchemaValidationResult(failure *errors.SchemaValidationFailure, rule *model.Rule, root *yaml.Node) model.RuleFunctionResult {
+	location := jsonPointerToJSONPath(instancePointer(failure.InstancePath), root)
+	node := resolveInstanceNode(root, failure.InstancePath)
+	if node == nil {
+		node = &yaml.Node{Line: failure.Line, Column: failure.Column}
+	}
+	reason := failure.Reason
+	if isNotValidationError(failure) {
+		reason = formatSchemaValidationReason(failure, "violates `not`")
+	}
+	if reason == "" {
+		reason = "schema validation failed"
+	}
+	return model.RuleFunctionResult{
+		Message:   "schema invalid: " + reason,
+		StartNode: node,
+		EndNode:   vacuumUtils.BuildEndNode(node),
+		Path:      location,
+		Paths:     []string{location},
+		Rule:      rule,
+	}
 }
 
 // errorKindToString converts a jsonschema ErrorKind to a human-readable string.

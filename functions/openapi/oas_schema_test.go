@@ -534,8 +534,8 @@ func TestExtractLeafValidationErrors_LeafError(t *testing.T) {
 	}
 	results := extractLeafValidationErrors(err)
 	assert.Len(t, results, 1)
-	assert.Contains(t, results[0], "/foo/bar")
-	assert.Contains(t, results[0], "missing properties")
+	assert.Contains(t, results[0].message, "/foo/bar")
+	assert.Contains(t, results[0].message, "missing properties")
 }
 
 func TestExtractLeafValidationErrors_NestedErrors(t *testing.T) {
@@ -684,7 +684,7 @@ func TestExtractLeafValidationErrors_StableAcrossCauseOrder(t *testing.T) {
 		reverse := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{second, first}})
 		assert.Len(t, forward, 2)
 		assert.Equal(t, forward, reverse, "cause traversal order must not change diagnostic messages")
-		assert.Contains(t, forward[0], "/alpha")
-		assert.Contains(t, forward[1], "/beta")
+		assert.Contains(t, forward[0].message, "/alpha")
+		assert.Contains(t, forward[1].message, "/beta")
 	}
 }
