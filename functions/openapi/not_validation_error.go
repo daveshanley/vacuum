@@ -12,6 +12,7 @@ import (
 	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/jsonschema/v6/kind"
 	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi/utils"
 )
 
 // isNotValidationError checks whether a validation failure is caused by a failed 'not' keyword.
@@ -205,6 +206,7 @@ func resolveInstanceNode(root *yaml.Node, path []string) *yaml.Node {
 	}
 	current := documentContentNode(root)
 	for _, seg := range path {
+		current = utils.ResolveMergeNodes(current)
 		if current == nil {
 			return nil
 		}
@@ -225,7 +227,7 @@ func resolveInstanceNode(root *yaml.Node, path []string) *yaml.Node {
 			return nil
 		}
 	}
-	return current
+	return utils.NodeAlias(current)
 }
 
 func isNumericNode(node *yaml.Node) bool {
