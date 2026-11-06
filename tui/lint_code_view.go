@@ -11,6 +11,7 @@ import (
 
 	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )
@@ -43,7 +44,8 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 
 	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
 
-	if diff := m.repairDiff(); diff != "" {
+	if diff := m.repairReviewContent(modalWidth - 4); diff != "" {
+		m.codeViewport.SoftWrap = false
 		m.codeViewport.SetContent(diff)
 		m.codeViewport.GotoTop()
 		return
@@ -127,7 +129,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	}
 
 	title := fmt.Sprintf("📄 %s - line %d", m.fileName, targetLine)
-	if m.repairDiff() != "" {
+	if m.hasRepairPreview() {
 		title = "Preview changes, no files written"
 	}
 	content.WriteString(titleStyle.Render(title))
@@ -140,7 +142,11 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	content.WriteString("\n\n")
 
 	// code viewport.
-	content.WriteString(m.codeViewport.View())
+	if m.hasRepairPreview() {
+		content.WriteString(repairDiffViewport(m.codeViewport))
+	} else {
+		content.WriteString(m.codeViewport.View())
+	}
 
 	// calculate remaining lines for proper modal height
 	currentLines := strings.Count(content.String(), "\n")
@@ -178,6 +184,13 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 		bottomBar = navStyle.Render("esc/x: close")
 	}
 
+	if m.hasRepairPreview() {
+		controls := "[]: changes | t: file diff | ↑↓: scroll | ←→: pan | esc/x: close"
+		if lipgloss.Width(controls) > modalWidth-4 {
+			controls = "[]: changes | t: diff | ↑↓/←→: scroll | esc: close"
+		}
+		bottomBar = lipgloss.NewStyle().Foreground(color.RGBGrey).Render(ansi.Truncate(controls, max(1, modalWidth-4), ""))
+	}
 	content.WriteString(bottomBar)
 
 	return modalStyle.Render(content.String())
@@ -211,7 +224,7 @@ func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxW
 
 // ReCenterCodeView re-centers the viewport on the highlighted error line
 func (m *ViolationResultTableModel) ReCenterCodeView() {
-	if m.repairDiff() != "" {
+	if m.hasRepairPreview() {
 		m.codeViewport.GotoTop()
 		return
 	}

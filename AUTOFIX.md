@@ -62,7 +62,9 @@ indicator calls attention to supported repairs after discovery finishes:
 | ← / → | Pan long source lines horizontally |
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
-| `x` | Open the code view or preview diff |
+| `x` | Open the code view or expand the verified preview |
+| `[` / `]` | Move between changes in a verified preview |
+| `t` | Switch between the change view and complete file diff |
 | `a` | Open the save modal: choose the destination and bundling, review the checked output, then save |
 | Escape | Cancel an edit, close a modal, or cancel review |
 
@@ -79,7 +81,12 @@ The verified save diff also scrolls horizontally instead of wrapping source line
 comparison, with one pipe-separated control row. The proposal uses formatted
 excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` for a preview without saving, or press `a` to start the save flow.
-Both verified previews show every changed line in full.
+Verified previews use the same change renderer as OpenAPI Changes. Each card
+shows the action, value change, contract impact, and source context. Large values
+and source blocks use marked excerpts. Press `t` to inspect the complete file
+diff, including formatting and bundling changes. If semantic changes are not
+available, Vacuum opens the complete file diff. External source locations are
+not highlighted against the root file.
 
 Supported editable fixes open with proposed content already inserted in the
 right-hand source pane. The dashboard drafts descriptions, summaries and unique
@@ -106,7 +113,8 @@ references. A copy in another directory is declined if the final output still
 contains location-dependent references.
 
 Vacuum verifies the exact output after format conversion and bundling. The modal
-shows the destination, full diff, contract impact, fix counts and score. Press
+shows the destination, change view, contract impact, fix counts and score.
+Press `t` for the complete file diff. Press
 Enter to save. Breaking or unknown impact needs a second Enter to accept that
 impact. Press `e` to change the output options, or Escape to cancel. No earlier
 `v` preview is required. Errors stay in the modal; failed verification cannot be
