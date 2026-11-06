@@ -675,3 +675,14 @@ func TestErrorKindToString_Format(t *testing.T) {
 	assert.Contains(t, result, "invalid format")
 	assert.Contains(t, result, "email")
 }
+
+func TestExtractLeafValidationErrorsStableAcrossCauseOrder(t *testing.T) {
+	first := &jsonschema.ValidationError{InstanceLocation: []string{"paths", "/first", "pattern"}, ErrorKind: &kind.Format{Want: "regex"}}
+	second := &jsonschema.ValidationError{InstanceLocation: []string{"paths", "/second", "pattern"}, ErrorKind: &kind.Format{Want: "regex"}}
+	forward := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{first, second}})
+	reverse := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{second, first}})
+	assert.Len(t, forward, 2)
+	assert.Equal(t, forward, reverse)
+	assert.Contains(t, forward[0], "/first/")
+	assert.Contains(t, forward[1], "/second/")
+}
