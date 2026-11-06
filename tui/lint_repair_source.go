@@ -92,7 +92,7 @@ func repairSourceWindow(line string, width, offset int) string {
 	if offset >= length {
 		return ""
 	}
-	tail := repairSourceTail(line, offset)
+	tail := repairSourceSlice(line, offset, width)
 	marker := lipgloss.NewStyle().Foreground(color.RGBGrey)
 	prefix, suffix := "", ""
 	available := width
@@ -100,7 +100,7 @@ func repairSourceWindow(line string, width, offset int) string {
 		prefix = marker.Render("‹")
 		available--
 	}
-	if ansi.StringWidth(tail) > available {
+	if length-offset > available {
 		suffix = marker.Render("›")
 		available--
 	}
@@ -122,18 +122,23 @@ func repairSourceMaxOffset(before, after string, width int) int {
 	return max(0, longest-visible+1)
 }
 
-// repairSourceTail advances a cell offset to the next complete grapheme.
-func repairSourceTail(line string, offset int) string {
-	length := ansi.StringWidth(line)
-	if offset >= length {
-		return ""
+// repairSourceSlice aligns the left edge to a whole grapheme before cropping.
+// It bounds allocations to the visible prefix, including for minified files.
+func repairSourceSlice(line string, offset, width int) string {
+	// Keep a second window for left-edge grapheme alignment, then work only
+	// on that bounded prefix instead of rescanning the complete source line.
+	line = ansi.Truncate(line, offset+2*width, "")
+	if offset > 0 {
+		prefix := ansi.Truncate(line, offset, "")
+		if ansi.StringWidth(prefix) < offset {
+			if ansi.StringWidth(line) <= offset {
+				return ""
+			}
+			for ansi.StringWidth(prefix) < offset {
+				offset++
+				prefix = ansi.Truncate(line, offset, "")
+			}
+		}
 	}
-	// A terminal-cell offset can land inside a wide grapheme. Move to its
-	// next boundary so the final glyph stays reachable without splitting it.
-	tail := ansi.TruncateLeft(line, offset, "")
-	for length-ansi.StringWidth(tail) < offset {
-		offset++
-		tail = ansi.TruncateLeft(line, offset, "")
-	}
-	return tail
+	return ansi.Cut(line, offset, offset+width)
 }
