@@ -295,3 +295,35 @@ func TestPluginRepairWithParsedRuleSet(t *testing.T) {
 	require.Len(t, result.FixedResults, 1)
 	require.Empty(t, result.Results)
 }
+
+func TestRepairExistingCircularDiagnosticSurvivesFormatting(t *testing.T) {
+	source := []byte(`openapi: 3.0.3
+info: {title: Circular, version: '1'}
+paths: {}
+components:
+  schemas:
+    Node:
+      type: object
+      required: [next]
+      properties:
+        next:
+          $ref: '#/components/schemas/Node'
+`)
+	id := "info-description"
+	review, err := NewFixReview(&RuleSetExecution{Spec: source, SpecFileName: "circular.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{id: rulesets.GetAllBuiltInRules()[id]}}}, nil)
+	require.NoError(t, err)
+	defer review.Close()
+	var choice FixChoice
+	found := false
+	for _, o := range review.Options() {
+		if o.Result.RuleId == id {
+			choice = FixChoice{Index: o.Index}
+			found = true
+		}
+	}
+	require.True(t, found)
+	p, err := review.Preview([]FixChoice{choice})
+	require.NoError(t, err)
+	defer p.Close()
+	require.Equal(t, RepairImpactUnknown, p.Impact.Status)
+}

@@ -46,30 +46,48 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	result := &RuleSetExecutionResult{RuleSetExecution: execution, Index: ctx.Index, SpecInfo: ctx.SpecInfo, Arazzo: ctx}
+	needsValidation := execution.captureRepairSources
 	for _, rule := range applicableRulesForFormat(execution.RuleSet, execution.SpecFormat) {
 		if ruleUsesFunction(rule, "arazzoDocument") {
-			resolver, uri, options, err := arazzoValidationOptions(execution)
-			if err != nil {
-				result.Errors = []error{err}
-				return result, true
-			}
-			// Document validation includes source loading and is bounded by the
-			// same timeout as an individual rule, plus the caller's run deadline.
-			timeout := execution.Timeout
-			if timeout <= 0 {
-				timeout = 5 * time.Second
-			}
-			validationCtx, cancel := context.WithTimeout(control.Context(), timeout)
-			err = ctx.Validate(validationCtx, uri, resolver.Sources, options...)
-			cancel()
-			result.FilesProcessed, result.FileSize = resolver.Files, resolver.Bytes
-			if err != nil {
-				result.Errors = []error{err}
-				return result, true
-			}
+			needsValidation = true
 			break
 		}
 	}
+	if needsValidation {
+		resolver, uri, options, err := arazzoValidationOptions(execution)
+		if err != nil {
+			result.Errors = []error{err}
+			return result, true
+		}
+		// Document validation includes source loading and is bounded by the
+		// same timeout as an individual rule, plus the caller's run deadline.
+		timeout := execution.Timeout
+		if timeout <= 0 {
+			timeout = 5 * time.Second
+		}
+		if execution.captureRepairSources {
+			captured, frozen := execution.RolodexFS.(*repairSources)
+			if !frozen {
+				captured = &repairSources{files: make(map[string][]byte), retrievals: make(map[string]string)}
+			}
+			adapter := &repairSourceResolver{snapshot: captured, reports: resolver}
+			if !frozen {
+				adapter.inner = resolver
+			}
+			options = append(options, validation.WithResolver(adapter))
+			result.repairSources = captured
+		}
+
+		validationCtx, cancel := context.WithTimeout(control.Context(), timeout)
+		err = ctx.Validate(validationCtx, uri, resolver.Sources, options...)
+		cancel()
+		result.FilesProcessed, result.FileSize = resolver.Files, resolver.Bytes
+		if err != nil {
+			result.Errors = []error{err}
+			return result, true
+		}
+	}
+
 	result.Results, result.IgnoredResults, result.FixedResults, result.Errors = runDocumentRules(execution, opts, builtins, ctx.SpecInfo, ctx.Index, logger, control)
 	result.Results = finalizeResultPaths(result.Results, ctx.RootNode, ctx.RootNode, execution.SpecFileName, nil,
 		resolveExecutionAliases(execution.RuleSet, ctx.SpecInfo.SpecFormat, logger), false)

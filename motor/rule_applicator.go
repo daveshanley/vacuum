@@ -129,13 +129,14 @@ type RuleSetExecution struct {
 	FetchConfig *vacuumUtils.FetchConfig
 
 	// Turbo mode and experimental optimization flags
-	TurboMode         bool // Skip expensive rules and inline ignore checks
-	SkipResolve       bool // Skip second-pass reference resolution
-	SkipCircularCheck bool // Skip circular reference result injection
-	SkipSchemaErrors  bool // Skip schema build error injection
-	SpecFormat        string
-	ruleWaitGroup     sync.WaitGroup
-	activeRuleWorkers atomic.Int64
+	TurboMode            bool // Skip expensive rules and inline ignore checks
+	SkipResolve          bool // Skip second-pass reference resolution
+	SkipCircularCheck    bool // Skip circular reference result injection
+	SkipSchemaErrors     bool // Skip schema build error injection
+	SpecFormat           string
+	captureRepairSources bool
+	ruleWaitGroup        sync.WaitGroup
+	activeRuleWorkers    atomic.Int64
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -156,6 +157,7 @@ type RuleSetExecutionResult struct {
 	Arazzo           *arazzo_context.Context          // Arazzo context and validation coverage.
 	AsyncAPI         *asyncapi_context.Context        // The AsyncAPI context created for AsyncAPI execution.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
+	repairSources    *repairSources
 	ownedDocument    libopenapi.Document
 	unresolvedDoc    libopenapi.Document
 	ownedIndex       *index.SpecIndex
@@ -369,6 +371,7 @@ func (r *RuleSetExecutionResult) release(clearCaches bool) {
 		r.ModifiedSpec = nil
 		r.AsyncAPI = nil
 		r.Arazzo = nil
+		r.repairSources = nil
 		r.ownedDocument = nil
 		r.unresolvedDoc = nil
 		r.ownedIndex = nil

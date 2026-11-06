@@ -61,7 +61,7 @@ func TestFixReviewMechanicalSubsetAndRepeat(t *testing.T) {
 	require.NoError(t, err)
 	var choices []FixChoice
 	for _, option := range review.Options() {
-		if option.Selected {
+		if option.Available && !option.Editable {
 			choices = append(choices, FixChoice{Index: option.Index})
 		}
 	}
@@ -99,7 +99,7 @@ func TestFixReviewRejectsInvalidSelectionAndValues(t *testing.T) {
 			empty := " "
 			_, err = review.Preview([]FixChoice{{Index: option.Index, Value: &empty}})
 			require.ErrorContains(t, err, "nonempty")
-		} else if option.Selected {
+		} else if option.Available && !option.Editable {
 			value := "override"
 			_, err = review.Preview([]FixChoice{{Index: option.Index, Value: &value}})
 			require.ErrorContains(t, err, "cannot be edited")
@@ -168,7 +168,7 @@ func TestFixReviewRetainsOriginalSnapshot(t *testing.T) {
 	}
 	var choices []FixChoice
 	for _, option := range review.Options() {
-		if option.Selected {
+		if option.Available && !option.Editable {
 			choices = append(choices, FixChoice{Index: option.Index})
 		}
 	}

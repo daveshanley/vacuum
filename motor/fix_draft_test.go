@@ -59,7 +59,7 @@ func TestFixDraftDoesNotLintAndMechanicalBeforeAfterUsesSource(t *testing.T) {
 	calls := counter.calls.Load()
 	require.Positive(t, calls)
 	for _, option := range review.Options() {
-		if !option.Selected {
+		if !option.Available || option.Editable {
 			continue
 		}
 		draft, err := review.Draft(FixChoice{Index: option.Index})
@@ -251,7 +251,7 @@ func TestFixReviewCountsUniqueRuleLocations(t *testing.T) {
 	defer review.Close()
 	var choices []FixChoice
 	for _, option := range review.Options() {
-		if option.Selected {
+		if option.Available && !option.Editable {
 			choices = append(choices, FixChoice{Index: option.Index})
 		}
 	}
@@ -346,7 +346,7 @@ func TestFixDraftShowsDuplicateJSONPathMembers(t *testing.T) {
 	defer review.Close()
 	require.NotEmpty(t, review.Options())
 	for _, option := range review.Options() {
-		if !option.Selected {
+		if !option.Available || option.Editable {
 			continue
 		}
 		draft, err := review.Draft(FixChoice{Index: option.Index})
