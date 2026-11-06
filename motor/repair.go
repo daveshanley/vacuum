@@ -72,6 +72,10 @@ func PlanFixesWithPolicy(execution *RuleSetExecution, options *ExecutionOptions,
 
 // validatePreparedPlan verifies a proposal produced by the built-in review flow.
 func validatePreparedPlan(execution *RuleSetExecution, plan repair.Plan, options *ExecutionOptions, before *RuleSetExecutionResult) (*RepairVerification, error) {
+	return validatePreparedPlanOutput(execution, plan, options, before, FixOutputOptions{})
+}
+
+func validatePreparedPlanOutput(execution *RuleSetExecution, plan repair.Plan, options *ExecutionOptions, before *RuleSetExecutionResult, output FixOutputOptions) (*RepairVerification, error) {
 	if err := repairCanceled(options); err != nil {
 		return nil, err
 	}
@@ -85,6 +89,10 @@ func validatePreparedPlan(execution *RuleSetExecution, plan repair.Plan, options
 		return nil, fmt.Errorf("repair dependency snapshots changed")
 	}
 	candidate, err := repair.Apply(execution.SpecFileName, execution.Spec, plan)
+	if err != nil {
+		return nil, err
+	}
+	candidate, err = prepareRepairOutput(execution, candidate, options, before, sources, output)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +129,15 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	}
 	e := repairExecution(execution, candidate)
 	e.RolodexFS = sources
+	// Arazzo replays captured retrievals through its own resolver. Keep its
+	// concrete snapshot type so validation cannot select a live resolver.
+	if before.RuleSetExecution.Arazzo == nil {
+		indexedSources, err := newRepairIndexedSources(sources)
+		if err != nil {
+			return nil, err
+		}
+		e.RolodexFS = indexedSources
+	}
 	if !hasExternal && externalRepairBytes(candidate) {
 		return nil, fmt.Errorf("repair cannot introduce external inputs")
 	}
