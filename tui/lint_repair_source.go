@@ -92,13 +92,7 @@ func repairSourceWindow(line string, width, offset int) string {
 	if offset >= length {
 		return ""
 	}
-	// A terminal-cell offset can land inside a wide grapheme. Move to its
-	// next boundary so the final glyph stays reachable without splitting it.
-	tail := ansi.TruncateLeft(line, offset, "")
-	for length-ansi.StringWidth(tail) < offset {
-		offset++
-		tail = ansi.TruncateLeft(line, offset, "")
-	}
+	tail := repairSourceTail(line, offset)
 	marker := lipgloss.NewStyle().Foreground(color.RGBGrey)
 	prefix, suffix := "", ""
 	available := width
@@ -126,4 +120,20 @@ func repairSourceMaxOffset(before, after string, width int) int {
 		return 0
 	}
 	return max(0, longest-visible+1)
+}
+
+// repairSourceTail advances a cell offset to the next complete grapheme.
+func repairSourceTail(line string, offset int) string {
+	length := ansi.StringWidth(line)
+	if offset >= length {
+		return ""
+	}
+	// A terminal-cell offset can land inside a wide grapheme. Move to its
+	// next boundary so the final glyph stays reachable without splitting it.
+	tail := ansi.TruncateLeft(line, offset, "")
+	for length-ansi.StringWidth(tail) < offset {
+		offset++
+		tail = ansi.TruncateLeft(line, offset, "")
+	}
+	return tail
 }

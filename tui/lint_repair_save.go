@@ -333,7 +333,7 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 			prefix := lipgloss.NewStyle().Width(inner).Render(body)
 			s.view.SetWidth(inner)
 			s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
-			body = prefix + "\n" + s.view.View()
+			body = prefix + "\n" + repairDiffViewport(s.view)
 		}
 		footer = "enter: save | e: options | ↑↓/pgup/pgdn: scroll | ←→: pan | esc: cancel"
 		if ansi.StringWidth(footer) > inner {
@@ -378,4 +378,16 @@ func (m *ViolationResultTableModel) buildRepairSaveModal() string {
 	header := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true).Render(title)
 	controls := lipgloss.NewStyle().Foreground(color.RGBGrey).Render(ansi.Truncate(footer, inner, ""))
 	return frame.Render(lipgloss.NewStyle().Padding(0, 1).Render(header + "\n\n" + content + "\n" + controls))
+}
+
+// repairDiffViewport keeps native navigation but crops visible source lines at
+// whole graphemes. Native cell slicing can otherwise reflow a wide edge glyph.
+func repairDiffViewport(view viewport.Model) string {
+	offset, width := view.XOffset(), view.Width()
+	view.SetXOffset(0)
+	crop := lipgloss.NewStyle().Transform(func(line string) string {
+		return ansi.Truncate(repairSourceTail(line, offset), width, "")
+	})
+	view.StyleLineFunc = func(int) lipgloss.Style { return crop }
+	return view.View()
 }
