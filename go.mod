@@ -7,6 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/alecthomas/chroma/v2 v2.27.0
+	github.com/aymanbagabas/go-udiff v0.4.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
@@ -29,6 +30,7 @@ require (
 	github.com/pb33f/libopenapi v0.42.5
 	github.com/pb33f/libopenapi-validator v0.16.3
 	github.com/pb33f/testify v0.1.1
+	github.com/sergi/go-diff v1.4.0
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10

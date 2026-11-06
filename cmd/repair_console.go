@@ -110,7 +110,7 @@ func (w *repairConsoleDiffWriter) Write(data []byte) (int, error) {
 	consumed := 0
 	for len(data) > 0 {
 		if !w.inLine {
-			style := color.ASCIIGrey
+			style := ""
 			switch data[0] {
 			case '-':
 				style = color.ASCIIBlue
