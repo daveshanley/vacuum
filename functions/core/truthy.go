@@ -4,6 +4,7 @@
 package core
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -119,19 +120,13 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			}
 			// Retain the authored owner for nested missing fields. Display ranges
 			// remain unchanged; repair planners must not infer a target from text.
-			owner := node
-			parts := strings.Split(context.RuleAction.Field, ".")
-			for _, part := range parts[:len(parts)-1] {
-				_, _, owner = utils.FindKeyNodeFullTop(part, owner.Content)
-				if owner == nil {
-					break
-				}
-			}
-			if owner != nil {
-				result.RepairNode = owner
-			}
-			if context.RuleAction.Field != "" {
-				result.DiagnosticCode = parts[len(parts)-1] + "-missing"
+			if !checkNode {
+				result.RepairNode = truthyFieldOwner(node, context.RuleAction.Field, fieldLookupOptions(context, false))
+				// Keep the full field expression: two missing nested fields can
+				// share an owner while still being different diagnostics.
+				result.DiagnosticCode = context.RuleAction.Field + "-missing"
+			} else {
+				result.RepairNode = node
 			}
 			if len(allPaths) > 1 {
 				result.Paths = allPaths
@@ -194,4 +189,28 @@ func falsyForContract(node *yaml.Node, contract model.Contract) bool {
 
 func missingOpenLintValue(context model.RuleFunctionContext) model.RuleFunctionResult {
 	return model.RuleFunctionResult{Rule: context.Rule, Path: givenPathValue(context.Given), Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, "value must be defined")}
+}
+
+// truthyFieldOwner follows the same parsed field path and combinator rules as
+// the validation lookup. An absent intermediate owner is not a repair target.
+func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathOptions) *yaml.Node {
+	segments, err := vacuumUtils.ParseFieldPath(field)
+	if err != nil || len(segments) == 0 {
+		return nil
+	}
+	if len(segments) == 1 {
+		return root
+	}
+	var prefix strings.Builder
+	for i, segment := range segments[:len(segments)-1] {
+		if segment.Type == vacuumUtils.SegmentArrayIndex {
+			prefix.WriteString("[" + strconv.Itoa(segment.Index) + "]")
+		} else {
+			if i > 0 {
+				prefix.WriteByte('.')
+			}
+			prefix.WriteString(strings.NewReplacer(`\`, `\\`, `.`, `\.`).Replace(segment.Key))
+		}
+	}
+	return vacuumUtils.FindFieldPath(prefix.String(), root.Content, opts).ValueNode
 }
