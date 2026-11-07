@@ -185,8 +185,9 @@ func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
 }
 
 type ruleContext struct {
-	contract             model.Contract
-	reportFunctionErrors bool
+	contract                 model.Contract
+	reportFunctionErrors     bool
+	exhaustiveRepairFindings bool
 
 	evidence    *RuleEvidence
 	sampleLimit int
@@ -1542,34 +1543,35 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				}
 
 				return ruleContext{
-					contract:           opts.Contract,
-					rule:               rule,
-					specNode:           ruleSpecNode,
-					specNodeUnresolved: execution.CanonicalDocument,
-					builtinFunctions:   builtinFunctions,
-					specInfo:           info,
-					index:              ruleIndex,
-					indexUnresolved:    indexUnresolved,
-					document:           ruleDocument,
-					drDocument:         drDocument,
-					customFunctions:    execution.CustomFunctions,
-					autoFixFunctions:   execution.AutoFixFunctions,
-					panicFunc:          execution.PanicFunction,
-					silenceLogs:        execution.SilenceLogs,
-					skipDocumentCheck:  execution.SkipDocumentCheck,
-					logger:             docConfigResolved.Logger,
-					nodeLookupTimeout:  execution.NodeLookupTimeout,
-					ruleTimeout:        execution.Timeout,
-					applyAutoFixes:     execution.ApplyAutoFixes,
-					resolvedExecution:  ruleResolved,
-					fetchConfig:        execution.FetchConfig,
-					turboMode:          execution.TurboMode,
-					hasInlineIgnores:   specHasInlineIgnores,
-					ignoreIndex:        ignoreIdx,
-					schemaPathCache:    &schemaPathCache,
-					messageUpdates:     messageUpdates,
-					ruleJSONPathCache:  &ruleJSONPathCache,
-					expandedAliases:    resolvedAliases,
+					contract:                 opts.Contract,
+					rule:                     rule,
+					specNode:                 ruleSpecNode,
+					specNodeUnresolved:       execution.CanonicalDocument,
+					builtinFunctions:         builtinFunctions,
+					specInfo:                 info,
+					index:                    ruleIndex,
+					indexUnresolved:          indexUnresolved,
+					document:                 ruleDocument,
+					drDocument:               drDocument,
+					customFunctions:          execution.CustomFunctions,
+					autoFixFunctions:         execution.AutoFixFunctions,
+					panicFunc:                execution.PanicFunction,
+					silenceLogs:              execution.SilenceLogs,
+					skipDocumentCheck:        execution.SkipDocumentCheck,
+					logger:                   docConfigResolved.Logger,
+					nodeLookupTimeout:        execution.NodeLookupTimeout,
+					ruleTimeout:              execution.Timeout,
+					applyAutoFixes:           execution.ApplyAutoFixes,
+					resolvedExecution:        ruleResolved,
+					fetchConfig:              execution.FetchConfig,
+					turboMode:                execution.TurboMode,
+					hasInlineIgnores:         specHasInlineIgnores,
+					ignoreIndex:              ignoreIdx,
+					schemaPathCache:          &schemaPathCache,
+					messageUpdates:           messageUpdates,
+					ruleJSONPathCache:        &ruleJSONPathCache,
+					expandedAliases:          resolvedAliases,
+					exhaustiveRepairFindings: execution.captureRepairSources,
 				}
 			},
 		)
@@ -1824,21 +1826,22 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
-			Contract:         ctx.contract,
-			ExecutionContext: ctx.executionContext,
-			ExecutionRoot:    ctx.specNode,
-			Options:          ruleAction.FunctionOptions,
-			RuleAction:       &ruleAction,
-			Rule:             ctx.rule,
-			Given:            ctx.rule.Given,
-			Index:            ctx.index,
-			SpecInfo:         ctx.specInfo,
-			Document:         ctx.document,
-			DrDocument:       ctx.drDocument,
-			Logger:           ctx.logger,
-			FetchConfig:      ctx.fetchConfig,
-			SchemaPathCache:  ctx.schemaPathCache,
-			RuleTimeout:      ctx.ruleTimeout,
+			Contract:                 ctx.contract,
+			ExecutionContext:         ctx.executionContext,
+			ExecutionRoot:            ctx.specNode,
+			Options:                  ruleAction.FunctionOptions,
+			RuleAction:               &ruleAction,
+			Rule:                     ctx.rule,
+			Given:                    ctx.rule.Given,
+			Index:                    ctx.index,
+			SpecInfo:                 ctx.specInfo,
+			Document:                 ctx.document,
+			DrDocument:               ctx.drDocument,
+			Logger:                   ctx.logger,
+			FetchConfig:              ctx.fetchConfig,
+			SchemaPathCache:          ctx.schemaPathCache,
+			RuleTimeout:              ctx.ruleTimeout,
+			ExhaustiveRepairFindings: ctx.exhaustiveRepairFindings,
 		}
 		if ctx.reportFunctionErrors {
 			rfc.ReportError = func(err error) {
