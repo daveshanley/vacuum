@@ -6,6 +6,7 @@ package motor
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -41,6 +42,20 @@ type FixChoice struct {
 	Index int
 	Value *string
 }
+
+// FixSelectionError identifies selected fixes that remain unresolved after the
+// candidate passes all other verification gates. Callers may exclude these
+// indexes and verify the survivors again; this error never authorizes a write.
+type FixSelectionError struct {
+	Indexes []int
+	Err     error
+}
+
+// Error returns the verification failure for the selected fixes.
+func (e *FixSelectionError) Error() string { return e.Err.Error() }
+
+// Unwrap exposes the underlying verification failure.
+func (e *FixSelectionError) Unwrap() error { return e.Err }
 
 // FixStats uses the same severity counts and quality score as ordinary lint.
 type FixStats struct {
@@ -271,6 +286,23 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 	// supplied values; no arbitrary patch operations are accepted by this API.
 	verification, err := validatePreparedPlanOutput(r.execution, plan, options, r.baseline, output)
 	if err != nil {
+		var remaining *remainingRepairTargets
+		if errors.As(err, &remaining) {
+			targets := make(map[string]bool, len(remaining.targets))
+			for _, target := range remaining.targets {
+				targets[fixKey(target.RuleID, target.Pointer)] = true
+			}
+			var indexes []int
+			for _, choice := range choices {
+				finding := r.findings[choice.Index]
+				if targets[fixKey(finding.RuleID, finding.Pointer)] {
+					indexes = append(indexes, choice.Index)
+				}
+			}
+			if len(indexes) > 0 {
+				return nil, &FixSelectionError{Indexes: indexes, Err: err}
+			}
+		}
 		return nil, err
 	}
 	results := make([]*model.RuleFunctionResult, len(verification.Final.Results))

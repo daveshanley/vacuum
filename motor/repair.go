@@ -27,6 +27,21 @@ type RepairVerification struct {
 	Final     *RuleSetExecutionResult `json:"-"`
 }
 
+// remainingRepairTargets identifies unresolved selected targets after all other
+// verification gates pass. It never represents newly introduced diagnostics.
+type remainingRepairTargets struct {
+	targets []repair.Target
+}
+
+func (e *remainingRepairTargets) Error() string {
+	first := e.targets[0]
+	message := fmt.Sprintf("repair target remains: %s at %s", first.RuleID, first.Pointer)
+	if len(e.targets) > 1 {
+		message += fmt.Sprintf(" (and %d more)", len(e.targets)-1)
+	}
+	return message
+}
+
 // PlanFixes lints the source snapshot and proposes built-in repairs. The caller
 // owns the returned lint result, including when a proposal cannot be created.
 func PlanFixes(execution *RuleSetExecution, options *ExecutionOptions) (repair.Plan, *RuleSetExecutionResult, error) {
@@ -198,17 +213,21 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 			}
 		}
 	}
+	var unresolved []repair.Target
 	for _, target := range plan.Targets {
 		k := target.RuleID + "\x00" + target.Pointer
 		if !original[k] {
 			return fail(fmt.Errorf("repair target is not an original diagnostic: %s", target.RuleID))
 		}
 		if remaining[k] {
-			return fail(fmt.Errorf("repair target remains: %s at %s", target.RuleID, target.Pointer))
+			unresolved = append(unresolved, target)
 		}
 	}
 	if err := repairCanceled(options); err != nil {
 		return fail(err)
+	}
+	if len(unresolved) > 0 {
+		return fail(&remainingRepairTargets{targets: unresolved})
 	}
 	return &RepairVerification{Candidate: candidate, Verified: plan.Targets, Final: after}, nil
 }
