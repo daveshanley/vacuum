@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	defaultCallTimeout = 75 * time.Second
-	maxPendingCalls    = 1024
-	maxQueuedMessages  = maxPendingCalls
+	defaultCallTimeout       = 75 * time.Second
+	maxPendingCalls          = 1024
+	maxQueuedMessages        = maxPendingCalls
+	maxConcurrentCodeActions = 4
 )
 
 const (
@@ -66,13 +67,14 @@ type Connection struct {
 	active      map[string]*activeRequest
 	activeMu    sync.Mutex
 
-	readerStopped   chan struct{}
-	readerStopOnce  sync.Once
-	dispatchMu      sync.Mutex
-	currentDispatch *activeDispatch
-	readerDidStop   bool
-	enqueueMu       sync.Mutex
-	acceptMessages  bool
+	readerStopped  chan struct{}
+	readerStopOnce sync.Once
+	dispatchMu     sync.Mutex
+	dispatches     map[*activeDispatch]struct{}
+	codeActions    chan struct{}
+	readerDidStop  bool
+	enqueueMu      sync.Mutex
+	acceptMessages bool
 }
 
 // NewConnection creates a connection with bounded message and pending-call state.
@@ -95,6 +97,8 @@ func NewConnection(stream io.ReadWriteCloser, handler *Handler, logger *slog.Log
 		pending:        make(map[string]chan pendingResponse),
 		active:         make(map[string]*activeRequest),
 		readerStopped:  make(chan struct{}),
+		dispatches:     make(map[*activeDispatch]struct{}),
+		codeActions:    make(chan struct{}, maxConcurrentCodeActions),
 		acceptMessages: true,
 	}
 }
@@ -135,6 +139,24 @@ func (c *Connection) Run(ctx context.Context) error {
 			if c.shouldDiscardAfterReaderStop(message.Method) {
 				if err := c.cancelDiscardedRequest(message); err != nil && !isDisconnectError(err) {
 					return err
+				}
+				continue
+			}
+			// Code actions can build and verify a document graph. Keep document
+			// notifications and other requests moving while this work runs.
+			if message.Method == protocol.MethodTextDocumentCodeAction && message.activeRequest != nil {
+				select {
+				case c.codeActions <- struct{}{}:
+					go func() {
+						defer func() { <-c.codeActions }()
+						if _, err := c.handleIncoming(message); err != nil && !isDisconnectError(err) {
+							c.reportReadError(readErrors, err)
+						}
+					}()
+				default:
+					if err := c.cancelDiscardedRequest(message); err != nil {
+						return err
+					}
 				}
 				continue
 			}
@@ -407,17 +429,15 @@ func (c *Connection) reportReadError(readErrors chan<- error, err error) {
 
 func (c *Connection) markReaderStopped() {
 	c.readerStopOnce.Do(func() {
-		var cancel context.CancelFunc
 		c.dispatchMu.Lock()
 		c.readerDidStop = true
-		if c.currentDispatch != nil && !isLifecycleDrainMethod(c.currentDispatch.method) {
-			cancel = c.currentDispatch.cancel
+		for dispatch := range c.dispatches {
+			if !isLifecycleDrainMethod(dispatch.method) {
+				dispatch.cancel()
+			}
 		}
 		c.dispatchMu.Unlock()
 		close(c.readerStopped)
-		if cancel != nil {
-			cancel()
-		}
 	})
 }
 
@@ -451,7 +471,7 @@ func (c *Connection) beginDispatch(
 	dispatchContext, cancel := context.WithCancel(parent)
 	dispatch := &activeDispatch{cancel: cancel, method: method}
 	c.dispatchMu.Lock()
-	c.currentDispatch = dispatch
+	c.dispatches[dispatch] = struct{}{}
 	discard := c.readerDidStop && !isLifecycleDrainMethod(method)
 	c.dispatchMu.Unlock()
 	if discard {
@@ -459,9 +479,7 @@ func (c *Connection) beginDispatch(
 	}
 	finish := func() {
 		c.dispatchMu.Lock()
-		if c.currentDispatch == dispatch {
-			c.currentDispatch = nil
-		}
+		delete(c.dispatches, dispatch)
 		c.dispatchMu.Unlock()
 		cancel()
 	}
