@@ -139,6 +139,10 @@ type RuleSetExecution struct {
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
 type RuleSetExecutionResult struct {
+	repairBaseline repairBaselineCache
+	// RepairIgnoresApplied prevents path-based ignores from being reapplied after edits move nodes.
+	RepairIgnoresApplied bool
+
 	// RepairWarnings explain declined candidate edits; baseline lint results remain valid.
 	RepairWarnings []string
 

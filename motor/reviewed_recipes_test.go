@@ -184,7 +184,7 @@ func TestReviewedOperationIDKeepsPayloadDataAndUpdatesLink(t *testing.T) {
 	require.Equal(t, "list pets", media["schema"].(map[string]any)["properties"].(map[string]any)["operationId"].(map[string]any)["default"])
 }
 
-func TestReviewedCombinedGeneratedTagConflictIsExplicit(t *testing.T) {
+func TestReviewedCombinedGeneratedTagsShareGlobalCollection(t *testing.T) {
 	source := `{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/cats":{"get":{"responses":{"200":{"description":"ok"}}}},"/dogs":{"get":{"responses":{"200":{"description":"ok"}}}}}}`
 	rule := rulesets.GetAllBuiltInRules()["operation-tags"]
 	review, err := NewFixReview(&RuleSetExecution{SpecFileName: "/tmp/tags.json", Spec: []byte(source), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}}, nil)
@@ -198,8 +198,10 @@ func TestReviewedCombinedGeneratedTagConflictIsExplicit(t *testing.T) {
 		require.NotEqual(t, draft.Before, draft.After)
 	}
 	preview, err := review.Preview([]FixChoice{{Index: 0}, {Index: 1}})
-	require.Error(t, err)
-	require.Nil(t, preview)
+	require.NoError(t, err)
+	require.Equal(t, 2, preview.Fixed)
+	require.Empty(t, preview.Results)
+	preview.Close()
 	for _, option := range review.Options() {
 		preview, err := review.Preview([]FixChoice{{Index: option.Index}})
 		require.NoError(t, err)

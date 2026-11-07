@@ -275,7 +275,7 @@ func TestFixDraftIncludesShortOwnerContext(t *testing.T) {
 	require.NoError(t, err)
 	before := "User:\n  type: object\n  properties:\n    role:\n      type: string\n      enum: [admin, reader]"
 	require.Equal(t, before, draft.Before)
-	require.Equal(t, before+"\n  description: \"User schema.\"", draft.After)
+	require.Equal(t, before+"\n  description: User schema.", draft.After)
 }
 
 func TestFixDraftLargeOwnerKeepsChangeInBoundedContext(t *testing.T) {
@@ -316,7 +316,7 @@ func TestFixDraftScopesLateSchemaDespiteEarlierFormattingChanges(t *testing.T) {
 	preview, err := review.Preview([]FixChoice{{Index: review.Options()[0].Index}})
 	require.NoError(t, err)
 	defer preview.Close()
-	require.NotEqual(t, strings.SplitN(source.String(), "components:", 2)[0], strings.SplitN(string(preview.Candidate), "components:", 2)[0], "fixture must also change unrelated earlier formatting")
+	require.Equal(t, strings.SplitN(source.String(), "components:", 2)[0], strings.SplitN(string(preview.Candidate), "components:", 2)[0], "unrelated earlier formatting stays unchanged")
 	require.Equal(t, source.String(), string(execution.Spec))
 }
 
