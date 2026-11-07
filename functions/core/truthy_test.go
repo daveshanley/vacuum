@@ -250,3 +250,27 @@ func TestTruthy_RunRule_Field_ArrayOfScalars(t *testing.T) {
 
 	assert.Len(t, res, 2)
 }
+
+func TestTruthyRepairOwnerUsesParsedFieldPath(t *testing.T) {
+	source := []byte("servers:\n  - {}\nproperties:\n  x.y: {}\n  other: {}\na.b: {}\nwrapped:\n  allOf:\n    - properties:\n        x.y: {}\n")
+	var root yaml.Node
+	assert.NoError(t, yaml.Unmarshal(source, &root))
+	node := root.Content[0]
+	for _, field := range []string{"servers[0].url", "properties['x.y'].description", "properties.other.description", `a\.b.description`, "wrapped.properties['x.y'].description"} {
+		t.Run(field, func(t *testing.T) {
+			rule := buildCoreTestRule("$", model.SeverityError, "truthy", field, nil)
+			rule.Resolved = true
+			ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+			ctx.Rule, ctx.Given = &rule, "$"
+			results := (&Truthy{}).RunRule([]*yaml.Node{node}, ctx)
+			if !assert.Len(t, results, 1) {
+				return
+			}
+			assert.NotNil(t, results[0].RepairNode)
+			assert.NotSame(t, node, results[0].RepairNode)
+			assert.Equal(t, yaml.MappingNode, results[0].RepairNode.Kind)
+			assert.Empty(t, results[0].RepairNode.Content)
+			assert.Equal(t, field+"-missing", results[0].DiagnosticCode)
+		})
+	}
+}
