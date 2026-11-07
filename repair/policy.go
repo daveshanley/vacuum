@@ -17,7 +17,7 @@ type policyDocument struct {
 	Policies []PolicyEntry `yaml:"policies"`
 }
 
-// Policy can only be constructed by ParsePolicy. Its snapshots stay private so
+// Policy is constructed by ParsePolicy or NewPolicy. Its snapshots stay private so
 // exported plan provenance cannot diverge from the values used for repair.
 // Only the caller can supply policy authority; a submitted plan cannot.
 type Policy struct {
@@ -64,6 +64,12 @@ func ParsePolicy(data []byte, base string, catalogs map[string][]byte) (*Policy,
 func NewPolicy(entries []PolicyEntry, base string) (*Policy, error) {
 	owned := append([]PolicyEntry(nil), entries...)
 	for i := range owned {
+		if err := validateTree(&owned[i].Value, make(map[*yaml.Node]bool)); err != nil {
+			return nil, err
+		}
+		if _, err := treeCost(&owned[i].Value, 0); err != nil {
+			return nil, err
+		}
 		owned[i].Value = *clone(&owned[i].Value)
 	}
 	data, err := json.Marshal(owned)
