@@ -109,7 +109,8 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 					}
 				}
 
-				if securitySchemeKey(name.Value, securityDefinitions, localDefinitions, allowURI, documentURI) == "" {
+				if securitySchemeKey(name.Value, securityDefinitions, localDefinitions, allowURI, documentURI) == "" &&
+					!(allowURI && externalSecuritySchemeDefined(name.Value, documentURI, context.Index, securityByIndex)) {
 
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("Security definition points a non-existent "+
