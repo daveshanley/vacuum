@@ -139,17 +139,7 @@ come say hi!
 
 ## Documentation
 
-🔥 **New** 🔥: **Autofix in vacuum**
-
-Found the problem? Fix it. Use `vacuum lint --fix` to review fixes in the terminal, or use the dashboard
-to compare and edit them. vacuum checks the result and flags breaking changes before you save.
-
-- [Get started with autofix](https://quobix.com/vacuum/autofix/)
-- [Supply your own values](https://quobix.com/vacuum/autofix-policy/)
-
----
-
-`v0.40`: **OpenLint rulesets**
+🔥 **New in** `v0.40` 🔥: **OpenLint rulesets**
 
 Got an OpenLint ruleset? Run it with `vacuum lint api.yaml --openlint -r rules.yaml`.
 
@@ -387,7 +377,6 @@ See all the documentation at https://quobix.com/vacuum
 - [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
 - [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [Linting JSON Schema](https://quobix.com/vacuum/json-schema/)
-- [Autofix](https://quobix.com/vacuum/autofix/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
