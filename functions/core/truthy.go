@@ -4,9 +4,6 @@
 package core
 
 import (
-	"strconv"
-	"strings"
-
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
@@ -121,6 +118,12 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				// Keep the full field expression: two missing nested fields can
 				// share an owner while still being different diagnostics.
 				result.DiagnosticCode = context.RuleAction.Field + "-missing"
+				// Built-in metadata policy codes predate full field identities.
+				switch context.RuleAction.Field {
+				case "info.contact", "info.license", "info.description", "info.summary", "info.license.url":
+					segments, _ := vacuumUtils.ParseFieldPath(context.RuleAction.Field)
+					result.DiagnosticCode = segments[len(segments)-1].Key + "-missing"
+				}
 			} else {
 				result.RepairNode = node
 			}
@@ -171,16 +174,5 @@ func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathO
 	if len(segments) == 1 {
 		return root
 	}
-	var prefix strings.Builder
-	for i, segment := range segments[:len(segments)-1] {
-		if segment.Type == vacuumUtils.SegmentArrayIndex {
-			prefix.WriteString("[" + strconv.Itoa(segment.Index) + "]")
-		} else {
-			if i > 0 {
-				prefix.WriteByte('.')
-			}
-			prefix.WriteString(strings.NewReplacer(`\`, `\\`, `.`, `\.`).Replace(segment.Key))
-		}
-	}
-	return vacuumUtils.FindFieldPath(prefix.String(), root.Content, opts).ValueNode
+	return vacuumUtils.FindFieldPathSegments(segments[:len(segments)-1], root.Content, opts).ValueNode
 }

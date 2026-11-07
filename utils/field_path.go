@@ -283,6 +283,15 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 		return FieldPathResult{Found: false}
 	}
 
+	return FindFieldPathSegments(segments, nodes, opts)
+}
+
+// FindFieldPathSegments resolves an already parsed field path with the same
+// lookup rules as FindFieldPath. It avoids encoding literal keys back to text.
+func FindFieldPathSegments(segments []PathSegment, nodes []*yaml.Node, opts FieldPathOptions) FieldPathResult {
+	if len(segments) == 0 {
+		return FieldPathResult{Found: false}
+	}
 	currentNodes := nodes
 	var keyNode, valueNode *yaml.Node
 	usedSingleItemCombinator := false
