@@ -175,7 +175,7 @@ func loadCustomFunctionManager(functionsFlag string, silence, annotations bool) 
 		}
 
 		customFunctions := pm.GetCustomFunctions()
-		if !annotations {
+		if !silence && !annotations {
 			tui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
 		}
 

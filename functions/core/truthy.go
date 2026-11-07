@@ -111,6 +111,22 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			// Retain the authored owner for nested missing fields. Display ranges
+			// remain unchanged; repair planners must not infer a target from text.
+			if !checkNode {
+				result.RepairNode = truthyFieldOwner(node, context.RuleAction.Field, fieldLookupOptions(context, false))
+				// Keep the full field expression: two missing nested fields can
+				// share an owner while still being different diagnostics.
+				result.DiagnosticCode = context.RuleAction.Field + "-missing"
+				// Built-in metadata policy codes predate full field identities.
+				switch context.RuleAction.Field {
+				case "info.contact", "info.license", "info.description", "info.summary", "info.license.url":
+					segments, _ := vacuumUtils.ParseFieldPath(context.RuleAction.Field)
+					result.DiagnosticCode = segments[len(segments)-1].Key + "-missing"
+				}
+			} else {
+				result.RepairNode = node
+			}
 			if len(allPaths) > 1 {
 				result.Paths = allPaths
 			}
@@ -146,4 +162,17 @@ func isFalsyNode(node *yaml.Node) bool {
 		return true
 	}
 	return false
+}
+
+// truthyFieldOwner follows the same parsed field path and combinator rules as
+// the validation lookup. An absent intermediate owner is not a repair target.
+func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathOptions) *yaml.Node {
+	segments, err := vacuumUtils.ParseFieldPath(field)
+	if err != nil || len(segments) == 0 {
+		return nil
+	}
+	if len(segments) == 1 {
+		return root
+	}
+	return vacuumUtils.FindFieldPathSegments(segments[:len(segments)-1], root.Content, opts).ValueNode
 }

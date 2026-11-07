@@ -48,6 +48,7 @@ func GetLintCommand() *cobra.Command {
 	}
 
 	addLintOutputFlags(cmd)
+	addRepairFlags(cmd)
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -67,7 +68,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().Bool("github-annotations", false, "Emit GitHub Actions file annotation lines; can be combined with --pipeline-output")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
-	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
+	cmd.Flags().Bool("fix", false, "Review and apply supported fixes")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
 	cmd.Flags().BoolP("abs-paths", "", false, "If --details(-d) flag is active then output absolute paths")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
@@ -91,6 +92,9 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		return outputErr
 	}
 	flags := ReadLintFlags(cmd)
+	if err := validateRepairFlags(flags.FixFlag, flags.DryRun, flags.FixPolicy); err != nil {
+		return err
+	}
 
 	SetupVacuumEnvironment(flags)
 
@@ -352,7 +356,10 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		}
 
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
-		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
+		result := executeLintWithRepairs(execution, executionOptions, flags, ignoredItems)
+		if len(result.ModifiedSpec) > 0 {
+			specBytes = result.ModifiedSpec
+		}
 		if flags.FormattedOutput {
 			if err := validateLintOutputInputs(targets, indexedReportInputs(result.Index)); err != nil {
 				result.ReleaseOwnedResources()
@@ -383,11 +390,14 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			return lintErr
 		}
 
-		result.Results = utils.FilterIgnoredResultsWithOptions(
-			result.Results,
-			ignoredItems,
-			buildIgnoreFilterOptions(specBytes, result, flags.LookupTimeoutFlag),
-		)
+		if !result.RepairIgnoresApplied {
+			result.Results = utils.FilterIgnoredResultsWithOptions(
+				result.Results,
+				ignoredItems,
+				buildIgnoreFilterOptions(specBytes, result, flags.LookupTimeoutFlag),
+			)
+
+		}
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
@@ -412,7 +422,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
-			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
+			changeFilter := repairChangeFilter(documentChanges, result)
 			result.Results, changeFilterStats = changeFilter.FilterResultsValues(result.Results)
 		}
 
@@ -430,6 +440,9 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			}
 		}
 
+		if len(result.ModifiedSpec) > 0 {
+			specBytes = result.ModifiedSpec
+		}
 		if result.HasTruncatedPaths() {
 			renderResultPathsTruncatedWarning(flags, "")
 		}
@@ -439,16 +452,21 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		fixesApplied = len(result.FixedResults)
 
 		// Write back to file if fixes were applied
-		if fixesApplied > 0 && flags.FixFlag {
+		if fixesApplied > 0 && flags.FixFlag && !flags.DryRun {
 			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
 				wrapped := fmt.Errorf("failed to write fixed file: %w", err)
+				if !flags.FormattedOutput && !flags.GitHubAnnotations {
+					fmt.Fprintln(cmd.ErrOrStderr(), wrapped)
+				}
 				if flags.GitHubAnnotations {
 					RenderGitHubAnnotationError(wrapped, fileName)
 				}
 				return wrapped
 			}
 		}
+
+		fmt.Print(repairSummary(result, flags))
 
 		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
@@ -549,7 +567,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			NoStyle:        flags.NoStyleFlag,
 			PipelineOutput: flags.PipelineOutput,
 			ShowRules:      flags.ShowRules,
-			FixesApplied:   fixesApplied,
+			FixesApplied:   writtenFixCount(flags, fixesApplied),
 			Failed:         failErr != nil,
 			Severity:       flags.FailSeverityFlag,
 		})
@@ -619,7 +637,7 @@ func renderNoFixesAppliedWarning(flags *LintFlags, resultSet *model.RuleResultSe
 	if flags == nil || resultSet == nil {
 		return
 	}
-	if !flags.FixFlag || fixesApplied > 0 || len(resultSet.Results) == 0 {
+	if !flags.FixFlag || flags.DryRun || fixesApplied > 0 || len(resultSet.Results) == 0 {
 		return
 	}
 	messagePrefix := "No fixes were applied"
@@ -630,7 +648,7 @@ func renderNoFixesAppliedWarning(flags *LintFlags, resultSet *model.RuleResultSe
 		renderLintWarning(flags, "%s; no auto-fixes were applied.", messagePrefix)
 		return
 	}
-	renderLintWarning(flags, "%s; none of the reported violations support auto-fix.", messagePrefix)
+	renderLintWarning(flags, "%s; no eligible repairs passed verification. Review the remaining findings.", messagePrefix)
 }
 
 func hasAutoFixableResults(results []*model.RuleFunctionResult) bool {
@@ -659,6 +677,9 @@ func renderResultPathsTruncatedWarning(flags *LintFlags, fileName string) {
 
 // fileResult holds the results and logs for a single file
 type fileResult struct {
+	repairSummary  string
+	fixedResults   []model.RuleFunctionResult
+	repairedSpec   []byte
 	fileName       string
 	results        []*model.RuleFunctionResult
 	errors         int
@@ -1007,46 +1028,12 @@ func hasValidExtension(filename string, extensions []string) bool {
 }
 
 func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFile string) error {
-	if result.ModifiedSpec == nil {
+	if result == nil || result.ModifiedSpec == nil {
 		return fmt.Errorf("no modified spec available")
 	}
-
-	outputFile := fileName
-	if fixFile != "" {
-		outputFile = fixFile
+	if result.RuleSetExecution == nil || result.RuleSetExecution.Spec == nil {
+		return fmt.Errorf("original source is required to write a repair")
 	}
-
-	// Get permissions from original file
-	fileInfo, err := os.Stat(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
-	}
-
-	// Create backup only if overwriting original file
-	if outputFile == fileName {
-		originalContent, err := os.ReadFile(fileName)
-		if err != nil {
-			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
-		}
-		backup, err := os.CreateTemp("", "vacuum-"+filepath.Base(fileName)+"-*.bak")
-		if err != nil {
-			return fmt.Errorf("failed to create backup for %s: %w", fileName, err)
-		}
-		_, writeErr := backup.Write(originalContent)
-		closeErr := backup.Close()
-		if writeErr != nil {
-			return fmt.Errorf("failed to write backup %s: %w", backup.Name(), writeErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("failed to close backup %s: %w", backup.Name(), closeErr)
-		}
-
-	}
-
-	err = os.WriteFile(outputFile, result.ModifiedSpec, fileInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", outputFile, err)
-	}
-
-	return nil
+	expected := result.RuleSetExecution.Spec
+	return writeRepairFile(fileName, fixFile, expected, result.ModifiedSpec)
 }

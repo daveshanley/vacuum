@@ -28,10 +28,14 @@ type DocumentStore struct {
 
 // Document contains the current content and URI of an open document.
 type Document struct {
+	Version           protocol.Integer
 	URI               protocol.DocumentUri
 	RunningDiagnostic bool
 	Content           string
 	mu                sync.RWMutex // Protects Content field
+	revision          uint64
+	repairGate        chan struct{} // Serializes repair computation and cache access; waits can be canceled.
+	repairCache       *repairActionCache
 }
 
 func newDocumentStore() *DocumentStore {
@@ -42,13 +46,19 @@ func newDocumentStore() *DocumentStore {
 
 // Add stores or replaces an open document.
 func (s *DocumentStore) Add(uri string, content string) *Document {
+	return s.addVersioned(uri, content, 0)
+}
+
+func (s *DocumentStore) addVersioned(uri string, content string, version protocol.Integer) *Document {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	doc := &Document{
-		URI:     uri,
-		Content: content,
+		URI:        uri,
+		repairGate: make(chan struct{}, 1),
+		Content:    content,
 	}
+	doc.Version = version
 	s.documents[uri] = doc
 	return doc
 }

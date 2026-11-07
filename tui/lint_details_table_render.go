@@ -61,7 +61,7 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 	m.height = msg.Height
 
 	// Rebuild table with new dimensions
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, msg.Width, m.uiState.ShowPath)
+	columns, rows := m.buildRepairTableData(m.filteredResults, m.fileName, msg.Width, m.uiState.ShowPath)
 	m.table.SetColumns(columns)
 	m.table.SetRows(rows)
 	m.table.SetWidth(msg.Width - 2) // border wrapper
@@ -77,7 +77,11 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 		m.table.SetHeight(msg.Height - 4)
 	}
 
+	if m.uiState.ActiveModal == ModalCode {
+		m.PrepareCodeViewport()
+	}
 	color.ApplyLintDetailsTableStyles(&m.table)
+	m.resizeRepairModal()
 
 	return nil
 }
@@ -89,6 +93,12 @@ func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cm
 	}
 
 	switch key {
+	case "left":
+		m.codeViewport.SetXOffset(max(0, m.codeViewport.XOffset()-8))
+		return true, nil
+	case "right":
+		m.codeViewport.SetXOffset(m.codeViewport.XOffset() + 8)
+		return true, nil
 	case "up", "k":
 		m.codeViewport.ScrollUp(1)
 		return true, nil
@@ -353,7 +363,7 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 		m.ApplyFilter()
 
 		// rebuild the table with all results
-		_, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
+		_, rows := m.buildRepairTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 		m.rows = rows
 		m.table.SetRows(rows)
 

@@ -258,11 +258,13 @@ func GetDashboardCommand() *cobra.Command {
 					SpecFormat:                   specFormat,
 				}, executionOptions)
 
-				result.Results = utils.FilterIgnoredResultsWithOptions(
-					result.Results,
-					ignoredItems,
-					buildIgnoreFilterOptions(specBytes, result, lookupTimeoutFlag),
-				)
+				if !result.RepairIgnoresApplied {
+					result.Results = utils.FilterIgnoredResultsWithOptions(
+						result.Results,
+						ignoredItems,
+						buildIgnoreFilterOptions(specBytes, result, lookupTimeoutFlag),
+					)
+				}
 
 				// Store DrDocument and execution template for change filtering
 				if result.RuleSetExecution != nil {
@@ -458,7 +460,12 @@ func GetDashboardCommand() *cobra.Command {
 				ChangesReportPath:            changesFlag,
 			}
 
-			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig, changeStats, filterStats)
+			repairDisabled := ""
+			if originalFlag != "" || changesFlag != "" {
+				repairDisabled = "Open the full dashboard without --original or --changes to review fixes."
+			}
+			repairs := dashboardRepairConfig(displayFileName, execution, executionOptions, ignoredItems, repairDisabled)
+			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig, changeStats, filterStats, repairs)
 			if err != nil {
 				if !silent {
 					message := fmt.Sprintf("Failed to show dashboard: %v", err)

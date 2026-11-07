@@ -153,7 +153,16 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.36` 🔥: **12 report output formats**
+🔥 **New** 🔥: **Autofix in vacuum**
+
+Found problems? Can't be bothered to fix them? vacuum can auto-fix your linting issues for you.
+
+- [Get started with autofix](https://quobix.com/vacuum/autofix/)
+- [Supply your own values](https://quobix.com/vacuum/autofix-policy/)
+
+---
+
+`v0.36`: **12 report output formats**
 
 Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
 Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
@@ -383,6 +392,7 @@ See all the documentation at https://quobix.com/vacuum
 - [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
 - [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [Linting JSON Schema](https://quobix.com/vacuum/json-schema/)
+- [Autofix](https://quobix.com/vacuum/autofix/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
@@ -827,7 +837,49 @@ Collection flags accept comma-separated values. For example,
 
 ## Auto-fixing rule violations
 
-If you have a rule that doesn't need a human to look at it, and the change can be reliably automated you can configure an `AutoFixFunction` on the rule. When you then run the `lint` command you can pass the `--fix` flag and the violation will be automatically fixed.
+Use `--fix` to review and apply supported built-in repairs:
+
+```sh
+vacuum lint api.yaml --fix
+vacuum lint api.yaml --fix --dry-run
+vacuum lint api.yaml --fix --fix-file api.fixed.yaml
+vacuum schema schema.json --fix
+```
+
+`--fix` lists available fixes. Enter their numbers or `all`, review the verified
+diff and contract impact, then accept the displayed changes. Every fix requires
+review. A rule must be enabled before it can supply a proposal. Conflicting
+selections are declined; choose a smaller set in the dashboard.
+
+`--fix --dry-run` verifies all available proposals in memory and leaves source,
+output and backup files untouched. It does not read an acceptance response.
+Noninteractive `--fix` cannot write files. After acceptance, `--fix-file` writes
+the verified result to a separate file. In-place repairs create a backup.
+
+To review and edit fixes interactively, run `vacuum dashboard api.yaml` and
+press `f`, then Enter to compare the current source with a proposed fix.
+Use Space to select or skip, `e` to edit a value in a modal, `v` to verify the
+selection, and `a` to apply the verified result. Generated text suggestions are
+labelled and require selection or confirmation. The code view (`x`) shows the
+verified preview diff. Editing or reloading the source invalidates the preview.
+
+Repairs check document integrity independently of the selected lint rules,
+then relint the full selection and compare OpenAPI contracts with libopenapi.
+The review shows breaking changes, no breaking changes detected, or unknown
+impact. Breaking and unknown results require explicit acceptance. No result
+proves runtime compatibility. A new structural or reference defect blocks the
+repair. The source must still match the reviewed version before writing.
+
+Supported proposals include generated metadata and schema-derived examples.
+Generated content remains editable in the dashboard. Unsupported or ambiguous
+findings remain visible with a reason.
+Use `--fix-policy policy.yaml` with `--fix` to supply exact metadata values;
+see [Autofix usage, policies and limits](AUTOFIX.md).
+
+Library integrations can configure an `AutoFixFunction` on a rule. The callback
+APIs below retain their existing behavior. CLI `--fix` currently declines
+configured custom fix callbacks because they do not yet supply reviewed
+proposals. It does not run those callbacks or write their output.
 
 ### Set up
 
@@ -881,50 +933,42 @@ func useExtensibleEnum(
 > [!NOTE]
 > The auto fix function must satisfy the `AutoFixFunction` type.
 > It should take in the `*yaml.Node` of the violation, the root `*yaml.Node` of the document and the `RuleFunctionContext`.
-> It should return the fixed `*yaml.Node` and an error.
+> Mutate the supplied node or document in place. Return that same node or nil.
+> Returning a different node is an error; it does not identify an owning slot.
 
 3. Configure your `RuleSetExecution` to use the auto fix function.
 ```go
-func Lint(rulesFile string, specFile string) error {
-	rules, err := rulesets.LoadLocalRuleSet(ctx, rulesFile)
-	if err != nil {
-		return fmt.Errorf("error loading ruleset: %w", err)
-	}
-
-	rs := rulesets.BuildDefaultRuleSetsWithLogger(slog.Logger).
-		GenerateRuleSetFromSuppliedRuleSet(rules)
-
-	// NOTE: only showing the fields on the RuleSetExecution relevant to auto-fixing.
-	results := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		AutoFixFunctions: map[string]model.AutoFixFunction{
-			"useExtensibleEnum": useExtensibleEnum,
-		},
-		ApplyAutoFixes:         true,
-		RuleSet:                rs,
-	})
-
-	// Write back to file if fixes were applied
-	if len(lintResults.FixedResults) > 0 && autoFix {
-		fileInfo, _ := os.Stat(specFile)
-
-		err = os.WriteFile(specFile, result.ModifiedSpec, fileInfo.Mode())
-		if err != nil {
-			return fmt.Errorf("failed to write file %s: %w", c.file, err)
-		}
-	}
-
-	return nil
+func Lint(rs *rulesets.RuleSet, specFile string) ([]byte, error) {
+    source, err := os.ReadFile(specFile)
+    if err != nil {
+        return nil, err
+    }
+    result := motor.RunPluginRepairs(&motor.RuleSetExecution{
+        Spec: source,
+        SpecFileName: specFile,
+        RuleSet: rs,
+        ApplyAutoFixes: true,
+        AutoFixFunctions: map[string]model.AutoFixFunction{
+            "useExtensibleEnum": useExtensibleEnum,
+        },
+    }, nil)
+    defer result.ReleaseOwnedResources()
+    if len(result.Errors) > 0 {
+        return nil, result.Errors[0]
+    }
+    // nil means that no verified edit changed the source.
+    return append([]byte(nil), result.ModifiedSpec...), nil
 }
 ```
 
 When the auto fix function runs, if it returns an error the fix will not be applied, the error will be logged, and the violation will be reported in the standard results.
 
-If the auto fix function succeeds the yaml node flagged by the violation will be replaced with the transformed version returned by the auto fix function.
+A callback error rolls back its rule transaction. `RunPluginRepairs` also rejects a candidate when a targeted finding remains or a new finding appears. The lower-level `ApplyRulesToRuleSet` callback API retains its transaction behavior; use the repair coordinator when you need final verification.
 
 > [!TIP]
 > When using `vacuum` as a library You can access the fixed yaml content in the `RuleSetExecutionResult.ModifiedSpec`, and choose where to write the file.
 > 
-> When using `vacuum` as a cli, the `--fix` flag will overwrite the spec file in place, and `--fix-file` flag lets you specify an alternative file to write the content to, if you want to compare the outputs.
+> With the CLI, reviewed built-in fixes write in place only after acceptance. `--fix-file` selects a separate output file. Custom callback setup below applies to library use.
 
 ### Usage
 

@@ -1,0 +1,18 @@
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
+
+//go:build js && wasm
+
+package clipboard
+
+import "errors"
+
+func init() { Unsupported = true }
+
+func readAll() (string, error) {
+	return "", errors.New("native clipboard access is unavailable in the browser; paste through the terminal")
+}
+
+func writeAll(string) error {
+	return errors.New("native clipboard access is unavailable in the browser")
+}

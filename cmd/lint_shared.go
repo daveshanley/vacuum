@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -70,7 +71,9 @@ func ResolveSpecPathForExecution(specFilePath string) (string, error) {
 
 // LintFlags holds all the command line flags for lint operations
 type LintFlags struct {
-	FormattedOutput          bool // Suppress terminal chrome when an explicit report format is selected.
+	repairWarningsSilenced   bool
+	RepairWarningWriter      io.Writer // Destination for repair warnings; defaults to standard error.
+	FormattedOutput          bool      // Suppress terminal chrome when an explicit report format is selected.
 	GlobPattern              string
 	DetailsFlag              bool
 	SnippetsFlag             bool
@@ -108,6 +111,8 @@ type LintFlags struct {
 	FetchTimeout             int
 	DebugFlag                bool
 	LookupTimeoutFlag        int
+	FixPolicy                string
+	DryRun                   bool
 	FixFlag                  bool
 	FixFileFlag              string
 	ChangesFlag              string // --changes: path to JSON change report
@@ -137,13 +142,14 @@ type FileProcessingConfig struct {
 
 // ReadLintFlags reads all lint-related flags from the command
 func ReadLintFlags(cmd *cobra.Command) *LintFlags {
-	flags := &LintFlags{}
+	flags := &LintFlags{RepairWarningWriter: cmd.ErrOrStderr()}
 	flags.GlobPattern, _ = cmd.Flags().GetString("globbed-files")
 	flags.DetailsFlag, _ = cmd.Flags().GetBool("details")
 	flags.SnippetsFlag, _ = cmd.Flags().GetBool("snippets")
 	flags.ErrorsFlag, _ = cmd.Flags().GetBool("errors")
 	flags.CategoryFlag, _ = cmd.Flags().GetString("category")
 	flags.SilentFlag, _ = cmd.Flags().GetBool("silent")
+	flags.repairWarningsSilenced = flags.SilentFlag
 	flags.NoStyleFlag, _ = cmd.Flags().GetBool("no-style")
 	flags.NoBannerFlag, _ = cmd.Flags().GetBool("no-banner")
 	flags.NoMessageFlag, _ = cmd.Flags().GetBool("no-message")
@@ -229,6 +235,8 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
+	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
+	flags.DryRun, _ = cmd.Flags().GetBool("dry-run")
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
 	flags.ChangesFlag, _ = cmd.Flags().GetString("changes")
@@ -605,7 +613,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
-	result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
+	result := executeLintWithRepairs(&motor.RuleSetExecution{
 		RuleSet:                         selectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
@@ -627,7 +635,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
 		SpecFormat:                      specFormat,
-	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
+	}, newMotorExecutionOptionsFromLintFlags(config.Flags), config.Flags, config.IgnoredItems)
 	defer result.ReleaseOwnedResources()
 	var reportInputs []string
 	if config.Flags.FormattedOutput {
@@ -653,22 +661,28 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
-	if config.Flags.FixFlag && result.ModifiedSpec != nil {
+	if config.Flags.FixFlag && !config.Flags.DryRun && result.ModifiedSpec != nil {
 		if err := writeFixedFile(result, fileName, config.Flags.FixFileFlag); err != nil {
 			return &FileProcessingResult{FileSize: fileSize, Error: err, ReportInputs: reportInputs}
 		}
 	}
 
+	if len(result.ModifiedSpec) > 0 {
+		specBytes = result.ModifiedSpec
+	}
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs, hints int
-	ignoreMatcher := utils.NewIgnoreMatcher(
-		config.IgnoredItems,
-		buildIgnoreFilterOptions(specBytes, result, config.Flags.LookupTimeoutFlag),
-	)
+	var ignoreMatcher *utils.IgnoreMatcher
+	if !result.RepairIgnoresApplied {
+		ignoreMatcher = utils.NewIgnoreMatcher(
+			config.IgnoredItems,
+			buildIgnoreFilterOptions(specBytes, result, config.Flags.LookupTimeoutFlag),
+		)
+	}
 
 	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
 	for i := range result.Results {
-		if ignoreMatcher.Matches(&result.Results[i]) {
+		if !result.RepairIgnoresApplied && ignoreMatcher.Matches(&result.Results[i]) {
 			continue
 		}
 
@@ -699,6 +713,9 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	return &FileProcessingResult{
 		Results:        results,
+		RepairSummary:  repairSummary(result, config.Flags),
+		FixedResults:   result.FixedResults,
+		RepairedSpec:   result.ModifiedSpec,
 		Errors:         errors,
 		Warnings:       warnings,
 		Informs:        informs,

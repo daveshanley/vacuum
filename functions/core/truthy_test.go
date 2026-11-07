@@ -250,3 +250,61 @@ func TestTruthy_RunRule_Field_ArrayOfScalars(t *testing.T) {
 
 	assert.Len(t, res, 2)
 }
+
+func TestTruthyRepairOwnerUsesParsedFieldPath(t *testing.T) {
+	source := []byte("servers:\n  - {}\nproperties:\n  x.y: {}\n  other: {}\na.b: {}\nwrapped:\n  allOf:\n    - properties:\n        x.y: {}\n")
+	var root yaml.Node
+	assert.NoError(t, yaml.Unmarshal(source, &root))
+	node := root.Content[0]
+	for _, tc := range []struct {
+		field     string
+		ownerLine int
+	}{
+		{"servers[0].url", 2}, {"properties['x.y'].description", 4}, {"properties.other.description", 5},
+		{`a\.b.description`, 6}, {"wrapped.properties['x.y'].description", 10},
+	} {
+		field := tc.field
+		t.Run(field, func(t *testing.T) {
+			rule := buildCoreTestRule("$", model.SeverityError, "truthy", field, nil)
+			rule.Resolved = true
+			ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+			ctx.Rule, ctx.Given = &rule, "$"
+			results := (&Truthy{}).RunRule([]*yaml.Node{node}, ctx)
+			if !assert.Len(t, results, 1) {
+				return
+			}
+			assert.NotNil(t, results[0].RepairNode)
+			assert.NotSame(t, node, results[0].RepairNode)
+			assert.Equal(t, tc.ownerLine, results[0].RepairNode.Line)
+			assert.Equal(t, yaml.MappingNode, results[0].RepairNode.Kind)
+			assert.Empty(t, results[0].RepairNode.Content)
+			assert.Equal(t, field+"-missing", results[0].DiagnosticCode)
+		})
+	}
+}
+
+func TestTruthyRepairOwnerLiteralBracketsAndBuiltinCode(t *testing.T) {
+	source := []byte("properties:\n  x[y]: {}\ninfo: {}\n")
+	var root yaml.Node
+	assert.NoError(t, yaml.Unmarshal(source, &root))
+	for _, tc := range []struct {
+		field, code string
+		line        int
+	}{
+		{"properties['x[y]'].description", "properties['x[y]'].description-missing", 2},
+		{"info.contact", "contact-missing", 3},
+		{"info.description", "description-missing", 3},
+	} {
+		rule := buildCoreTestRule("$", model.SeverityError, "truthy", tc.field, nil)
+		ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Rule, ctx.Given = &rule, "$"
+		results := (&Truthy{}).RunRule([]*yaml.Node{root.Content[0]}, ctx)
+		if !assert.Len(t, results, 1) {
+			continue
+		}
+		if assert.NotNil(t, results[0].RepairNode) {
+			assert.Equal(t, tc.line, results[0].RepairNode.Line)
+		}
+		assert.Equal(t, tc.code, results[0].DiagnosticCode)
+	}
+}

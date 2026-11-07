@@ -2,11 +2,13 @@
 // https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
-package motor
+package autofix
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/daveshanley/vacuum/motor"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -39,7 +41,7 @@ func TestAutoFixTransactionPreservesDocumentAndRepeatedTargetEdits(t *testing.T)
 				AutoFixFunction: "fix",
 				Then:            &model.RuleAction{Function: "repeatedFinding"},
 			}
-			execution := &RuleSetExecution{
+			execution := &motor.RuleSetExecution{
 				Spec: []byte(`openapi: 3.0.0
 info:
   title: Test
@@ -75,7 +77,7 @@ paths: {}
 					return node, nil
 				}},
 			}
-			result := ApplyRulesToRuleSet(execution)
+			result := motor.ApplyRulesToRuleSet(execution)
 			defer result.ReleaseOwnedResources()
 			require.Equal(t, 2, calls)
 			if failure == "" {

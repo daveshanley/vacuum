@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/daveshanley/vacuum/motor/autofix/runtime"
+
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -198,8 +200,9 @@ func applyAsyncAPIRulesToRuleSet(
 	)
 	errs = appendContextErrorToErrors(errs, control.Err())
 
-	modified, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults))
+	modified, marshalErr := runtime.MarshalDocument(execution.CanonicalDocument, len(fixedResults), execution.Spec)
 	if marshalErr != nil {
+		marshalErr = &RuleExecutionError{Kind: RuleErrorAutoFix, Err: marshalErr}
 		errs = append(errs, marshalErr)
 	}
 

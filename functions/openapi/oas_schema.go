@@ -423,6 +423,12 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Path:      location,
 				Rule:      context.Rule,
 			}
+			// Repair ownership comes from structured instance tokens, never from
+			// a metaschema path, display line or rendered validation message.
+			if strings.HasSuffix(schemaErr.KeywordLocation, "/uniqueItems") {
+				res.RepairNode = validationInstanceNode(validationInfo.RootNode, schemaErr.InstancePath)
+				res.DiagnosticCode = "schema-unique-items"
+			}
 			if len(allPaths) > 1 {
 				res.Paths = allPaths
 			}
@@ -710,4 +716,23 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 // Deprecated: Use DefaultErrorFormatter.Format instead.
 func errorKindToString(ek jsonschema.ErrorKind) string {
 	return DefaultErrorFormatter{}.Format(ErrorContext{ErrorKind: ek})
+}
+
+func validationInstanceNode(root *yaml.Node, path []string) *yaml.Node {
+	node := documentContentNode(root)
+	for _, token := range path {
+		if node == nil {
+			return nil
+		}
+		if node.Kind == yaml.SequenceNode {
+			i, err := strconv.Atoi(token)
+			if err != nil || i < 0 || i >= len(node.Content) || strconv.Itoa(i) != token {
+				return nil
+			}
+			node = node.Content[i]
+		} else {
+			node = mappingValueNode(node, token)
+		}
+	}
+	return node
 }

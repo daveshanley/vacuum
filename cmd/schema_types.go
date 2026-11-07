@@ -13,6 +13,10 @@ import (
 )
 
 type schemaLintFlags struct {
+	Fix                  bool
+	FixFile              string
+	FixPolicy            string
+	DryRun               bool
 	GlobPatterns         []string
 	Includes             []string
 	Excludes             []string

@@ -11,6 +11,7 @@ import (
 
 	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )
@@ -34,7 +35,7 @@ func InitSyntaxStyles() {
 
 // PrepareCodeViewport prepares the code viewport with the full spec and highlights the error line
 func (m *ViolationResultTableModel) PrepareCodeViewport() {
-	if m.modalContent == nil || m.specContent == nil {
+	if !m.hasRepairPreview() && (m.modalContent == nil || m.specContent == nil) {
 		return
 	}
 
@@ -42,6 +43,13 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 	modalHeight := m.height - ModalHeightMargin
 
 	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
+
+	if diff := m.repairReviewContent(modalWidth - 4); diff != "" {
+		m.codeViewport.SoftWrap = false
+		m.codeViewport.SetContent(diff)
+		m.codeViewport.GotoTop()
+		return
+	}
 
 	// get the line number from the result
 	targetLine := 0
@@ -95,7 +103,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - ModalHeightMargin
 
-	if m.modalContent == nil {
+	if m.modalContent == nil && !m.hasRepairPreview() {
 		return ""
 	}
 
@@ -114,13 +122,16 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 		Width(modalWidth - 4)
 
 	targetLine := 0
-	if m.modalContent.StartNode != nil {
+	if m.modalContent != nil && m.modalContent.StartNode != nil {
 		targetLine = m.modalContent.StartNode.Line
-	} else if m.modalContent.Origin != nil {
+	} else if m.modalContent != nil && m.modalContent.Origin != nil {
 		targetLine = m.modalContent.Origin.Line
 	}
 
 	title := fmt.Sprintf("📄 %s - line %d", m.fileName, targetLine)
+	if m.hasRepairPreview() {
+		title = "Preview changes, no files written"
+	}
 	content.WriteString(titleStyle.Render(title))
 	content.WriteString("\n")
 
@@ -131,7 +142,11 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	content.WriteString("\n\n")
 
 	// code viewport.
-	content.WriteString(m.codeViewport.View())
+	if m.hasRepairPreview() {
+		content.WriteString(repairDiffViewport(m.codeViewport))
+	} else {
+		content.WriteString(m.codeViewport.View())
+	}
 
 	// calculate remaining lines for proper modal height
 	currentLines := strings.Count(content.String(), "\n")
@@ -169,6 +184,13 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 		bottomBar = navStyle.Render("esc/x: close")
 	}
 
+	if m.hasRepairPreview() {
+		controls := "a: save | []: changes | t: file diff | ↑↓: scroll | ←→: pan | esc/x: close"
+		if lipgloss.Width(controls) > modalWidth-4 {
+			controls = "a: save | []: changes | t: diff | esc: close"
+		}
+		bottomBar = lipgloss.NewStyle().Foreground(color.RGBGrey).Render(ansi.Truncate(controls, max(1, modalWidth-4), ""))
+	}
 	content.WriteString(bottomBar)
 
 	return modalStyle.Render(content.String())
@@ -202,6 +224,10 @@ func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxW
 
 // ReCenterCodeView re-centers the viewport on the highlighted error line
 func (m *ViolationResultTableModel) ReCenterCodeView() {
+	if m.hasRepairPreview() {
+		m.codeViewport.GotoTop()
+		return
+	}
 	if m.modalContent == nil {
 		return
 	}

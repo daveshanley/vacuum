@@ -87,6 +87,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 		// duplicate
 		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line `%d` is a duplicate of line `%d`",
 			summary.Line, seenSummaries[md5String].node.Line))
+		res.DiagnosticCode = "summary-duplicate"
 		res.StartNode = summary
 		res.EndNode = vacuumUtils.BuildEndNode(summary)
 		res.Path = path
@@ -105,6 +106,7 @@ func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string,
 		// duplicate
 		res := model.BuildFunctionResultString(fmt.Sprintf("Description at line `%d` is a duplicate of line `%d`",
 			description.Line, seenDescriptions[md5String].node.Line))
+		res.DiagnosticCode = "description-duplicate"
 		res.StartNode = description
 		res.EndNode = vacuumUtils.BuildEndNode(description)
 		res.Path = path

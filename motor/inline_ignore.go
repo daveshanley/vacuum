@@ -1,9 +1,10 @@
 package motor
 
 import (
+	"time"
+
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"time"
 )
 
 const ignoreKey = "x-lint-ignore"
@@ -222,4 +223,14 @@ func isIgnoreNode(node *yaml.Node) bool {
 	}
 
 	return node.Kind == yaml.ScalarNode && node.Value == ignoreKey
+}
+
+// InlineIgnoreScopes returns explicit ignored rule IDs keyed by their source nodes.
+// Each call owns its map; nodes remain owned by the supplied document.
+func InlineIgnoreScopes(root *yaml.Node) map[*yaml.Node]map[string]bool {
+	idx := buildInlineIgnoreIndex(root)
+	if idx == nil {
+		return nil
+	}
+	return idx.nodeIgnores
 }

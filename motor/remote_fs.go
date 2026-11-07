@@ -11,9 +11,9 @@ import (
 	"github.com/pb33f/libopenapi/index"
 )
 
-// remoteFSHandler preserves the caller's filesystem for model builders that
+// RemoteFSHandler preserves the caller's filesystem for model builders that
 // load remote references through an HTTP handler instead of RemoteFS.
-func remoteFSHandler(ctx context.Context, files fs.FS) func(string) (*http.Response, error) {
+func RemoteFSHandler(ctx context.Context, files fs.FS) func(string) (*http.Response, error) {
 	return func(location string) (*http.Response, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err

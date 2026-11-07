@@ -1,16 +1,16 @@
-package motor
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
+package autofix
 
 import (
-	"bytes"
-	"io"
-	"log/slog"
 	"testing"
 
-	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
 )
 
@@ -41,7 +41,7 @@ info:
 		},
 	}
 
-	execution := &RuleSetExecution{
+	execution := &motor.RuleSetExecution{
 		RuleSet:          &rulesets.RuleSet{Rules: map[string]*model.Rule{"empty-description-autofix": &customRule}},
 		Spec:             []byte(spec),
 		SpecFileName:     "test.yaml",
@@ -49,7 +49,7 @@ info:
 		AutoFixFunctions: map[string]model.AutoFixFunction{"fixEmptyDescription": emptyDescriptionFix},
 	}
 
-	result := ApplyRulesToRuleSet(execution)
+	result := motor.ApplyRulesToRuleSet(execution)
 
 	assert.Equal(t, len(result.FixedResults), 1, "Should have fixed one violation")
 
@@ -75,13 +75,13 @@ info:
 		Then:     &model.RuleAction{Function: "truthy"},
 	}
 
-	execution := &RuleSetExecution{
+	execution := &motor.RuleSetExecution{
 		RuleSet:        &rulesets.RuleSet{Rules: map[string]*model.Rule{"empty-description": &customRule}},
 		Spec:           []byte(spec),
 		ApplyAutoFixes: false,
 	}
 
-	result := ApplyRulesToRuleSet(execution)
+	result := motor.ApplyRulesToRuleSet(execution)
 	assert.Greater(t, len(result.Results), 0)
 	assert.Equal(t, 0, len(result.FixedResults))
 }
@@ -125,7 +125,7 @@ paths:
 		return node, nil
 	}
 
-	execution := &RuleSetExecution{
+	execution := &motor.RuleSetExecution{
 		RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
 			"empty-description-fixable": &fixableRule,
 			"empty-summary-not-fixable": &nonFixableRule,
@@ -136,7 +136,7 @@ paths:
 		AutoFixFunctions: map[string]model.AutoFixFunction{"fixEmptyDescription": emptyDescriptionFix},
 	}
 
-	result := ApplyRulesToRuleSet(execution)
+	result := motor.ApplyRulesToRuleSet(execution)
 
 	assert.Equal(t, len(result.FixedResults), 1, "Should have fixed one violation")
 	assert.Equal(t, len(result.Results), 1, "Should have one unfixed violation")
@@ -214,7 +214,7 @@ components:
 		},
 	}
 
-	execution := &RuleSetExecution{
+	execution := &motor.RuleSetExecution{
 		RuleSet:          &rulesets.RuleSet{Rules: map[string]*model.Rule{"fix-notfound-description": &customRule}},
 		Spec:             []byte(spec),
 		ApplyAutoFixes:   true,
@@ -222,7 +222,7 @@ components:
 		SilenceLogs:      true,
 	}
 
-	result := ApplyRulesToRuleSet(execution)
+	result := motor.ApplyRulesToRuleSet(execution)
 
 	assert.True(t, autoFixCalled)
 	assert.Equal(t, 1, len(result.FixedResults), "Should have fixed one violation")
@@ -256,7 +256,7 @@ info:
 		},
 	}
 
-	execution := &RuleSetExecution{
+	execution := &motor.RuleSetExecution{
 		RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"unmapped-autofix": &customRule}},
 		Spec:    []byte(spec),
 		CustomFunctions: map[string]model.RuleFunction{
@@ -267,96 +267,10 @@ info:
 		SilenceLogs:      true,
 	}
 
-	result := ApplyRulesToRuleSet(execution)
+	result := motor.ApplyRulesToRuleSet(execution)
 
 	assert.False(t, autoFixCalled)
 	assert.Equal(t, 0, len(result.FixedResults))
 	assert.Equal(t, 1, len(result.Results))
 	assert.False(t, result.Results[0].AutoFixed)
-}
-
-func TestAutoFixResolvedRuleSkipsWithoutUnresolvedIndex(t *testing.T) {
-	autoFixCalled := false
-	fixDescription := func(node *yaml.Node, document *yaml.Node, context *model.RuleFunctionContext) (*yaml.Node, error) {
-		autoFixCalled = true
-		return node, nil
-	}
-
-	rule := &model.Rule{
-		Id:              "no-index-autofix",
-		Given:           "$",
-		Then:            model.RuleAction{Function: "autofixUnmapped"},
-		Resolved:        true,
-		AutoFixFunction: "fixDescription",
-	}
-
-	var ruleResults []model.RuleFunctionResult
-	var fixedResults []model.RuleFunctionResult
-	ctx := ruleContext{
-		rule:               rule,
-		specNode:           &yaml.Node{Kind: yaml.MappingNode},
-		applyAutoFixes:     true,
-		skipDocumentCheck:  true,
-		customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
-		builtinFunctions:   functions.MapBuiltinFunctions(),
-		specNodeUnresolved: &yaml.Node{},
-		autoFixFunctions:   map[string]model.AutoFixFunction{"fixDescription": fixDescription},
-		ruleResults:        &ruleResults,
-		fixedResults:       &fixedResults,
-		silenceLogs:        true,
-		logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
-		indexUnresolved:    nil,
-	}
-
-	runRule(ctx)
-
-	assert.False(t, autoFixCalled)
-	assert.Equal(t, 0, len(fixedResults))
-	assert.Equal(t, 1, len(ruleResults))
-}
-
-func TestAutoFixSkippedDiagnostics(t *testing.T) {
-	for _, missingIndex := range []bool{false, true} {
-		for _, silent := range []bool{false, true} {
-			var logs bytes.Buffer
-			root := &yaml.Node{}
-			assert.NoError(t, yaml.Unmarshal([]byte(executionOptionsOpenAPISpec), root))
-			var unresolvedIndex *index.SpecIndex
-			message := "Auto-fix skipped: unresolved index not available"
-			if !missingIndex {
-				unresolvedIndex = index.NewSpecIndex(root)
-				message = "Auto-fix skipped: unable to map resolved node to canonical document"
-			}
-			var findings, fixed []model.RuleFunctionResult
-			ctx := ruleContext{
-				rule: &model.Rule{
-					Id: "skip", Given: "$", Resolved: true, AutoFixFunction: "fix",
-					Then: model.RuleAction{Function: "autofixUnmapped"},
-				},
-				specNode:           root,
-				specNodeUnresolved: root,
-				indexUnresolved:    unresolvedIndex,
-				applyAutoFixes:     true,
-				skipDocumentCheck:  true,
-				builtinFunctions:   functions.MapBuiltinFunctions(),
-				customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
-				autoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, _ *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
-					t.Fatal("unmapped node must not reach auto-fix callback")
-					return node, nil
-				}},
-				ruleResults:  &findings,
-				fixedResults: &fixed,
-				logger:       slog.New(slog.NewTextHandler(&logs, nil)),
-				silenceLogs:  silent,
-			}
-			runRule(ctx)
-			assert.Len(t, findings, 1)
-			assert.Empty(t, fixed)
-			if silent {
-				assert.Empty(t, logs.String())
-			} else {
-				assert.Contains(t, logs.String(), message)
-			}
-		}
-	}
 }

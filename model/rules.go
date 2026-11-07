@@ -72,6 +72,11 @@ type RuleFunctionContext struct {
 	// ExecutionRoot is the tree used for selector evaluation in this invocation.
 	ExecutionRoot *yaml.Node `json:"-" yaml:"-"`
 
+	// ExhaustiveRepairFindings reports all independently repairable findings during
+	// repair discovery and verification, including those normally grouped by a rule.
+	// This prevents repairing one finding from exposing an unreported sibling.
+	ExhaustiveRepairFindings bool `json:"-" yaml:"-"`
+
 	// ReportError optionally reports an execution failure separately from findings.
 	// Call it synchronously within RunRule, never after RunRule returns.
 	ReportError func(error) `json:"-" yaml:"-"`
@@ -125,6 +130,10 @@ type ResultSourceContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
+	// DiagnosticCode identifies a specific condition without parsing Message.
+	DiagnosticCode string `json:"diagnosticCode,omitempty" yaml:"diagnosticCode,omitempty"`
+	// RepairNode identifies the authored object for a repair when StartNode is a display owner.
+	RepairNode        *yaml.Node           `json:"-" yaml:"-"`
 	Message           string               `json:"message" yaml:"message"`                                   // What failed and why?
 	Range             reports.Range        `json:"range" yaml:"range"`                                       // Where did it happen?
 	Path              string               `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.

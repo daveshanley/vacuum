@@ -72,6 +72,9 @@ func GetSchemaCommand() *cobra.Command {
 }
 
 func addSchemaLintFlags(cmd *cobra.Command) {
+	addRepairFlags(cmd)
+	cmd.Flags().Bool("fix", false, "Review and apply supported schema repairs")
+	cmd.Flags().String("fix-file", "", "Write repaired schema to a separate file")
 	cmd.Flags().BoolP("details", "d", false, "Show full details of schema linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -98,6 +101,13 @@ func addSchemaLintFlags(cmd *cobra.Command) {
 
 func readSchemaLintFlags(cmd *cobra.Command) (*schemaLintFlags, error) {
 	flags := &schemaLintFlags{}
+	flags.Fix, _ = cmd.Flags().GetBool("fix")
+	flags.FixFile, _ = cmd.Flags().GetString("fix-file")
+	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
+	flags.DryRun, _ = cmd.Flags().GetBool("dry-run")
+	if err := validateRepairFlags(flags.Fix, flags.DryRun, flags.FixPolicy); err != nil {
+		return nil, err
+	}
 	flags.GlobPatterns, _ = cmd.Flags().GetStringArray("globbed-files")
 	flags.Includes, _ = cmd.Flags().GetStringArray("include")
 	flags.Excludes, _ = cmd.Flags().GetStringArray("exclude")
@@ -194,7 +204,7 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent, false)
+	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent || flags.Format != schemaOutputText, false)
 	if err != nil {
 		return err
 	}
@@ -210,6 +220,13 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	if !flags.Silent && flags.Format == schemaOutputText {
 		fmt.Printf(" %slinting %d JSON Schema document(s) against %d rules: %s%s\n\n",
 			color.ASCIIBlue, len(inputs), len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
+	}
+
+	if flags.FixFile != "" && len(inputs) > 1 {
+		return fmt.Errorf("repair output requires a single input")
+	}
+	if flags.Fix && (flags.Stdin || flags.Bundle) {
+		return fmt.Errorf("schema repair requires an unbundled file input")
 	}
 
 	var runs []schemaLintRun
@@ -241,6 +258,9 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 		RenderBufferedLogs(bufferedLogger, flags.NoStyle)
 	}
 	resultSet := model.NewRuleResultSet(aggregate)
+	for _, run := range runs {
+		resultSet.FixedResults = append(resultSet.FixedResults, run.ResultSet.FixedResults...)
+	}
 	resultSet.SortResultsByLineNumber()
 	prepareSchemaResults(resultSet)
 	failErr := CheckFailureSeverity(flags.FailSeverity, resultSet.GetErrorCount(), resultSet.GetWarnCount(), resultSet.GetInfoCount(), resultSet.GetHintCount())
@@ -355,18 +375,35 @@ func lintSchemaInput(
 		FetchConfig:                     fetchConfig,
 		SpecFormat:                      dialect.Format,
 	}
-	result := motor.ApplyRulesToRuleSetWithOptions(execution, &motor.ExecutionOptions{
+	repairFlags := &LintFlags{repairWarningsSilenced: flags.Silent, RepairWarningWriter: errOut, FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixPolicy: flags.FixPolicy, DryRun: flags.DryRun, SilentFlag: flags.Silent, FormattedOutput: flags.Format != schemaOutputText}
+	result := executeLintWithRepairs(execution, &motor.ExecutionOptions{
 		ResolveAllRefs:       flags.ResolveAllRefs,
 		NestedRefsDocContext: flags.NestedRefsDocContext,
-	})
-	result.Results = utils.FilterIgnoredResultsWithOptions(
-		result.Results,
-		ignoredItems,
-		buildIgnoreFilterOptions(input.Bytes, result, flags.LookupTimeout),
-	)
+	}, repairFlags, ignoredItems)
+	if flags.Fix && !flags.DryRun && len(result.Errors) == 0 && result.ModifiedSpec != nil {
+		if err := writeFixedFile(result, input.Path, flags.FixFile); err != nil {
+			return run, err
+		}
+	}
+	fmt.Print(repairSummary(result, repairFlags))
+	if len(result.ModifiedSpec) > 0 {
+		input.Bytes = result.ModifiedSpec
+	}
+	if !result.RepairIgnoresApplied {
+		result.Results = utils.FilterIgnoredResultsWithOptions(
+			result.Results,
+			ignoredItems,
+			buildIgnoreFilterOptions(input.Bytes, result, flags.LookupTimeout),
+		)
+
+	}
 	run.Errors = result.Errors
 	run.SpecInfo = result.SpecInfo
 	run.ResultSet = model.NewRuleResultSet(result.Results)
+	run.ResultSet.AddFixedResults(result.FixedResults)
+	if len(result.ModifiedSpec) > 0 {
+		run.Input.Bytes = result.ModifiedSpec
+	}
 	run.ResultSet.SortResultsByLineNumber()
 	prepareSchemaResults(run.ResultSet)
 	return run, nil
