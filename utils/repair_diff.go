@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/aymanbagabas/go-udiff"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -93,9 +94,16 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 	write := func(prefix, segment string) {
 		hasNewline := strings.HasSuffix(segment, "\n")
 		segment = strings.TrimSuffix(segment, "\n")
+		if hasNewline {
+			segment = strings.TrimSuffix(segment, "\r")
+		}
 		truncated := bounded && len(segment) > 4096
 		if truncated {
-			segment = segment[:4096]
+			end := 4096
+			for end > 0 && !utf8.RuneStart(segment[end]) {
+				end--
+			}
+			segment = segment[:end]
 		}
 		out.WriteString(prefix)
 		// Escape terminal controls without reflowing YAML/JSON or copying a long line.
