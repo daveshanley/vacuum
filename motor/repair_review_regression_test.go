@@ -98,6 +98,8 @@ func TestNewRepairNodesCannotInheritIgnores(t *testing.T) {
 	next, err := repair.ParseDocument(candidate)
 	require.NoError(t, err)
 	require.Empty(t, originalRepairPath("$.tags[0]", root, next, changes))
+	require.Empty(t, originalRepairPath("$['tags'][0]", root, next, changes))
+	require.Equal(t, "$.tags[0].description", originalRepairPath("$['tags'][1]['description']", root, next, changes))
 	require.Empty(t, originalRepairPath("$.tags[0].description", root, next, changes))
 	require.Equal(t, "$.tags[0].description", originalRepairPath("$.tags[1].description", root, next, changes))
 }
