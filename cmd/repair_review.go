@@ -88,6 +88,7 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	if err != nil {
 		baseline := review.TakeBaselineResult()
 		baseline.RepairWarnings = append(baseline.RepairWarnings, fmt.Sprintf("repairs declined: %v", err))
+		baseline.RepairWarnings = append(baseline.RepairWarnings, declined...)
 		return baseline
 	}
 	defer preview.Close()
