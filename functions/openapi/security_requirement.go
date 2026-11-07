@@ -42,8 +42,17 @@ func securitySchemeKey(name string, schemes, localSchemes map[string]*index.Refe
 			return ""
 		}
 	}
-	// URL parsing decodes the fragment exactly once; JSON Pointer decoding follows.
-	fragment := "#" + reference.Fragment
+	key = securitySchemePointer(reference.Fragment)
+	if localSchemes[key] != nil {
+		return key
+	}
+	return ""
+}
+
+// securitySchemePointer validates a URL-decoded fragment and decodes one JSON
+// Pointer token. Percent escapes must not be decoded a second time.
+func securitySchemePointer(fragment string) string {
+	fragment = "#" + fragment
 	if !strings.HasPrefix(fragment, securitySchemePrefix) {
 		return ""
 	}
@@ -51,7 +60,6 @@ func securitySchemeKey(name string, schemes, localSchemes map[string]*index.Refe
 	if strings.Contains(token, "/") {
 		return ""
 	}
-	// A component name is one JSON Pointer token; reject invalid escape sequences.
 	for i := 0; i < len(token); i++ {
 		if token[i] == '~' {
 			if i+1 == len(token) || (token[i+1] != '0' && token[i+1] != '1') {
@@ -61,11 +69,54 @@ func securitySchemeKey(name string, schemes, localSchemes map[string]*index.Refe
 		}
 	}
 	token = strings.ReplaceAll(strings.ReplaceAll(token, "~1", "/"), "~0", "~")
-	key = securitySchemePrefix + token
-	if localSchemes[key] != nil {
-		return key
+	return securitySchemePrefix + token
+}
+
+// externalSecuritySchemeDefined only searches documents already admitted to the
+// rolodex. A security key cannot load a file or bypass reference access controls.
+func externalSecuritySchemeDefined(name string, documentURI *url.URL, root *index.SpecIndex,
+	securityByIndex map[*index.SpecIndex]map[string]*index.Reference) bool {
+	if documentURI == nil || strings.HasPrefix(name, "#") {
+		return false
 	}
-	return ""
+	reference, err := url.Parse(name)
+	if err != nil {
+		return false
+	}
+	key := securitySchemePointer(reference.Fragment)
+	if key == "" {
+		return false
+	}
+	target := documentURI.ResolveReference(reference)
+	target.Fragment, target.RawFragment = "", ""
+	target.Scheme, target.Host = strings.ToLower(target.Scheme), strings.ToLower(target.Host)
+	identity := target.String()
+	if identity == documentURI.String() {
+		return false
+	}
+	matches := func(candidate *index.SpecIndex) bool {
+		uri := securityDocumentURI(candidate)
+		if uri == nil || uri.String() != identity {
+			return false
+		}
+		schemes := securityByIndex[candidate]
+		if schemes == nil {
+			schemes = candidate.GetAllSecuritySchemes()
+			securityByIndex[candidate] = schemes
+		}
+		return schemes[key] != nil
+	}
+	if matches(root) {
+		return true
+	}
+	if rolodex := root.GetRolodex(); rolodex != nil {
+		for _, candidate := range rolodex.GetIndexes() {
+			if matches(candidate) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // securityDocumentURI establishes the source document's identity without I/O.
