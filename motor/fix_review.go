@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -108,7 +107,7 @@ func NewFixReviewWithPolicy(execution *RuleSetExecution, options *ExecutionOptio
 		r.Close()
 		return nil, err
 	}
-	r.findings, err = repairFindings(r.baseline.RuleSetExecution, r.baseline.Results)
+	r.findings, err = baselineRepairFindings(r.baseline)
 	if err != nil {
 		r.Close()
 		return nil, err
@@ -166,7 +165,7 @@ func NewFixReviewWithPolicy(execution *RuleSetExecution, options *ExecutionOptio
 			option.Generated = target.Code == "reviewed-proposal"
 			option.Description = "Apply " + strings.ReplaceAll(target.Code, "-", " ")
 			option.Reason = ""
-			if op, ok := editableProposalOperation(r.proposal, finding.RuleID, finding.Pointer, r.fields[finding.Index]); ok {
+			if op, ok := editableProposalOperation(r.proposal, finding.RuleID, finding.Pointer, r.fields[finding.Index], root); ok {
 				option.Editable = true
 				option.Generated = true
 				option.Value = string(op.Value)
@@ -300,6 +299,7 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 	entries := make([]repair.PolicyEntry, 0)
 	overrides := make(map[string]json.RawMessage)
 	seen := make(map[int]bool)
+	targetsSeen := make(map[string]string)
 	for _, choice := range choices {
 		if choice.Index < 0 || choice.Index >= len(r.choices) || seen[choice.Index] {
 			return repair.Plan{}, fmt.Errorf("invalid or repeated fix selection %d", choice.Index)
@@ -310,12 +310,29 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		if !option.Available {
 			return repair.Plan{}, fmt.Errorf("fix is unavailable: %s", option.Reason)
 		}
+		targetKey := fixKey(finding.RuleID, finding.Pointer)
+		value := option.Value
+		if choice.Value != nil {
+			value = *choice.Value
+		}
+		if previous, exists := targetsSeen[targetKey]; exists {
+			if option.Editable && choice.Value != nil && previous != value {
+				return repair.Plan{}, fmt.Errorf("conflicting proposed values at %s", finding.Pointer)
+			}
+			continue
+		}
+		targetsSeen[targetKey] = value
+
 		if option.Editable {
 			value := option.Value
 			if choice.Value != nil {
 				value = *choice.Value
 			}
 			if op, ok := r.edits[choice.Index]; ok {
+				if op.Op == "copy" && choice.Value == nil {
+					selected = append(selected, finding)
+					continue
+				}
 				encoded := json.RawMessage(value)
 				if r.fields[choice.Index] == "$proposal-string" {
 					encoded, _ = json.Marshal(value)
@@ -350,21 +367,7 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 	}
 	var policy *repair.Policy
 	if len(entries) != 0 {
-		// Parse the same exact-scope policy contract used by noninteractive repair.
-		for i := range entries {
-			entries[i].Scope.Source, err = filepath.Abs(entries[i].Scope.Source)
-			if err != nil {
-				return repair.Plan{}, err
-			}
-		}
-		encoded, err := yaml.Marshal(struct {
-			Version  int                  `yaml:"version"`
-			Policies []repair.PolicyEntry `yaml:"policies"`
-		}{1, entries})
-		if err != nil {
-			return repair.Plan{}, err
-		}
-		policy, err = repair.ParsePolicy(encoded, "", nil)
+		policy, err = repair.NewPolicy(entries, "")
 		if err != nil {
 			return repair.Plan{}, err
 		}
@@ -374,8 +377,12 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		}
 	}
 	for i := range plan.Operations {
-		if value, ok := overrides[plan.Operations[i].Path]; ok && (plan.Operations[i].Op == "add" || plan.Operations[i].Op == "replace") {
+		if value, ok := overrides[plan.Operations[i].Path]; ok && (plan.Operations[i].Op == "add" || plan.Operations[i].Op == "replace" || plan.Operations[i].Op == "copy") {
 			plan.Operations[i].Value = value
+			if plan.Operations[i].Op == "copy" {
+				plan.Operations[i].Op = "replace"
+				plan.Operations[i].From = ""
+			}
 		}
 	}
 	plan.Sources = r.proposal.Sources

@@ -36,7 +36,7 @@ func verifyRepairIntegrity(before, after *RuleSetExecutionResult, correspondence
 	if err = repairCanceled(options); err != nil {
 		return err
 	}
-	old, err := repairIntegrityDefects(before, options)
+	old, err := baselineRepairIntegrity(before, options)
 	if err != nil {
 		return fmt.Errorf("baseline integrity check: %w", err)
 	}
@@ -128,7 +128,7 @@ func repairIntegrityDefects(result *RuleSetExecutionResult, options ...*Executio
 	}
 	locations := repair.IndexLocations(root)
 	add := func(kind string, node *yaml.Node, path, detail string) {
-		if p, ok := locations.Find(node); ok {
+		if p, ok := locations.FindExact(node); ok {
 			path = p
 		}
 		// Native opaque errors without source nodes remain document-wide defects.

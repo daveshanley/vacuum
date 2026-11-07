@@ -51,7 +51,8 @@ func PlanFixesWithPolicy(execution *RuleSetExecution, options *ExecutionOptions,
 		return plan, baseline, fmt.Errorf("cannot plan repairs after incomplete lint: %w", baseline.Errors[0])
 	}
 	baseline.Results = utils.FilterIgnoredResultsWithOptions(baseline.Results, e.RepairIgnores, utils.IgnoreMatcherOptions{RootNode: e.CanonicalDocument, SpecBytes: e.Spec, LookupTimeout: e.NodeLookupTimeout})
-	findings, err := repairFindings(e, baseline.Results)
+	baseline.RepairIgnoresApplied = true
+	findings, err := baselineRepairFindings(baseline)
 	if err != nil {
 		return plan, baseline, err
 	}
@@ -149,8 +150,8 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 	if err := verifyRepairIntegrity(before, after, correspondence, options); err != nil {
 		return fail(err)
 	}
-	after.Results = utils.FilterIgnoredResultsWithOptions(after.Results, e.RepairIgnores, utils.IgnoreMatcherOptions{RootNode: e.CanonicalDocument, SpecBytes: e.Spec, LookupTimeout: e.NodeLookupTimeout})
-	beforeFindings, err := repairFindings(before.RuleSetExecution, before.Results)
+	filterRepairCandidateIgnores(before, after, correspondence)
+	beforeFindings, err := baselineRepairFindings(before)
 	if err != nil {
 		return fail(err)
 	}
@@ -210,21 +211,13 @@ func verifyRepairCandidate(execution *RuleSetExecution, plan repair.Plan, candid
 }
 
 func repairExecution(source *RuleSetExecution, data []byte) *RuleSetExecution {
-	e := *source
+	e := source.CopyConfig()
 	e.captureRepairSources = true
 	e.Spec = append([]byte(nil), data...)
-	e.SpecInfo = nil
-	e.IndexUnresolved = nil
-	e.IndexResolved = nil
-	e.Document = nil
-	e.DrDocument = nil
-	e.Arazzo = nil
-	e.AsyncAPI = nil
-	e.CanonicalDocument = nil
 	e.ApplyAutoFixes = false
-	e.RuleSet = source.RuleSet.CopyForExecution()
-	return &e
+	return e
 }
+
 func diagnosticIdentity(r model.RuleFunctionResult) string {
 	message := r.Message
 	if r.RuleId == "resolving-references" {
@@ -265,7 +258,27 @@ func repairFindings(execution *RuleSetExecution, results []model.RuleFunctionRes
 		if node == nil {
 			node = r.StartNode
 		}
-		if pointer, ok := locations.Find(node); ok {
+		// Repair owners can come from a separate resolved parse. Verify that
+		// owner's document before allowing a position match into the source.
+		local := r.RepairNode == nil
+		if _, exact := locations.FindExact(node); exact {
+			local = true
+		}
+		if !local && execution.Document != nil && execution.Document.GetRolodex() != nil {
+			rolo := execution.Document.GetRolodex()
+			origin := rolo.FindNodeOrigin(node)
+			local = origin != nil && origin.Index == rolo.GetRootIndex()
+			for _, idx := range rolo.GetIndexes() {
+				if idx == rolo.GetRootIndex() {
+					continue
+				}
+				if origin := idx.FindNodeOrigin(node); origin != nil && origin.Node == node {
+					local = false
+					break
+				}
+			}
+		}
+		if pointer, ok := locations.Find(node); local && ok {
 			finding.Pointer = pointer
 		} else {
 			finding.Unavailable = "diagnostic has no unique authored source location"
@@ -326,6 +339,8 @@ func RunPluginRepairs(execution *RuleSetExecution, options *ExecutionOptions) *R
 }
 
 func runRepairs(execution *RuleSetExecution, options *ExecutionOptions, policy *repair.Policy, apply, builtins bool) (repair.Plan, *RuleSetExecutionResult) {
+	originalOptions := options
+	strict := options != nil && options.ReportFunctionErrors || execution != nil && execution.RuleSet != nil && execution.RuleSet.Executable != nil
 	options, cancel := repairRunOptions(options)
 	defer cancel()
 	plan, before, err := PlanFixesWithPolicy(execution, options, policy)
@@ -336,10 +351,22 @@ func runRepairs(execution *RuleSetExecution, options *ExecutionOptions, policy *
 		plan.Targets = nil
 	}
 	if before == nil {
-		before = &RuleSetExecutionResult{RuleSetExecution: execution}
+		if err == nil {
+			err = fmt.Errorf("repair baseline is unavailable")
+		}
+		return plan, &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}
 	}
 	if err != nil {
-		before.Errors = append(before.Errors, err)
+		// Repeat only an incomplete strict lint with the caller's settings.
+		// This preserves all ordinary errors without guessing their kinds.
+		if !strict && execution != nil && len(before.Errors) > 0 {
+			before.ReleaseOwnedResources()
+			before = ApplyRulesToRuleSetWithOptions(repairExecution(execution, execution.Spec), originalOptions)
+			e := before.RuleSetExecution
+			before.Results = utils.FilterIgnoredResultsWithOptions(before.Results, e.RepairIgnores, utils.IgnoreMatcherOptions{RootNode: e.CanonicalDocument, SpecBytes: e.Spec, LookupTimeout: e.NodeLookupTimeout})
+			before.RepairIgnoresApplied = true
+		}
+		before.RepairWarnings = append(before.RepairWarnings, "repairs declined: "+err.Error())
 		return plan, before
 	}
 	plugins := apply && execution.ApplyAutoFixes && len(execution.AutoFixFunctions) > 0
@@ -360,7 +387,7 @@ func runRepairs(execution *RuleSetExecution, options *ExecutionOptions, policy *
 	for _, target := range verified.Verified {
 		selected[target.RuleID+"\x00"+target.Pointer] = true
 	}
-	locations, _ := repairFindings(before.RuleSetExecution, before.Results)
+	locations, _ := baselineRepairFindings(before)
 	for _, location := range locations {
 		if location.Unavailable == "" && selected[location.RuleID+"\x00"+location.Pointer] {
 			result := before.Results[location.Index]
