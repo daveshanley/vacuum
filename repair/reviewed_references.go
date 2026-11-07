@@ -44,6 +44,9 @@ func reviewedLocalReference(root *yaml.Node, nodes map[string]*yaml.Node, f Find
 		if !operation(parts) || !operation(targetParts) || len(owner.Content) != 2 || !uncommented(owner) || !uncommented(target) {
 			return nil, "operation inlining requires an exact uncommented local operation"
 		}
+		if field(target, "operationId") != nil {
+			return nil, "operation inlining would duplicate its operationId"
+		}
 		// Local root references keep their scope. Nested resource identifiers need a
 		// resolver-aware transform instead of copying schema resources.
 		for p, n := range nodes {
@@ -51,11 +54,7 @@ func reviewedLocalReference(root *yaml.Node, nodes map[string]*yaml.Node, f Find
 				return nil, "operation contains nested schema resource scope"
 			}
 		}
-		value, err := raw(target)
-		if err != nil {
-			return nil, err.Error()
-		}
-		return []Operation{{Op: "replace", Path: path, Value: value}}, ""
+		return []Operation{{Op: "copy", From: targetPath, Path: path}}, ""
 	}
 	return nil, "unsupported local reference repair"
 }

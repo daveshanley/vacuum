@@ -7,6 +7,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestRepairDiffShowsChangesAndBoundsOutput(t *testing.T) {
@@ -170,4 +171,18 @@ func TestRepairDiffLineLimitCountsSharedLinesOnce(t *testing.T) {
 	require.NoError(t, checkRepairDiffLineLimit("", "", 2))
 	require.ErrorContains(t, checkRepairDiffLineLimit("a\nb\n", "c\n", 2), "exceeds 2 distinct lines")
 	require.ErrorContains(t, checkRepairDiffLineLimit("a", "a\n", 1), "exceeds 1 distinct lines")
+}
+
+func TestRepairDiffCRLFAndUTF8Boundary(t *testing.T) {
+	before := []byte("title: before\r\nkeep: yes\r\n")
+	after := []byte("title: after\r\nkeep: yes\r\n")
+	diff := RepairDiff(before, after)
+	if strings.Contains(diff, `\x0d`) {
+		t.Fatalf("CRLF escaped as content: %s", diff)
+	}
+	long := strings.Repeat("a", 4095) + "é" + strings.Repeat("b", 20)
+	diff = RepairDiff([]byte("before\n"), []byte(long+"\n"))
+	if !utf8.ValidString(diff) {
+		t.Fatal("preview splits a UTF-8 rune")
+	}
 }

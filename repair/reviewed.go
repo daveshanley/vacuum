@@ -41,6 +41,8 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 	nodes := sourceNodes(root)
 	edits := &editIndex{}
 	appliedValues := make(map[string]Operation)
+	appliedTagAppends := make(map[string]bool)
+	reservedIDs := make(map[string]string)
 	for _, op := range plan.Operations {
 		if op.Op == "add" || op.Op == "replace" {
 			appliedValues[op.Path] = op
@@ -69,7 +71,7 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 		if f.RuleID == "arazzo-source-type" || f.RuleID == "arazzo-step-operationPath" {
 			ops, reason = reviewedArazzoSource(root, nodes, f, source, sources)
 		} else {
-			ops, reason = reviewedOperations(root, nodes, f)
+			ops, reason = reviewedOperations(root, nodes, f, reservedIDs)
 		}
 		if len(ops) == 0 {
 			if reason != "" {
@@ -83,6 +85,9 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 		plan.ReviewedProposals[key] = ops
 		remaining := make([]Operation, 0, len(ops))
 		for _, op := range ops {
+			if op.Op == "add" && op.Path == "/tags/-" && appliedTagAppends[string(op.Value)] {
+				continue
+			}
 			previous, ok := appliedValues[op.Path]
 			if ok && (op.Op == "add" || op.Op == "replace") && op.Op == previous.Op && bytes.Equal(op.Value, previous.Value) {
 				continue
@@ -95,6 +100,12 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 		if !seen[string(encoded)] {
 			var footprints []string
 			for _, op := range ops {
+				if op.Op == "add" && op.Path == "/tags/-" {
+					if edits.conflicts("/tags") && appliedValues["/tags"].Op == "" && len(appliedTagAppends) == 0 {
+						footprints = append(footprints, "/tags")
+					}
+					continue
+				}
 				footprints = append(footprints, operationFootprint(op, nodes))
 				if op.Op == "move" || op.Op == "copy" {
 					footprints = append(footprints, sourceFootprint(op, nodes))
@@ -116,6 +127,10 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 			}
 			plan.Operations = append(plan.Operations, ops...)
 			for _, op := range ops {
+				if op.Op == "add" && op.Path == "/tags/-" {
+					appliedTagAppends[string(op.Value)] = true
+					continue
+				}
 				if op.Op == "add" || op.Op == "replace" {
 					appliedValues[op.Path] = op
 				}
@@ -171,7 +186,15 @@ func reviewedSet(owner *yaml.Node, path, name string, value any) []Operation {
 	raw, _ := json.Marshal(value)
 	return []Operation{{Op: op, Path: path + "/" + EscapeToken(name), Value: raw}}
 }
-func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding) ([]Operation, string) {
+
+type reviewedTag struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+var reviewedScriptTag = regexp.MustCompile(`(?i)</?script`)
+
+func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding, reservedIDs map[string]string) ([]Operation, string) {
 	n, p := reviewedOwner(nodes, f.Pointer)
 	switch f.RuleID {
 	case "oas3-missing-example", "oas3-valid-schema-example", "json-schema-examples-valid", "asyncapi-message-examples":
@@ -202,7 +225,7 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 		if v == nil || v.Tag != "!!str" || !strings.Contains(strings.ToLower(v.Value), "<script") {
 			return nil, "script markup text unavailable"
 		}
-		value := strings.NewReplacer("<", "&lt;", ">", "&gt;").Replace(v.Value)
+		value := reviewedScriptTag.ReplaceAllStringFunc(v.Value, func(match string) string { return "&lt;" + match[1:] })
 		b, _ := json.Marshal(value)
 		return []Operation{{Op: "replace", Path: f.Pointer, Value: b}}, ""
 	case "oas3-server-trailing-slash", "asyncapi-3-server-no-trailing-slash", "asyncapi-3-channel-no-trailing-slash":
@@ -246,7 +269,7 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 		if title == nil || title.Tag != "!!str" || strings.TrimSpace(title.Value) == "" {
 			return nil, "an API title is required to derive tags"
 		}
-		return reviewedSet(info, "/info", "tags", []map[string]string{{"name": title.Value, "description": "Operations for " + title.Value + "."}}), ""
+		return reviewedSet(info, "/info", "tags", []reviewedTag{{Name: title.Value, Description: "Operations for " + title.Value + "."}}), ""
 	case "operation-tag-defined":
 		tag := nodes[f.Pointer]
 		parts, err := tokens(f.Pointer)
@@ -264,9 +287,10 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 				}
 			}
 		}
-		value := map[string]string{"name": tag.Value, "description": "Operations for " + tag.Value + "."}
+		value := reviewedTag{Name: tag.Value, Description: "Operations for " + tag.Value + "."}
 		if global == nil {
-			return reviewedSet(root, "", "tags", []map[string]string{value}), ""
+			b, _ := json.Marshal(value)
+			return []Operation{{Op: "add", Path: "/tags", Value: json.RawMessage(`[]`)}, {Op: "add", Path: "/tags/-", Value: b}}, ""
 		}
 		b, _ := json.Marshal(value)
 		return []Operation{{Op: "add", Path: "/tags/-", Value: b}}, ""
@@ -305,9 +329,10 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 		}
 		ops := reviewedSet(n, p, "tags", []string{tag})
 		if !found {
-			value := map[string]string{"name": tag, "description": "Operations for " + tag + "."}
+			value := reviewedTag{Name: tag, Description: "Operations for " + tag + "."}
 			if global == nil {
-				ops = append(ops, reviewedSet(root, "", "tags", []map[string]string{value})...)
+				b, _ := json.Marshal(value)
+				ops = append(ops, Operation{Op: "add", Path: "/tags", Value: json.RawMessage(`[]`)}, Operation{Op: "add", Path: "/tags/-", Value: b})
 			} else {
 				b, _ := json.Marshal(value)
 				ops = append(ops, Operation{Op: "add", Path: "/tags/-", Value: b})
@@ -409,7 +434,7 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 		if v == nil || v.Tag != "!!str" || !strings.Contains(v.Value, "eval(") {
 			return nil, "literal eval expression unavailable"
 		}
-		value := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "eval(", "eval&#40;").Replace(v.Value)
+		value := strings.ReplaceAll(v.Value, "eval(", "eval&#40;")
 		b, _ := json.Marshal(value)
 		return []Operation{{Op: "replace", Path: f.Pointer, Value: b}}, ""
 	case "oas2-unused-definition", "oas3-unused-component", "asyncapi-unused-components":
@@ -537,7 +562,7 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 	case "camel-case-properties":
 		return reviewedPropertyRename(root, nodes, f)
 	case "operation-operationId-valid-in-url", "operation-operationId-unique":
-		return reviewedOperationID(root, nodes, f)
+		return reviewedOperationID(root, nodes, f, reservedIDs)
 	case "paths-kebab-case", "path-keys-no-trailing-slash", "no-http-verbs-in-path", "path-not-include-query":
 		return reviewedPathRename(root, nodes, f)
 	case "asyncapi-3-channel-no-query-nor-fragment":
@@ -967,7 +992,7 @@ func reviewedIdentifier(value string) string {
 	return strings.Trim(b.String(), "_")
 }
 
-func reviewedOperationID(root *yaml.Node, nodes map[string]*yaml.Node, f Finding) ([]Operation, string) {
+func reviewedOperationID(root *yaml.Node, nodes map[string]*yaml.Node, f Finding, reservedIDs map[string]string) ([]Operation, string) {
 	owner, p := reviewedOwner(nodes, f.Pointer)
 	id := field(owner, "operationId")
 	parts, _ := tokens(p)
@@ -1020,9 +1045,12 @@ func reviewedOperationID(root *yaml.Node, nodes map[string]*yaml.Node, f Finding
 		return nil, "identifier already uses supported characters"
 	}
 	base := value
-	for i := 2; ids[value]; i++ {
+	for i := 2; ids[value] || reservedIDs[value] != "" && reservedIDs[value] != p; i++ {
 		value = base + "_" + strconv.Itoa(i)
 	}
+	// Include every proposal, even one that will conflict with another edit.
+	// Any independently selected proposal must have a distinct identifier.
+	reservedIDs[value] = p
 	b, _ := json.Marshal(value)
 	ops := []Operation{{Op: "replace", Path: p + "/operationId", Value: b}}
 	if f.RuleID != "operation-operationId-unique" {
@@ -1080,23 +1108,15 @@ func reviewedPathRename(root *yaml.Node, nodes map[string]*yaml.Node, f Finding)
 			if strings.ContainsAny(segment, "{}") {
 				continue
 			}
-			var b strings.Builder
-			for j, r := range segment {
-				if r > 127 {
-					return nil, "non-ASCII paths need an explicit naming policy"
+			components := strings.Split(segment, ".")
+			for j, component := range components {
+				words, ok := reviewedNameWords(component)
+				if !ok {
+					return nil, "path spelling needs an explicit naming policy"
 				}
-				if r >= 'A' && r <= 'Z' {
-					if j > 0 && b.Len() > 0 {
-						b.WriteByte('-')
-					}
-					b.WriteRune(unicode.ToLower(r))
-				} else if r == '_' || r == ' ' {
-					b.WriteByte('-')
-				} else {
-					b.WriteRune(r)
-				}
+				components[j] = strings.Join(words, "-")
 			}
-			segments[i] = b.String()
+			segments[i] = strings.Join(components, ".")
 		}
 		value = strings.Join(segments, "/")
 	}
@@ -1123,25 +1143,16 @@ func reviewedPropertyRename(root *yaml.Node, nodes map[string]*yaml.Node, f Find
 		}
 	}
 	old := parts[len(parts)-1]
-	words := strings.FieldsFunc(old, func(r rune) bool { return r == '_' || r == '-' || r == ' ' })
+	words, ok := reviewedNameWords(old)
+	if !ok {
+		return nil, "property spelling needs an explicit naming policy"
+	}
 	if len(words) == 0 {
 		return nil, "property name has no words"
 	}
-	value := ""
-	for i, word := range words {
-		if word == "" {
-			continue
-		}
-		for _, r := range word {
-			if r > 127 || !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-				return nil, "property spelling needs an explicit naming policy"
-			}
-		}
-		if i == 0 {
-			value = strings.ToLower(word[:1]) + word[1:]
-		} else {
-			value += strings.ToUpper(word[:1]) + word[1:]
-		}
+	value := words[0]
+	for _, word := range words[1:] {
+		value += strings.ToUpper(word[:1]) + word[1:]
 	}
 	if value == old || value == "" || value[0] < 'a' || value[0] > 'z' {
 		return nil, "property has no supported camel-case conversion"
@@ -1581,4 +1592,36 @@ func reviewedDescriptionLabel(parts []string, owner *yaml.Node) string {
 		return "API information"
 	}
 	return parts[len(parts)-1]
+}
+
+// reviewedNameWords preserves acronym boundaries: userID is user/id, and
+// HTTPServer is http/server. Separators and repeated separators share one form.
+func reviewedNameWords(name string) ([]string, bool) {
+	var words []string
+	start := 0
+	upper := func(c byte) bool { return c >= 'A' && c <= 'Z' }
+	lower := func(c byte) bool { return c >= 'a' && c <= 'z' }
+	digit := func(c byte) bool { return c >= '0' && c <= '9' }
+	add := func(end int) {
+		if start < end {
+			words = append(words, strings.ToLower(name[start:end]))
+		}
+		start = end
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if c == '_' || c == '-' || c == ' ' {
+			add(i)
+			start = i + 1
+			continue
+		}
+		if !upper(c) && !lower(c) && !digit(c) {
+			return nil, false
+		}
+		if i > start && upper(c) && (lower(name[i-1]) || digit(name[i-1]) || upper(name[i-1]) && i+1 < len(name) && lower(name[i+1]) && !(i+2 == len(name) && name[i+1] == 's')) {
+			add(i)
+		}
+	}
+	add(len(name))
+	return words, true
 }
