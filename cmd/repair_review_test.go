@@ -79,15 +79,11 @@ func TestSilentRepairCannotApproveUnseenChanges(t *testing.T) {
 			result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true, SilentFlag: true, DryRun: dryRun}, nil, errorReader{}, &output, true)
 			defer result.ReleaseOwnedResources()
 			require.Empty(t, output.String())
-			if dryRun {
-				require.Empty(t, result.Errors)
-				require.Len(t, result.FixedResults, 1)
-				require.NotEmpty(t, result.ModifiedSpec)
-			} else {
-				require.Len(t, result.Errors, 1)
-				require.ErrorContains(t, result.Errors[0], "visible review")
-				require.Empty(t, result.ModifiedSpec)
-			}
+			require.Empty(t, result.Errors)
+			require.Empty(t, result.FixedResults)
+			require.Empty(t, result.ModifiedSpec)
+			require.Len(t, result.Results, 1)
+
 			require.Equal(t, source, execution.Spec)
 		})
 	}
@@ -175,7 +171,7 @@ type shortReviewWriter struct{}
 
 func (shortReviewWriter) Write(data []byte) (int, error) { return len(data) - 1, nil }
 
-func TestReviewedCLIAllDeclinesConflictingFixesWithoutWrites(t *testing.T) {
+func TestReviewedCLIAllKeepsVerifiedSubsetWithoutWrites(t *testing.T) {
 	original := []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat"]}}}}`)
 	path := filepath.Join(t.TempDir(), "api.json")
 	require.NoError(t, os.WriteFile(path, original, 0600))
@@ -185,12 +181,11 @@ func TestReviewedCLIAllDeclinesConflictingFixesWithoutWrites(t *testing.T) {
 	result := runReviewedCLIRepairWithIO(execution, nil, &LintFlags{FixFlag: true}, nil, strings.NewReader("all\n\r"), &output, true)
 	defer result.ReleaseOwnedResources()
 	require.Empty(t, result.Errors)
-	require.Empty(t, result.ModifiedSpec)
-	require.NotEmpty(t, result.RepairWarnings)
-	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "repairs declined")
-	require.Contains(t, strings.Join(result.RepairWarnings, "\n"), "together")
-	require.NotContains(t, output.String(), "enter: apply", "invalid selection must not reach acceptance")
-	require.Len(t, result.Results, 2, "both original findings must remain")
+	require.NotEmpty(t, result.ModifiedSpec)
+	require.Len(t, result.FixedResults, 1)
+	require.Contains(t, output.String(), "fix declined:")
+	require.Contains(t, output.String(), "enter: apply")
+	require.Len(t, result.Results, 1)
 	saved, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)

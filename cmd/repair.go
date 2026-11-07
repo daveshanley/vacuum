@@ -9,7 +9,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/repair"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -68,13 +67,13 @@ func executeLintWithRepairs(execution *motor.RuleSetExecution, options *motor.Ex
 // repairSummary describes only verified repairs. Dry-run results are projected,
 // and must not be described as persisted changes.
 func repairSummary(result *motor.RuleSetExecutionResult, flags *LintFlags) string {
+	if flags.DryRun {
+		return ""
+	}
 	if result == nil || !flags.FixFlag || flags.SilentFlag || flags.FormattedOutput || flags.GitHubAnnotations || len(result.Errors) > 0 {
 		return ""
 	}
 	if flags.PipelineOutput {
-		if flags.DryRun {
-			return fmt.Sprintf("\n> Preview only, no files written. %d verified fixes; %d findings remain.\n\n", len(result.FixedResults), len(result.Results))
-		}
 		return ""
 	}
 	var text strings.Builder
@@ -82,20 +81,14 @@ func repairSummary(result *motor.RuleSetExecutionResult, flags *LintFlags) strin
 	if result.RuleSetExecution != nil && result.RuleSetExecution.SpecFileName != "" {
 		name = result.RuleSetExecution.SpecFileName
 	}
-	if flags.DryRun {
-		fmt.Fprintf(&text, "\nPREVIEW, no files written: %s\n", name)
-	} else {
-		fmt.Fprintf(&text, "\nREPAIRS: %s\n", name)
-	}
+	fmt.Fprintf(&text, "\nREPAIRS: %s\n", name)
 	fmt.Fprintf(&text, "%d verified fixes; %d findings remain\n", len(result.FixedResults), len(result.Results))
 	counts := model.NewRuleResultSet(result.Results)
 	fmt.Fprintf(&text, "Remaining: %d errors, %d warnings, %d info, %d hints\n", counts.GetErrorCount(), counts.GetWarnCount(), counts.GetInfoCount(), counts.GetHintCount())
 	for _, fixed := range result.FixedResults {
 		fmt.Fprintf(&text, "  %s at %s: %s\n", fixed.RuleId, fixed.Path, fixed.Message)
 	}
-	if flags.DryRun && len(result.ModifiedSpec) > 0 && result.RuleSetExecution != nil {
-		text.WriteString(utils.RepairDiff(result.RuleSetExecution.Spec, result.ModifiedSpec))
-	}
+
 	return text.String()
 }
 
