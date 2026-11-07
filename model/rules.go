@@ -72,6 +72,11 @@ type RuleFunctionContext struct {
 	// ExecutionRoot is the tree used for selector evaluation in this invocation.
 	ExecutionRoot *yaml.Node `json:"-" yaml:"-"`
 
+	// ExhaustiveRepairFindings reports all independently repairable findings during
+	// repair discovery and verification, including those normally grouped by a rule.
+	// This prevents repairing one finding from exposing an unreported sibling.
+	ExhaustiveRepairFindings bool `json:"-" yaml:"-"`
+
 	// ReportError optionally reports an execution failure separately from findings.
 	// Call it synchronously within RunRule, never after RunRule returns.
 	ReportError func(error) `json:"-" yaml:"-"`
