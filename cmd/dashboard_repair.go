@@ -23,13 +23,11 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 	if strings.Contains(source, "://") {
 		disabled = "Download the specification and open its local file to review fixes."
 	}
-	var template motor.RuleSetExecution
-	if execution != nil {
-		template = *execution
-	}
+	template := execution.CopyConfig()
 	var configMu sync.RWMutex
 	return &tui.RepairConfig{
-		SourcePath: source,
+		SourcePath:     source,
+		DisabledReason: disabled,
 		Reload: func(rules *rulesets.RuleSet, currentIgnores model.IgnoredItems) {
 			next := rules.CopyForExecution()
 			configMu.Lock()
@@ -56,12 +54,12 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 				return nil, fmt.Errorf("source changed; refresh the dashboard before reviewing fixes")
 			}
 			configMu.RLock()
-			copy := template
-			copy.RepairIgnores = ignored
+			next := template.CopyConfig()
+			next.RepairIgnores = ignored
 			configMu.RUnlock()
-			copy.Spec = append([]byte(nil), snapshot...)
-			copy.SpecFileName = source
-			return motor.NewFixReview(&copy, options)
+			next.Spec = append([]byte(nil), snapshot...)
+			next.SpecFileName = source
+			return motor.NewFixReview(next, options)
 		},
 		Write: func(original, candidate []byte) error {
 			if disabled != "" {

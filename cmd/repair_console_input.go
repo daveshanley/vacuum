@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/daveshanley/vacuum/color"
@@ -30,6 +29,8 @@ func readRepairKeys(input io.Reader, output io.Writer, selection bool) (answer s
 	}
 	console := newRepairConsole(output)
 	if file, ok := input.(interface{ Fd() uintptr }); ok && term.IsTerminal(int(file.Fd())) {
+		ctx, stop := signal.NotifyContext(ctx, repairPromptSignals()...)
+		defer stop()
 		state, rawErr := term.MakeRaw(int(file.Fd()))
 		if rawErr != nil {
 			return "", false, rawErr
@@ -44,8 +45,6 @@ func readRepairKeys(input io.Reader, output io.Writer, selection bool) (answer s
 				err = newlineErr
 			}
 		}()
-		ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-		defer stop()
 		reader, readerErr := uv.NewCancelReader(input)
 		if readerErr != nil {
 			return "", false, readerErr

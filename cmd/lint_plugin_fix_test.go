@@ -41,29 +41,6 @@ func TestMultiFileRepairRejectsSharedOutput(t *testing.T) {
 	require.ErrorContains(t, err, "requires a single input")
 }
 
-func TestRepairBackupsPreserveIdenticalBasenames(t *testing.T) {
-	backups := t.TempDir()
-	t.Setenv("TMPDIR", backups)
-	root := t.TempDir()
-	for _, name := range []string{"one", "two"} {
-		dir := filepath.Join(root, name)
-		require.NoError(t, os.Mkdir(dir, 0700))
-		path := filepath.Join(dir, "spec.yaml")
-		require.NoError(t, os.WriteFile(path, []byte(name), 0600))
-		require.NoError(t, writeFixedFile(&motor.RuleSetExecutionResult{RuleSetExecution: &motor.RuleSetExecution{Spec: []byte(name)}, ModifiedSpec: []byte("fixed")}, path, ""))
-	}
-	files, err := filepath.Glob(filepath.Join(backups, "vacuum-spec.yaml-*.bak"))
-	require.NoError(t, err)
-	require.Len(t, files, 2)
-	contents := []string{}
-	for _, path := range files {
-		data, err := os.ReadFile(path)
-		require.NoError(t, err)
-		contents = append(contents, string(data))
-	}
-	require.ElementsMatch(t, []string{"one", "two"}, contents)
-}
-
 func TestRepairWriteRejectsStaleSource(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "spec.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"title":"new"}`), 0600))

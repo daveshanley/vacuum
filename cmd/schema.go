@@ -389,11 +389,14 @@ func lintSchemaInput(
 	if len(result.ModifiedSpec) > 0 {
 		input.Bytes = result.ModifiedSpec
 	}
-	result.Results = utils.FilterIgnoredResultsWithOptions(
-		result.Results,
-		ignoredItems,
-		buildIgnoreFilterOptions(input.Bytes, result, flags.LookupTimeout),
-	)
+	if !result.RepairIgnoresApplied {
+		result.Results = utils.FilterIgnoredResultsWithOptions(
+			result.Results,
+			ignoredItems,
+			buildIgnoreFilterOptions(input.Bytes, result, flags.LookupTimeout),
+		)
+
+	}
 	run.Errors = result.Errors
 	run.SpecInfo = result.SpecInfo
 	run.ResultSet = model.NewRuleResultSet(result.Results)

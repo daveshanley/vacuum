@@ -258,11 +258,13 @@ func GetDashboardCommand() *cobra.Command {
 					SpecFormat:                   specFormat,
 				}, executionOptions)
 
-				result.Results = utils.FilterIgnoredResultsWithOptions(
-					result.Results,
-					ignoredItems,
-					buildIgnoreFilterOptions(specBytes, result, lookupTimeoutFlag),
-				)
+				if !result.RepairIgnoresApplied {
+					result.Results = utils.FilterIgnoredResultsWithOptions(
+						result.Results,
+						ignoredItems,
+						buildIgnoreFilterOptions(specBytes, result, lookupTimeoutFlag),
+					)
+				}
 
 				// Store DrDocument and execution template for change filtering
 				if result.RuleSetExecution != nil {

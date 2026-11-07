@@ -25,7 +25,8 @@ func runReviewedCLIRepair(execution *motor.RuleSetExecution, options *motor.Exec
 	if writer == nil {
 		writer = os.Stderr
 	}
-	interactive := execution.SpecFileName != "stdin" && term.IsTerminal(int(os.Stdin.Fd()))
+	output, outputIsFile := writer.(interface{ Fd() uintptr })
+	interactive := execution.SpecFileName != "stdin" && term.IsTerminal(int(os.Stdin.Fd())) && outputIsFile && term.IsTerminal(int(output.Fd()))
 	return runReviewedCLIRepairWithIO(execution, options, flags, policy, os.Stdin, writer, interactive)
 }
 
@@ -36,9 +37,23 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	if execution.ApplyAutoFixes && len(execution.AutoFixFunctions) != 0 {
 		return fail(fmt.Errorf("custom fix callbacks need a reviewed proposal; no files written"))
 	}
+	quiet := flags.repairWarningsSilenced || flags.SilentFlag && !flags.FormattedOutput
+	baselineWarning := func(reason string) *motor.RuleSetExecutionResult {
+		baseline := motor.ApplyRulesToRuleSetWithOptions(execution.CopyConfig(), options)
+		baseline.RepairWarnings = append(baseline.RepairWarnings, reason)
+		return baseline
+	}
+	if !flags.DryRun {
+		if !interactive || quiet {
+			return baselineWarning("fixes require visible terminal review; no files written; use --fix --dry-run to preview")
+		}
+		if err := validateRepairSource(execution.SpecFileName); err != nil {
+			return baselineWarning(err.Error() + "; no files written")
+		}
+	}
 	review, err := motor.NewFixReviewWithPolicy(execution, options, policy)
 	if err != nil {
-		return fail(err)
+		return baselineWarning("repairs declined: " + err.Error())
 	}
 	defer review.Close()
 	available := review.Options()
@@ -51,7 +66,6 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	if len(choices) == 0 {
 		return review.TakeBaselineResult()
 	}
-	quiet := flags.repairWarningsSilenced || flags.SilentFlag && !flags.FormattedOutput
 	if quiet {
 		writer = io.Discard
 	}
@@ -70,21 +84,24 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 			return review.TakeBaselineResult()
 		}
 	}
-	preview, err := review.Preview(choices)
+	preview, declined, err := previewCLIRepairs(review, choices, options)
 	if err != nil {
 		baseline := review.TakeBaselineResult()
-		baseline.RepairWarnings = append(baseline.RepairWarnings, fmt.Sprintf("repairs declined: %v; use dashboard to select a smaller set", err))
+		baseline.RepairWarnings = append(baseline.RepairWarnings, fmt.Sprintf("repairs declined: %v", err))
 		return baseline
 	}
 	defer preview.Close()
-	if quiet && !flags.DryRun {
-		return fail(fmt.Errorf("fixes require visible review; use --fix --dry-run with --silent; no files written"))
+	for _, warning := range declined {
+		if err := writeRepairReview(writer, "Warning: "+warning+"\n"); err != nil {
+			return fail(err)
+		}
 	}
+
 	accepted, err := reviewCLIRepair(reader, writer, interactive, flags.DryRun, execution.SpecFileName, execution.Spec, preview)
 	if err != nil {
 		return fail(err)
 	}
-	if !accepted && !flags.DryRun {
+	if flags.DryRun || !accepted {
 		return review.TakeBaselineResult()
 	}
 	if options != nil && options.Context != nil && options.Context.Err() != nil {
@@ -94,7 +111,7 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 }
 
 // reviewCLIRepair presents the exact verified bytes before reading acceptance.
-// It has no write access. A dry run returns projected results without acceptance.
+// It has no write access. A dry run displays the projection without acceptance.
 func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool, source string, original []byte, preview *motor.FixPreview) (bool, error) {
 	if preview == nil {
 		return false, fmt.Errorf("verified fix preview is unavailable")

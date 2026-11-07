@@ -119,6 +119,9 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				case prog := <-progressChan:
 					currentProgress = prog
 				case <-ticker.C:
+					if !repairConsoleMu.TryLock() {
+						continue
+					}
 					// animate spinner
 					spinner := spinners[spinnerIndex%len(spinners)]
 					spinnerIndex++
@@ -145,6 +148,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 							bar,
 							color.ASCIIGrey, color.ASCIIItalic, currentFileName, color.ASCIIReset)
 					}
+					repairConsoleMu.Unlock()
 				}
 			}
 		}()

@@ -390,11 +390,14 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			return lintErr
 		}
 
-		result.Results = utils.FilterIgnoredResultsWithOptions(
-			result.Results,
-			ignoredItems,
-			buildIgnoreFilterOptions(specBytes, result, flags.LookupTimeoutFlag),
-		)
+		if !result.RepairIgnoresApplied {
+			result.Results = utils.FilterIgnoredResultsWithOptions(
+				result.Results,
+				ignoredItems,
+				buildIgnoreFilterOptions(specBytes, result, flags.LookupTimeoutFlag),
+			)
+
+		}
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
@@ -453,6 +456,9 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
 				wrapped := fmt.Errorf("failed to write fixed file: %w", err)
+				if !flags.FormattedOutput && !flags.GitHubAnnotations {
+					fmt.Fprintln(cmd.ErrOrStderr(), wrapped)
+				}
 				if flags.GitHubAnnotations {
 					RenderGitHubAnnotationError(wrapped, fileName)
 				}
