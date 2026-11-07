@@ -79,7 +79,7 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 	}
 
 	// Skip if this is a boolean schema or has a const/enum (these don't require explicit type)
-	if schema.Value.Const != nil || schema.Value.Enum != nil {
+	if schema.Value.BooleanSchema != nil || schema.Value.Const != nil || schema.Value.Enum != nil {
 		return results
 	}
 
@@ -151,8 +151,8 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 			continue
 		}
 
-		// Skip if this property has const or enum (these don't require explicit type)
-		if propSchema.Const != nil || propSchema.Enum != nil {
+		// boolean schemas, const and enum do not require an explicit type.
+		if propSchema.BooleanSchema != nil || propSchema.Const != nil || propSchema.Enum != nil {
 			continue
 		}
 
@@ -234,7 +234,7 @@ func referenceProvidesType(proxy *base.SchemaProxy, seen map[*base.SchemaProxy]b
 	if target == nil {
 		return false
 	}
-	if len(target.Type) > 0 || target.Properties != nil || target.Items != nil ||
+	if target.BooleanSchema != nil || len(target.Type) > 0 || target.Properties != nil || target.Items != nil ||
 		target.AdditionalProperties != nil || target.PatternProperties != nil ||
 		target.Const != nil || target.Enum != nil || target.AllOf != nil ||
 		target.OneOf != nil || target.AnyOf != nil {
