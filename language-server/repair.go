@@ -1,3 +1,6 @@
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
+
 package languageserver
 
 import (
