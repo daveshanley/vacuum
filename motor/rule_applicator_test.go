@@ -1,7 +1,10 @@
 package motor
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/daveshanley/vacuum/functions"
+	"github.com/pb33f/testify/require"
 	"io"
 	"log"
 	"log/slog"
@@ -4876,4 +4879,156 @@ func TestApplyRulesToRuleSet_ConcurrentExecutionsDoNotShareTimeout(t *testing.T)
 	wg.Wait()
 
 	assert.ElementsMatch(t, timeouts, shared.timeouts())
+}
+
+type testAutoFixUnmappedRule struct{}
+
+func (r *testAutoFixUnmappedRule) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (r *testAutoFixUnmappedRule) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	return []model.RuleFunctionResult{
+		{
+			Message:   "unmapped node",
+			StartNode: &yaml.Node{Kind: yaml.ScalarNode, Value: ""},
+			Path:      "$.info.description",
+		},
+	}
+}
+
+func (r *testAutoFixUnmappedRule) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "autofixUnmapped",
+	}
+}
+
+func TestAutoFixResolvedRuleSkipsWithoutUnresolvedIndex(t *testing.T) {
+	autoFixCalled := false
+	fixDescription := func(node *yaml.Node, document *yaml.Node, context *model.RuleFunctionContext) (*yaml.Node, error) {
+		autoFixCalled = true
+		return node, nil
+	}
+
+	rule := &model.Rule{
+		Id:              "no-index-autofix",
+		Given:           "$",
+		Then:            model.RuleAction{Function: "autofixUnmapped"},
+		Resolved:        true,
+		AutoFixFunction: "fixDescription",
+	}
+
+	var ruleResults []model.RuleFunctionResult
+	var fixedResults []model.RuleFunctionResult
+	ctx := ruleContext{
+		rule:               rule,
+		specNode:           &yaml.Node{Kind: yaml.MappingNode},
+		applyAutoFixes:     true,
+		skipDocumentCheck:  true,
+		customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
+		builtinFunctions:   functions.MapBuiltinFunctions(),
+		specNodeUnresolved: &yaml.Node{},
+		autoFixFunctions:   map[string]model.AutoFixFunction{"fixDescription": fixDescription},
+		ruleResults:        &ruleResults,
+		fixedResults:       &fixedResults,
+		silenceLogs:        true,
+		logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
+		indexUnresolved:    nil,
+	}
+
+	runRule(ctx)
+
+	assert.False(t, autoFixCalled)
+	assert.Equal(t, 0, len(fixedResults))
+	assert.Equal(t, 1, len(ruleResults))
+}
+
+func TestAutoFixSkippedDiagnostics(t *testing.T) {
+	for _, missingIndex := range []bool{false, true} {
+		for _, silent := range []bool{false, true} {
+			var logs bytes.Buffer
+			root := &yaml.Node{}
+			assert.NoError(t, yaml.Unmarshal([]byte(executionOptionsOpenAPISpec), root))
+			var unresolvedIndex *index.SpecIndex
+			message := "Auto-fix skipped: unresolved index not available"
+			if !missingIndex {
+				unresolvedIndex = index.NewSpecIndex(root)
+				message = "Auto-fix skipped: unable to map resolved node to canonical document"
+			}
+			var findings, fixed []model.RuleFunctionResult
+			ctx := ruleContext{
+				rule: &model.Rule{
+					Id: "skip", Given: "$", Resolved: true, AutoFixFunction: "fix",
+					Then: model.RuleAction{Function: "autofixUnmapped"},
+				},
+				specNode:           root,
+				specNodeUnresolved: root,
+				indexUnresolved:    unresolvedIndex,
+				applyAutoFixes:     true,
+				skipDocumentCheck:  true,
+				builtinFunctions:   functions.MapBuiltinFunctions(),
+				customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
+				autoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, _ *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
+					t.Fatal("unmapped node must not reach auto-fix callback")
+					return node, nil
+				}},
+				ruleResults:  &findings,
+				fixedResults: &fixed,
+				logger:       slog.New(slog.NewTextHandler(&logs, nil)),
+				silenceLogs:  silent,
+			}
+			runRule(ctx)
+			assert.Len(t, findings, 1)
+			assert.Empty(t, fixed)
+			if silent {
+				assert.Empty(t, logs.String())
+			} else {
+				assert.Contains(t, logs.String(), message)
+			}
+		}
+	}
+}
+
+func TestEvidenceAloneReportsRecoveredPanic(t *testing.T) {
+	e := &ExecutionEvidence{}
+	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		Spec:            []byte("openapi: 3.0.0\ninfo: {title: Test, version: '1'}\npaths: {}"),
+		RuleSet:         &rulesets.RuleSet{Rules: map[string]*model.Rule{"panic": {Id: "panic", Given: "$", Then: model.RuleAction{Function: "test"}}}},
+		CustomFunctions: map[string]model.RuleFunction{"test": &testRule{}},
+	}, &ExecutionOptions{Evidence: e})
+	defer result.ReleaseOwnedResources()
+	require.Len(t, result.Errors, 1)
+	var failure *RuleExecutionError
+	require.ErrorAs(t, result.Errors[0], &failure)
+	require.Equal(t, RuleErrorPanic, failure.Kind)
+	require.Equal(t, "error", e.Rules[0].Status)
+}
+
+type changingSchemaProbe struct {
+	configurationProbe
+	schemaCalls int
+}
+
+func (p *changingSchemaProbe) GetSchemaWithError() (model.RuleFunctionSchema, error) {
+	p.schemaCalls++
+	if p.schemaCalls > 1 {
+		return model.RuleFunctionSchema{}, fmt.Errorf("schema changed")
+	}
+	return p.GetSchema(), nil
+}
+func TestRuntimeSchemaFailureIsConfigurationError(t *testing.T) {
+	p := &changingSchemaProbe{}
+	_, err := p.GetSchemaWithError()
+	require.NoError(t, err)
+	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		Spec:            []byte("openapi: 3.0.0\ninfo: {title: Test, version: '1'}\npaths: {}"),
+		RuleSet:         &rulesets.RuleSet{Rules: map[string]*model.Rule{"probe": {Id: "probe", Given: "$", Then: model.RuleAction{Function: "probe"}}}},
+		CustomFunctions: map[string]model.RuleFunction{"probe": p},
+	}, &ExecutionOptions{ReportFunctionErrors: true})
+	defer result.ReleaseOwnedResources()
+	require.Len(t, result.Errors, 1)
+	var failure *RuleExecutionError
+	require.ErrorAs(t, result.Errors[0], &failure)
+	require.Equal(t, RuleErrorConfiguration, failure.Kind)
+	require.Zero(t, p.calls.Load())
 }

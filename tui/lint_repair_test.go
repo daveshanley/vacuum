@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	"github.com/daveshanley/vacuum/model"
@@ -29,8 +31,8 @@ func repairSourceTestModel(t *testing.T, source []byte, filename string, ruleIDs
 	for _, id := range ruleIDs {
 		rules[id] = builtins[id]
 	}
-	open := func(data []byte) (*motor.FixReview, error) {
-		return motor.NewFixReview(&motor.RuleSetExecution{SpecFileName: filename, Spec: data, RuleSet: &rulesets.RuleSet{Rules: rules}, SilenceLogs: true}, nil)
+	open := func(data []byte) (*autofix.FixReview, error) {
+		return autofix.NewFixReview(&motor.RuleSetExecution{SpecFileName: filename, Spec: data, RuleSet: &rulesets.RuleSet{Rules: rules}, SilenceLogs: true}, nil)
 	}
 	baseline, err := open(source)
 	require.NoError(t, err)
@@ -171,7 +173,7 @@ func TestDashboardFixStaleCompletionAndWriteFailure(t *testing.T) {
 func TestDashboardFixOpenFailureKeepsFindings(t *testing.T) {
 	m, _ := repairTestModel(t)
 	m.repair.close()
-	m.repair.config.Open = func([]byte) (*motor.FixReview, error) { return nil, fmt.Errorf("source changed") }
+	m.repair.config.Open = func([]byte) (*autofix.FixReview, error) { return nil, fmt.Errorf("source changed") }
 	m.Update(repairKey(m, 'f', "f")())
 	require.False(t, m.repair.onlyFixes)
 	require.Len(t, m.filteredResults, 3)

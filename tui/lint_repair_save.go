@@ -9,13 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/motor"
 )
 
 type repairSaveStep int
@@ -192,12 +193,12 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			r.pending = job
 			review, previewOutput := r.review, r.config.PreviewOutput
 			return true, func() tea.Msg {
-				var p *motor.FixPreview
+				var p *autofix.FixPreview
 				var err error
 				if previewOutput != nil {
 					p, err = previewOutput(review, choices, options)
 				} else {
-					p, err = review.PreviewOutput(choices, motor.FixOutputOptions{BundleMode: options.BundleMode, OutputPath: options.OutputPath})
+					p, err = review.PreviewOutput(choices, autofix.FixOutputOptions{BundleMode: options.BundleMode, OutputPath: options.OutputPath})
 				}
 				job.finish(p, err)
 				return repairPreviewMsg{job}
@@ -222,7 +223,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 				s.err = "Verify the output before saving."
 				return true, nil
 			}
-			if p.Impact.Status != motor.RepairImpactNoBreaking && !r.confirmImpact {
+			if p.Impact.Status != autofix.RepairImpactNoBreaking && !r.confirmImpact {
 				r.confirmImpact = true
 				s.err = repairImpactLabel(p.Impact) + ". Press enter to accept this impact and save."
 				return true, nil

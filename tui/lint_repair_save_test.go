@@ -10,11 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/pb33f/testify/require"
 )
 
@@ -67,9 +68,9 @@ func TestRepairSaveCopyKeepsSourceAndFindings(t *testing.T) {
 	var verified, saved RepairSaveOptions
 	var copied []byte
 	m.repair.config.SourcePath = filepath.Join(t.TempDir(), "input.json")
-	m.repair.config.PreviewOutput = func(r *motor.FixReview, c []motor.FixChoice, options RepairSaveOptions) (*motor.FixPreview, error) {
+	m.repair.config.PreviewOutput = func(r *autofix.FixReview, c []autofix.FixChoice, options RepairSaveOptions) (*autofix.FixPreview, error) {
 		verified = options
-		return r.PreviewOutput(c, motor.FixOutputOptions{Format: "yaml", BundleMode: options.BundleMode})
+		return r.PreviewOutput(c, autofix.FixOutputOptions{Format: "yaml", BundleMode: options.BundleMode})
 	}
 	m.repair.config.Save = func(before, after []byte, options RepairSaveOptions) error {
 		require.Equal(t, original, string(before))
@@ -157,7 +158,7 @@ func TestRepairSaveFailuresStayVisibleAndDoNotWrite(t *testing.T) {
 	repairKey(m, tea.KeyEscape, "")
 	selectRepairRule(t, m, "info-description")
 	repairKey(m, ' ', " ")
-	m.repair.config.PreviewOutput = func(*motor.FixReview, []motor.FixChoice, RepairSaveOptions) (*motor.FixPreview, error) {
+	m.repair.config.PreviewOutput = func(*autofix.FixReview, []autofix.FixChoice, RepairSaveOptions) (*autofix.FixPreview, error) {
 		return nil, fmt.Errorf("reference is invalid")
 	}
 	repairKey(m, 'a', "a")
@@ -215,7 +216,7 @@ func TestRepairSaveShortTerminalShowsFullScrollableError(t *testing.T) {
 	repairKey(m, ' ', " ")
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
 	message := "Preview failed: relative references remain.\n" + strings.Repeat("Detailed reference check\n", 20) + "Save in the source directory."
-	m.repair.config.PreviewOutput = func(*motor.FixReview, []motor.FixChoice, RepairSaveOptions) (*motor.FixPreview, error) {
+	m.repair.config.PreviewOutput = func(*autofix.FixReview, []autofix.FixChoice, RepairSaveOptions) (*autofix.FixPreview, error) {
 		return nil, fmt.Errorf("%s", message)
 	}
 	repairKey(m, 'a', "a")

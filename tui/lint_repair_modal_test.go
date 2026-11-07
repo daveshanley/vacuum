@@ -5,16 +5,18 @@ package tui
 
 import (
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/daveshanley/vacuum/functions/core"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pb33f/go-yaml"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/charmbracelet/x/ansi"
+	"github.com/daveshanley/vacuum/functions/core"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor/autofix"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/go-yaml"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -106,7 +108,7 @@ func TestDashboardRepairDiscoveryRejectsStaleCompletionAndDoesNotReopen(t *testi
 	m.repair.options = nil
 	calls := 0
 	open := m.repair.config.Open
-	m.repair.config.Open = func(source []byte) (*motor.FixReview, error) { calls++; return open(source) }
+	m.repair.config.Open = func(source []byte) (*autofix.FixReview, error) { calls++; return open(source) }
 	discovery := m.discoverRepairs()
 	require.NotNil(t, discovery)
 	repairKey(m, 'f', "f")
@@ -174,7 +176,7 @@ func TestDashboardRepairAvailabilityDoesNotHideErrorsOrStaleSource(t *testing.T)
 	require.NotContains(t, m.repairStatus(), "FIX AVAILABLE")
 	m.Update(fileChangeMsg{fileName: "review.json"})
 	require.NotContains(t, m.repairStatus(), "FIX AVAILABLE")
-	m.repair.config.Open = func([]byte) (*motor.FixReview, error) { return nil, fmt.Errorf("source cannot be repaired") }
+	m.repair.config.Open = func([]byte) (*autofix.FixReview, error) { return nil, fmt.Errorf("source cannot be repaired") }
 	m.Update(repairKey(m, 'f', "f")())
 	require.Contains(t, m.repairStatus(), "source cannot be repaired")
 	require.NotContains(t, m.repairStatus(), "FIX AVAILABLE")
@@ -203,7 +205,7 @@ func TestDashboardRepairPendingVerificationDoesNotBlockModalKeys(t *testing.T) {
 	var release sync.Once
 	defer release.Do(func() { close(blocker.release) })
 	builtins := rulesets.GetAllBuiltInRules()
-	review, err := motor.NewFixReview(&motor.RuleSetExecution{
+	review, err := autofix.NewFixReview(&motor.RuleSetExecution{
 		Spec: m.specContent, SpecFileName: "review.json", SilenceLogs: true,
 		RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
 			"info-description":         builtins["info-description"],
@@ -277,7 +279,7 @@ func TestDashboardRepairPendingVerificationDoesNotBlockModalKeys(t *testing.T) {
 func TestDashboardRepairContactStartsWithEditableProposal(t *testing.T) {
 	m, _ := repairTestModel(t)
 	m.repair.close()
-	review, err := motor.NewFixReview(&motor.RuleSetExecution{
+	review, err := autofix.NewFixReview(&motor.RuleSetExecution{
 		Spec: m.specContent, SpecFileName: "review.json", SilenceLogs: true,
 		RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-contact": rulesets.GetAllBuiltInRules()["info-contact"]}},
 	}, nil)
@@ -314,7 +316,7 @@ func TestDashboardRepairOpensAtChangeNearOwnerEnd(t *testing.T) {
 	for i := 0; i < 14; i++ {
 		fmt.Fprintf(&source, "        field%d:\n          type: string\n", i)
 	}
-	review, err := motor.NewFixReview(&motor.RuleSetExecution{Spec: []byte(source.String()), SpecFileName: "review.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"component-description": rulesets.GetAllBuiltInRules()["component-description"]}}}, nil)
+	review, err := autofix.NewFixReview(&motor.RuleSetExecution{Spec: []byte(source.String()), SpecFileName: "review.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"component-description": rulesets.GetAllBuiltInRules()["component-description"]}}}, nil)
 	require.NoError(t, err)
 	m.specContent = []byte(source.String())
 	m.repair.source = m.specContent

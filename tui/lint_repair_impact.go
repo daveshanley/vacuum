@@ -5,22 +5,23 @@ package tui
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/motor"
 	"strings"
+
+	"github.com/daveshanley/vacuum/motor/autofix"
 )
 
-func repairImpactLabel(impact motor.RepairImpact) string {
+func repairImpactLabel(impact autofix.RepairImpact) string {
 	switch impact.Status {
-	case motor.RepairImpactBreaking:
+	case autofix.RepairImpactBreaking:
 		return fmt.Sprintf("Breaking changes detected: %d", impact.BreakingChanges)
-	case motor.RepairImpactNoBreaking:
+	case autofix.RepairImpactNoBreaking:
 		return "No breaking changes detected"
 	default:
 		return "Contract impact unknown"
 	}
 }
 
-func repairImpactDetails(impact motor.RepairImpact) string {
+func repairImpactDetails(impact autofix.RepairImpact) string {
 	var text strings.Builder
 	text.WriteString(repairImpactLabel(impact))
 	text.WriteByte('\n')

@@ -9,19 +9,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/motor"
 )
 
 // Discovery owns its review until the dashboard accepts it. A reload or quit
 // cancels ownership, including results which arrive after their source changed.
 type repairDiscoveryJob struct {
 	mu       sync.Mutex
-	review   *motor.FixReview
+	review   *autofix.FixReview
 	err      error
 	canceled bool
 	action   tea.KeyPressMsg
@@ -38,7 +39,7 @@ func (j *repairDiscoveryJob) cancel() {
 		j.review = nil
 	}
 }
-func (j *repairDiscoveryJob) finish(review *motor.FixReview, err error) {
+func (j *repairDiscoveryJob) finish(review *autofix.FixReview, err error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	if j.canceled {
@@ -49,7 +50,7 @@ func (j *repairDiscoveryJob) finish(review *motor.FixReview, err error) {
 	}
 	j.review, j.err = review, err
 }
-func (j *repairDiscoveryJob) take() (*motor.FixReview, error) {
+func (j *repairDiscoveryJob) take() (*autofix.FixReview, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	review := j.review
@@ -118,7 +119,7 @@ func (m *ViolationResultTableModel) openRepairDetail() {
 	if r == nil || r.review == nil || o == nil {
 		return
 	}
-	choice := motor.FixChoice{Index: o.Index}
+	choice := autofix.FixChoice{Index: o.Index}
 	if o.Editable {
 		value := r.values[o.Index]
 		choice.Value = &value
@@ -337,7 +338,7 @@ func (m *ViolationResultTableModel) handleRepairDiscovery(msg tea.Msg) (bool, te
 	return false, nil
 }
 
-func repairEditHint(o *motor.FixOption) string {
+func repairEditHint(o *autofix.FixOption) string {
 	if o != nil && o.Editable {
 		return "\n\nPress E to supply or correct the value."
 	}

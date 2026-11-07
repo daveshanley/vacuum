@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	tea "charm.land/bubbletea/v2"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/pb33f/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestRepairDiscoveryIsLazyAndRetriesOffUIThread(t *testing.T) {
 			m.repair.close()
 			calls := 0
 			open := m.repair.config.Open
-			m.repair.config.Open = func(source []byte) (*motor.FixReview, error) {
+			m.repair.config.Open = func(source []byte) (*autofix.FixReview, error) {
 				calls++
 				if calls == 1 {
 					return nil, fmt.Errorf("temporary failure")
