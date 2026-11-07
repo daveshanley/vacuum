@@ -152,3 +152,14 @@ func TestNewPolicyRejectsCyclicCallerNodes(t *testing.T) {
 	_, err := NewPolicy([]PolicyEntry{{Value: node}}, t.TempDir())
 	require.Error(t, err)
 }
+
+func TestSourcePreservesCommentedDocumentEndMarker(t *testing.T) {
+	for _, ending := range []string{"\n", "\r\n"} {
+		source := []byte(strings.ReplaceAll("---\nfoo: old\n... # document end\n", "\n", ending))
+		plan := NewPlan("source", source)
+		plan.Operations = []Operation{{Op: "replace", Path: "/foo", Value: json.RawMessage(`"new"`)}}
+		got, err := Apply("source", source, plan)
+		require.NoError(t, err)
+		require.Equal(t, strings.Replace(string(source), "old", "new", 1), string(got))
+	}
+}
