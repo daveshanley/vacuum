@@ -16,7 +16,9 @@
 # bubbletea has no js/wasm platform hooks yet (charmbracelet/bubbletea#1790).
 # Until it does, this script builds against a temporary copy of the exact
 # bubbletea version in go.mod with the stubs in browser/patches/bubbletea added.
-# go.mod is never changed, and native builds never see the copy.
+# The modal text input also uses a desktop-only clipboard library. Its browser
+# patch declines native clipboard access; terminal paste still arrives as input.
+# go.mod is never changed, and native builds never see either copy.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -29,6 +31,12 @@ out="$(cd "$1" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 export GOWORK=off
+
+cat > "$work/go.work" <<EOF
+go $(go list -m -f '{{.GoVersion}}')
+
+use $PWD
+EOF
 
 # go list reports an empty Dir for a module missing from the module cache.
 go mod download charm.land/bubbletea/v2
@@ -47,15 +55,28 @@ else
   for patch in browser/patches/bubbletea/*.go.tmpl; do
     cp "$patch" "$work/bubbletea/$(basename "$patch" .tmpl)"
   done
-  cat > "$work/go.work" <<EOF
-go $(go list -m -f '{{.GoVersion}}')
-
-use $PWD
-
+  cat >> "$work/go.work" <<EOF
 replace charm.land/bubbletea/v2 $bubbletea_version => $work/bubbletea
 EOF
-  export GOWORK="$work/go.work"
 fi
+
+go mod download github.com/atotto/clipboard
+clipboard_dir="$(go list -m -f '{{.Dir}}' github.com/atotto/clipboard)"
+clipboard_version="$(go list -m -f '{{.Version}}' github.com/atotto/clipboard)"
+if [[ ! -d "$clipboard_dir" ]]; then
+  echo "clipboard $clipboard_version is not in the module cache." >&2
+  exit 1
+fi
+if [[ ! -f "$clipboard_dir/clipboard_js.go" ]]; then
+  echo "Patching clipboard $clipboard_version for js/wasm in a temporary copy."
+  cp -R "$clipboard_dir" "$work/clipboard"
+  chmod -R u+w "$work/clipboard"
+  cp browser/patches/clipboard/clipboard_js.go.tmpl "$work/clipboard/clipboard_js.go"
+  cat >> "$work/go.work" <<EOF
+replace github.com/atotto/clipboard $clipboard_version => $work/clipboard
+EOF
+fi
+export GOWORK="$work/go.work"
 
 # html-report embeds the same UI bundle the release binaries ship.
 if [[ ! -f html-report/ui/build/static/js/vacuumReport.js ]]; then
