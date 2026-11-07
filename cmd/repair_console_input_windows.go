@@ -1,6 +1,10 @@
 package cmd
 
-import "golang.org/x/sys/windows"
+import (
+	"golang.org/x/sys/windows"
+	"os"
+	"syscall"
+)
 
 func prepareRepairPrompt(fd int) error {
 	handle := windows.Handle(fd)
@@ -12,4 +16,8 @@ func prepareRepairPrompt(fd int) error {
 		return err
 	}
 	return windows.FlushConsoleInputBuffer(handle)
+}
+
+func repairPromptSignals() []os.Signal {
+	return []os.Signal{os.Interrupt, syscall.SIGTERM}
 }

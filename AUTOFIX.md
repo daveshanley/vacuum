@@ -17,8 +17,8 @@ vacuum lint api.yaml --fix --fix-file api.fixed.yaml
 vacuum schema schema.json --fix
 ```
 
-Dry run performs real application and verification in memory. Its report shows
-the candidate's remaining findings. Human-readable output includes a bounded
+Dry run performs real application and verification in memory. Its report and exit code describe
+the unchanged source. The separate preview shows the candidate's findings. Human-readable output includes a bounded
 diff; omitted portions are marked. Structured reports retain their usual
 format. No source, output or backup file is written by dry run.
 
@@ -31,10 +31,12 @@ contract impact, including any breaking changes or unknown impact.
 
 Press Enter to apply the reviewed changes. Press Esc to cancel without writing.
 Use the dashboard to edit values or
-inspect individual proposals. A conflicting selection is declined in full;
-Vacuum does not silently remove selected fixes to make the batch pass.
+inspect individual proposals. The CLI splits failed batches, keeps verified
+fixes, and lists each declined fix before acceptance. Dashboard selections
+remain all-or-nothing.
 
-Noninteractive `--fix` cannot write. Use `--fix --dry-run` in automation to
+Noninteractive `--fix` cannot write. It returns the baseline lint report and
+a warning without building an unseen preview. Use `--fix --dry-run` in automation to
 inspect projected results. Dry run attempts all available proposals and reports
 conflicts or validation failures without writing. Review text and decline
 reasons use standard error, so structured reports on standard output retain
@@ -204,8 +206,8 @@ and the impact result. If candidate verification fails, the CLI keeps the baseli
 declined repair on standard error (unless `--silent` is set).
 
 The CLI checks original source bytes before writing, stages the candidate in
-the destination directory and renames it. In-place writes create a temporary
-backup. Symlink inputs and output paths that alias the input through a hardlink
+the destination directory and renames it. Temporary staging files are removed;
+no hidden backup files are retained. Symlink inputs and output paths that alias the input through a hardlink
 are rejected. Replacing one path leaves other hardlinks on their original
 inode. The source check and rename are not a filesystem compare-and-swap. Dashboard
 copies use atomic create-only publication from the staged file, so a destination
@@ -226,3 +228,7 @@ These limits are not a bound on total process memory.
 
 For custom Go callback setup and its in-place mutation contract, see
 [Auto-fixing rule violations](README.md#auto-fixing-rule-violations).
+
+Native JSON and YAML result records can include an optional `diagnosticCode`
+field. It identifies a specific diagnostic case within a rule. Existing fields
+and rule IDs are unchanged.

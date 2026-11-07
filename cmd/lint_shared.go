@@ -674,14 +674,17 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs, hints int
-	ignoreMatcher := utils.NewIgnoreMatcher(
-		config.IgnoredItems,
-		buildIgnoreFilterOptions(specBytes, result, config.Flags.LookupTimeoutFlag),
-	)
+	var ignoreMatcher *utils.IgnoreMatcher
+	if !result.RepairIgnoresApplied {
+		ignoreMatcher = utils.NewIgnoreMatcher(
+			config.IgnoredItems,
+			buildIgnoreFilterOptions(specBytes, result, config.Flags.LookupTimeoutFlag),
+		)
+	}
 
 	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
 	for i := range result.Results {
-		if ignoreMatcher.Matches(&result.Results[i]) {
+		if !result.RepairIgnoresApplied && ignoreMatcher.Matches(&result.Results[i]) {
 			continue
 		}
 

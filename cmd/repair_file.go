@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // writeRepairFile publishes a complete repaired file after checking the source.
@@ -77,20 +78,7 @@ func writeRepairFileMode(source, output string, expected, repaired []byte, creat
 	if err = staged.Close(); err != nil {
 		return err
 	}
-	if output == source {
-		backup, e := os.CreateTemp("", "vacuum-"+filepath.Base(source)+"-*.bak")
-		if e != nil {
-			return e
-		}
-		_, writeErr := backup.Write(original)
-		closeErr := backup.Close()
-		if writeErr != nil {
-			return writeErr
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-	}
+
 	current, err := os.Lstat(source)
 	if err != nil {
 		return err
@@ -118,4 +106,19 @@ func publishRepairFile(staged, output string, createOnly bool) error {
 		return os.Link(staged, output)
 	}
 	return os.Rename(staged, output)
+}
+
+// validateRepairSource rejects unsupported write sources before review starts.
+func validateRepairSource(source string) error {
+	if strings.Contains(source, "://") {
+		return fmt.Errorf("download the specification to a local file before applying fixes")
+	}
+	info, err := os.Lstat(source)
+	if err != nil {
+		return fmt.Errorf("inspect repair source: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("repair source must be a regular local file: %s", source)
+	}
+	return nil
 }
