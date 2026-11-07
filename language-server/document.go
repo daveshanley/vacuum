@@ -33,7 +33,8 @@ type Document struct {
 	RunningDiagnostic bool
 	Content           string
 	mu                sync.RWMutex // Protects Content field
-	repairMu          sync.Mutex   // Serializes repair computation for this open document.
+	revision          uint64
+	repairGate        chan struct{} // Serializes repair computation and cache access; waits can be canceled.
 	repairCache       *repairActionCache
 }
 
@@ -53,8 +54,9 @@ func (s *DocumentStore) addVersioned(uri string, content string, version protoco
 	defer s.mu.Unlock()
 
 	doc := &Document{
-		URI:     uri,
-		Content: content,
+		URI:        uri,
+		repairGate: make(chan struct{}, 1),
+		Content:    content,
 	}
 	doc.Version = version
 	s.documents[uri] = doc

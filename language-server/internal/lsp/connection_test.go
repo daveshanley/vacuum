@@ -1056,3 +1056,65 @@ func readTestFrame(t *testing.T, reader *FrameReader) map[string]any {
 	require.NoError(t, json.Unmarshal(payload, &value))
 	return value
 }
+
+func TestCodeActionDoesNotBlockChangesAndHonorsCancellation(t *testing.T) {
+	started, changed := make(chan struct{}), make(chan struct{})
+	handler := &Handler{
+		Initialize: func(*Context, *protocol.InitializeParams) (any, error) { return nil, nil },
+		TextDocumentCodeAction: func(ctx *Context, _ *protocol.CodeActionParams) (any, error) {
+			close(started)
+			<-ctx.Context.Done()
+			return nil, ctx.Context.Err()
+		},
+		TextDocumentDidChange: func(*Context, *protocol.DidChangeTextDocumentParams) error {
+			close(changed)
+			return nil
+		},
+		TextDocumentCompletion: func(*Context, *protocol.CompletionParams) (any, error) { return "responsive", nil },
+	}
+	client, resultCh := runPipeServer(t, handler)
+	defer client.Close()
+	client.send(t, initializeRequest(1))
+	client.receive(t)
+	client.send(t, map[string]any{"jsonrpc": "2.0", "id": 2, "method": protocol.MethodTextDocumentCodeAction, "params": map[string]any{}})
+	<-started
+	client.send(t, map[string]any{"jsonrpc": "2.0", "method": protocol.MethodTextDocumentDidChange, "params": map[string]any{}})
+	select {
+	case <-changed:
+	case <-time.After(time.Second):
+		t.Fatal("code action blocked document changes")
+	}
+	client.send(t, map[string]any{"jsonrpc": "2.0", "id": 3, "method": protocol.MethodTextDocumentCompletion, "params": map[string]any{}})
+	require.Equal(t, "responsive", client.receive(t)["result"])
+	client.send(t, map[string]any{"jsonrpc": "2.0", "method": protocol.MethodCancelRequest, "params": map[string]any{"id": 2}})
+	response := client.receive(t)
+	require.Equal(t, float64(2), response["id"])
+	require.Equal(t, float64(CodeRequestCanceled), responseErrorCode(t, response))
+	client.shutdown(t)
+	require.NoError(t, <-resultCh)
+}
+
+func TestCodeActionConcurrencyIsBounded(t *testing.T) {
+	started := make(chan struct{}, maxConcurrentCodeActions)
+	handler := &Handler{
+		Initialize: func(*Context, *protocol.InitializeParams) (any, error) { return nil, nil },
+		TextDocumentCodeAction: func(ctx *Context, _ *protocol.CodeActionParams) (any, error) {
+			started <- struct{}{}
+			<-ctx.Context.Done()
+			return nil, ctx.Context.Err()
+		},
+	}
+	client, resultCh := runPipeServer(t, handler)
+	client.send(t, initializeRequest(1))
+	client.receive(t)
+	for i := 0; i < maxConcurrentCodeActions; i++ {
+		client.send(t, map[string]any{"jsonrpc": "2.0", "id": i + 2, "method": protocol.MethodTextDocumentCodeAction, "params": map[string]any{}})
+		<-started
+	}
+	client.send(t, map[string]any{"jsonrpc": "2.0", "id": 99, "method": protocol.MethodTextDocumentCodeAction, "params": map[string]any{}})
+	response := client.receive(t)
+	require.Equal(t, float64(99), response["id"])
+	require.Equal(t, float64(CodeRequestCanceled), responseErrorCode(t, response))
+	client.Close()
+	require.NoError(t, <-resultCh)
+}

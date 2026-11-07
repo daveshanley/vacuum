@@ -72,3 +72,17 @@ func TestApplyDocumentChangesIsTransactional(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "hello\nworld", document.Content)
 }
+
+func TestApplyDocumentChangesAcceptsRepeatedAndZeroVersions(t *testing.T) {
+	document := &Document{Content: "first", Version: 7}
+	for _, version := range []protocol.Integer{7, 0, 0} {
+		before := document.Content
+		require.NoError(t, applyDocumentChanges(document, []any{protocol.TextDocumentContentChangeEvent{
+			Range: &protocol.Range{Start: protocol.Position{}, End: protocol.Position{Character: protocol.UInteger(len(before))}},
+			Text:  before + "!",
+		}}, version))
+		require.Equal(t, before+"!", document.Content)
+		require.Equal(t, version, document.Version)
+	}
+	require.Equal(t, uint64(3), document.revision)
+}

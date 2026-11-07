@@ -1,9 +1,11 @@
 package languageserver
 
 import (
+	"context"
 	"strings"
 
 	"github.com/daveshanley/vacuum/language-server/protocol"
+	"github.com/daveshanley/vacuum/motor"
 )
 
 type repairWorkspaceEdit struct {
@@ -23,11 +25,12 @@ type repairTextEdit struct {
 type repairActionCache struct {
 	content    string
 	version    protocol.Integer
+	revision   uint64
 	generation uint64
 	action     *protocol.CodeAction
 }
 
-func (s *ServerState) codeActions(params *protocol.CodeActionParams) []protocol.CodeAction {
+func (s *ServerState) codeActions(ctx context.Context, params *protocol.CodeActionParams) []protocol.CodeAction {
 	var actions []protocol.CodeAction
 	if !quickFixRequested(params.Context.Only) {
 		return actions
@@ -45,7 +48,7 @@ func (s *ServerState) codeActions(params *protocol.CodeActionParams) []protocol.
 		}
 	}
 	if vacuumDiagnostic {
-		if action := s.repairCodeAction(params.TextDocument.URI); action != nil {
+		if action := s.repairCodeAction(ctx, params.TextDocument.URI); action != nil {
 			actions = append(actions, *action)
 		}
 	}
@@ -67,7 +70,7 @@ func quickFixRequested(only []protocol.CodeActionKind) bool {
 // repairCodeAction returns a verified buffer edit. The client checks the version
 // before applying it; the server never writes files for a code action. Repeated
 // requests for the same buffer and configuration reuse the verified result.
-func (s *ServerState) repairCodeAction(uri protocol.DocumentUri) *protocol.CodeAction {
+func (s *ServerState) repairCodeAction(ctx context.Context, uri protocol.DocumentUri) *protocol.CodeAction {
 	if s.lintRequest.MainSpecPath != "" {
 		return nil
 	}
@@ -75,27 +78,38 @@ func (s *ServerState) repairCodeAction(uri protocol.DocumentUri) *protocol.CodeA
 	if !ok {
 		return nil
 	}
-	doc.repairMu.Lock()
-	defer doc.repairMu.Unlock()
+	select {
+	case doc.repairGate <- struct{}{}:
+		defer func() { <-doc.repairGate }()
+	case <-ctx.Done():
+		return nil
+	}
+	if ctx.Err() != nil {
+		return nil
+	}
 	doc.mu.RLock()
-	content, version := doc.Content, doc.Version
+	content, version, revision := doc.Content, doc.Version, doc.revision
 	doc.mu.RUnlock()
 	s.configMu.RLock()
 	generation := s.configGeneration
 	s.configMu.RUnlock()
-	if cache := doc.repairCache; cache != nil && cache.content == content && cache.version == version && cache.generation == generation {
+	if cache := doc.repairCache; cache != nil && cache.content == content && cache.version == version && cache.revision == revision && cache.generation == generation {
 		if current, ok := s.documentStore.Get(uri); ok && current == doc {
 			return copyRepairAction(cache.action)
 		}
 		return nil
 	}
 	doc.repairCache = nil
-	result, config, err := s.lintDocumentMode(content, uri, fileURIToPath(uri), nil, s.executionOptions, true)
-	if err != nil {
-		return nil
+	options := motor.ExecutionOptions{}
+	if s.executionOptions != nil {
+		options = *s.executionOptions
 	}
-	defer result.ReleaseOwnedResources()
-	if len(result.Errors) > 0 {
+	options.Context = ctx
+	result, config, err := s.lintDocumentMode(content, uri, fileURIToPath(uri), nil, &options, true)
+	if result != nil {
+		defer result.ReleaseOwnedResources()
+	}
+	if ctx.Err() != nil {
 		return nil
 	}
 	current, ok := s.documentStore.Get(uri)
@@ -103,17 +117,20 @@ func (s *ServerState) repairCodeAction(uri protocol.DocumentUri) *protocol.CodeA
 		return nil
 	}
 	doc.mu.RLock()
-	stale := doc.Version != version || doc.Content != content
+	stale := doc.Version != version || doc.Content != content || doc.revision != revision
 	doc.mu.RUnlock()
 	s.configMu.RLock()
-	stale = stale || config.generation != s.configGeneration
+	stale = stale || generation != s.configGeneration
+	if config != nil {
+		stale = stale || config.generation != s.configGeneration
+	}
 	s.configMu.RUnlock()
 	if stale {
 		return nil
 	}
-	cache := &repairActionCache{content: content, version: version, generation: config.generation}
+	cache := &repairActionCache{content: content, version: version, generation: generation, revision: revision}
 	doc.repairCache = cache
-	if len(result.FixedResults) == 0 || len(result.ModifiedSpec) == 0 {
+	if err != nil || result == nil || len(result.Errors) > 0 || len(result.FixedResults) == 0 || len(result.ModifiedSpec) == 0 {
 		return nil
 	}
 	end := protocol.Position{Line: protocol.UInteger(strings.Count(content, "\n"))}.EndOfLineIn(content)
