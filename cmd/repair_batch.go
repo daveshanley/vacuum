@@ -8,28 +8,30 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/daveshanley/vacuum/motor"
 )
 
 type repairBatchReviewer interface {
-	Options() []motor.FixOption
-	Preview([]motor.FixChoice) (*motor.FixPreview, error)
+	Options() []autofix.FixOption
+	Preview([]autofix.FixChoice) (*autofix.FixPreview, error)
 }
 
 // previewCLIRepairs excludes unresolved targets and splits other failed batches.
 // Each accepted batch is checked together with all earlier survivors.
 // Dashboard selections continue to use the strict all-or-nothing Preview API.
-func previewCLIRepairs(review repairBatchReviewer, choices []motor.FixChoice, options *motor.ExecutionOptions) (*motor.FixPreview, []string, error) {
-	var accepted []motor.FixChoice
+func previewCLIRepairs(review repairBatchReviewer, choices []autofix.FixChoice, options *motor.ExecutionOptions) (*autofix.FixPreview, []string, error) {
+	var accepted []autofix.FixChoice
 	var warnings []string
-	var preview *motor.FixPreview
+	var preview *autofix.FixPreview
 	records := review.Options()
-	var visit func([]motor.FixChoice) error
-	visit = func(batch []motor.FixChoice) error {
+	var visit func([]autofix.FixChoice) error
+	visit = func(batch []autofix.FixChoice) error {
 		if options != nil && options.Context != nil && options.Context.Err() != nil {
 			return options.Context.Err()
 		}
-		combined := append(append([]motor.FixChoice(nil), accepted...), batch...)
+		combined := append(append([]autofix.FixChoice(nil), accepted...), batch...)
 		next, err := review.Preview(combined)
 		if err == nil {
 			if preview != nil {
@@ -45,7 +47,7 @@ func previewCLIRepairs(review repairBatchReviewer, choices []motor.FixChoice, op
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return err
 		}
-		var rejected *motor.FixSelectionError
+		var rejected *autofix.FixSelectionError
 		if errors.As(err, &rejected) && len(rejected.Indexes) > 0 {
 			inBatch := make(map[int]bool, len(batch))
 			for _, choice := range batch {
@@ -62,7 +64,7 @@ func previewCLIRepairs(review repairBatchReviewer, choices []motor.FixChoice, op
 			// Never remove an accepted choice to accommodate a later batch.
 			// Unknown indexes also retain the conservative bisection path.
 			if len(failed) > 0 {
-				survivors := make([]motor.FixChoice, 0, len(batch)-len(failed))
+				survivors := make([]autofix.FixChoice, 0, len(batch)-len(failed))
 				for _, choice := range batch {
 					if failed[choice.Index] {
 						option := records[choice.Index]

@@ -1,0 +1,272 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
+// Package runtime supplies callback transactions and source snapshots to the lint
+// engine. It does not depend on motor or the reviewed-fix workflow.
+package runtime
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+
+	"github.com/pb33f/libopenapi/index"
+
+	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
+)
+
+// Context supplies the engine-owned state used by one callback transaction.
+// BeginSharedWork must claim the rule publication guard before any shared mutation.
+type Context struct {
+	Context               context.Context
+	Rule                  *model.Rule
+	Functions             map[string]model.AutoFixFunction
+	Root                  *yaml.Node
+	Index                 *index.SpecIndex
+	Results, FixedResults *[]model.RuleFunctionResult
+	Errors                *[]error
+	WrapError             func(error) error
+	BeginSharedWork       func() bool
+	Gate                  chan struct{}
+	State                 *State
+	Resolved              bool
+	SilenceLogs           bool
+	Logger                *slog.Logger
+}
+
+// State keeps callback changes private until the complete rule can publish.
+// One clone per rule preserves edits shared between findings without copying the
+// entire document for every finding. The gate serializes auto-fix transactions.
+// Each fixing rule still copies the complete document: this cost preserves
+// isolation when callbacks edit arbitrary nodes through their document argument.
+type State struct {
+	root      *yaml.Node
+	clones    map[*yaml.Node]*yaml.Node
+	originals map[*yaml.Node]*yaml.Node
+	results   []model.RuleFunctionResult
+	locked    bool
+	failed    bool
+}
+
+// clone copies a graph once per original node, preserving cycles and aliases.
+// The reverse map lets publication update original nodes without replacing their identities.
+func (s *State) clone(node *yaml.Node) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	if cloned := s.clones[node]; cloned != nil {
+		return cloned
+	}
+	cloned := *node
+	s.clones[node] = &cloned
+	s.originals[&cloned] = node
+	cloned.Content = make([]*yaml.Node, len(node.Content))
+	for i, child := range node.Content {
+		cloned.Content[i] = s.clone(child)
+	}
+	cloned.Alias = s.clone(node.Alias)
+	return &cloned
+}
+
+// Apply stages callback edits against a private document graph.
+func Apply(ctx Context, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
+	state := ctx.State
+	resolved := ctx.Resolved || (ctx.Rule != nil && ctx.Rule.Resolved)
+	callback, exists := ctx.Functions[ctx.Rule.AutoFixFunction]
+	for _, result := range results {
+		if result.StartNode == nil || !exists || state.failed {
+			*ctx.Results = append(*ctx.Results, result)
+			continue
+		}
+		target := result.StartNode
+		if resolved {
+			if ctx.Index == nil {
+				if !ctx.SilenceLogs && ctx.Logger != nil {
+					ctx.Logger.Warn("Auto-fix skipped: unresolved index not available", "ruleId", ctx.Rule.Id)
+				}
+				*ctx.Results = append(*ctx.Results, result)
+				continue
+			}
+			origin := ctx.Index.FindNodeOrigin(target)
+			if origin == nil || origin.Node == nil {
+				if !ctx.SilenceLogs && ctx.Logger != nil {
+					ctx.Logger.Warn("Auto-fix skipped: unable to map resolved node to canonical document", "ruleId", ctx.Rule.Id)
+				}
+				*ctx.Results = append(*ctx.Results, result)
+				continue
+			}
+			target = origin.Node
+		}
+		if !state.locked {
+			if !acquireAutoFixGate(ctx) {
+				return
+			}
+			state.locked = true
+			state.clones = make(map[*yaml.Node]*yaml.Node)
+			state.originals = make(map[*yaml.Node]*yaml.Node)
+			state.root = state.clone(ctx.Root)
+		}
+		if ctx.Context != nil && ctx.Context.Err() != nil {
+			return
+		}
+		// Only the canonical root is serialized. External or synthetic targets
+		// cannot be persisted by this single-document callback contract.
+		privateTarget := state.clones[target]
+		if privateTarget == nil {
+			*ctx.Results = append(*ctx.Results, result)
+			continue
+		}
+		replacement, err := callback(privateTarget, state.root, rfc)
+		if err == nil && replacement != nil && replacement != privateTarget {
+			err = fmt.Errorf("auto-fix must mutate the supplied node or document; replacement nodes are not supported")
+		}
+		if err != nil {
+			state.failed = true
+			*ctx.Errors = append(*ctx.Errors, ctx.WrapError(err))
+			if !ctx.SilenceLogs && ctx.Logger != nil {
+				ctx.Logger.Warn("Auto-fix failed", "ruleId", ctx.Rule.Id, "error", err)
+			}
+			*ctx.Results = append(*ctx.Results, result)
+			continue
+		}
+		state.results = append(state.results, result)
+	}
+}
+
+// acquireAutoFixGate serializes private auto-fix transactions and stops waiting
+// when the rule context expires. A successful acquisition must be released.
+func acquireAutoFixGate(ctx Context) bool {
+	executionContext := ctx.Context
+	if executionContext == nil {
+		executionContext = context.Background()
+	}
+	if executionContext.Err() != nil {
+		return false
+	}
+	if ctx.Gate == nil {
+		return true
+	}
+	select {
+	case <-executionContext.Done():
+		return false
+	case <-ctx.Gate:
+		if executionContext.Err() != nil {
+			ctx.Gate <- struct{}{}
+			return false
+		}
+		return true
+	}
+}
+
+// Release returns the invocation gate after commit or cancellation.
+func Release(ctx Context) {
+	if ctx.State != nil && ctx.State.locked {
+		ctx.State.locked = false
+		if ctx.Gate != nil {
+			ctx.Gate <- struct{}{}
+		}
+	}
+}
+
+// Commit publishes a successful rule transaction only after claiming
+// the run guard. Failed callbacks retain findings without publishing their edits.
+func Commit(ctx Context) {
+	s := ctx.State
+	if s == nil || !s.locked {
+		return
+	}
+	if s.failed {
+		*ctx.Results = append(*ctx.Results, s.results...)
+		return
+	}
+	if ctx.Context != nil && ctx.Context.Err() != nil {
+		return
+	}
+	if !ctx.BeginSharedWork() {
+		return
+	}
+
+	// Translate private graph links back to caller-owned nodes. Only changed
+	// nodes are written, so existing result/index pointers retain their identity.
+	visited := make(map[*yaml.Node]bool)
+	var originalNode func(*yaml.Node) *yaml.Node
+	originalNode = func(node *yaml.Node) *yaml.Node {
+		if node == nil {
+			return nil
+		}
+		if original := s.originals[node]; original != nil {
+			return original
+		}
+		if s.clones[node] != nil || visited[node] {
+			return node
+		}
+		visited[node] = true
+		for i, child := range node.Content {
+			node.Content[i] = originalNode(child)
+		}
+		node.Alias = originalNode(node.Alias)
+		return node
+	}
+	reachable := make(map[*yaml.Node]bool)
+	var visit func(*yaml.Node)
+	visit = func(n *yaml.Node) {
+		if n == nil || reachable[n] {
+			return
+		}
+		reachable[n] = true
+		for _, child := range n.Content {
+			visit(child)
+		}
+		visit(n.Alias)
+	}
+	visit(s.root)
+	type update struct {
+		target *yaml.Node
+		value  yaml.Node
+	}
+	var updates []update
+	for private, original := range s.originals {
+		if !reachable[private] {
+			continue
+		}
+		value := *private
+		for i, child := range value.Content {
+			value.Content[i] = originalNode(child)
+		}
+		value.Alias = originalNode(value.Alias)
+		if !sameAutoFixNode(original, &value) {
+			updates = append(updates, update{original, value})
+		}
+	}
+	if len(updates) == 0 {
+		*ctx.Results = append(*ctx.Results, s.results...)
+		return
+	}
+	for _, update := range updates {
+		*update.target = update.value
+	}
+	for _, result := range s.results {
+		result.AutoFixed = true
+		*ctx.FixedResults = append(*ctx.FixedResults, result)
+		if !ctx.SilenceLogs && ctx.Logger != nil {
+			ctx.Logger.Debug("Auto-fix applied", "ruleId", ctx.Rule.Id, "path", result.Path)
+		}
+	}
+}
+
+func sameAutoFixNode(a, b *yaml.Node) bool {
+	if a.Kind != b.Kind || a.Style != b.Style || a.Tag != b.Tag || a.Value != b.Value ||
+		a.Anchor != b.Anchor || a.Alias != b.Alias || a.HeadComment != b.HeadComment ||
+		a.LineComment != b.LineComment || a.FootComment != b.FootComment ||
+		a.Line != b.Line || a.Column != b.Column || a.Stream != b.Stream || len(a.Content) != len(b.Content) {
+		return false
+	}
+	for i := range a.Content {
+		if a.Content[i] != b.Content[i] {
+			return false
+		}
+	}
+	return true
+}

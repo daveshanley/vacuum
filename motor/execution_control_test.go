@@ -246,7 +246,7 @@ operations: {}
 			execution := newExecutionOptionsTestExecution(function)
 			execution.Spec = []byte(tt.spec)
 			execution.SpecFormat = tt.format
-			execution.SkipDocumentCheck = isJSONSchemaFormat(tt.format)
+			execution.SkipDocumentCheck = IsJSONSchemaFormat(tt.format)
 			execution.RuleSet.Rules["controlled"].Formats = tt.formats
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -760,4 +760,22 @@ func TestExecutionControlCloseCancelsChildrenWithoutCancellingCaller(t *testing.
 			require.NoError(t, caller.Err())
 		})
 	}
+}
+
+func TestCopyConfigDoesNotInheritWorkers(t *testing.T) {
+	source := &RuleSetExecution{CaptureRepairSources: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{}}}
+	source.ruleWaitGroup.Add(1)
+	source.activeRuleWorkers.Add(1)
+	defer source.ruleWaitGroup.Done()
+	next := source.CopyConfig()
+	require.True(t, next.CaptureRepairSources)
+	require.Zero(t, next.activeRuleWorkers.Load())
+	done := make(chan struct{})
+	go func() { next.ruleWaitGroup.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("copy inherited active workers")
+	}
+	require.NotSame(t, source.RuleSet, next.RuleSet)
 }

@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/pb33f/doctor/terminal/diffview"
 	change "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
@@ -78,7 +79,7 @@ func TestRepairChangeFallbackAndInvalidation(t *testing.T) {
 	selectRepairRule(t, m, "info-description")
 	repairKey(m, ' ', " ")
 	prepareRepairSave(t, m)
-	m.repair.preview.Impact = motor.RepairImpact{Status: motor.RepairImpactUnknown}
+	m.repair.preview.Impact = autofix.RepairImpact{Status: autofix.RepairImpactUnknown}
 	m.repair.initChangeView()
 	require.Equal(t, m.repair.diff, m.repairReviewContent(80))
 	require.True(t, m.changeRepairView("]"))

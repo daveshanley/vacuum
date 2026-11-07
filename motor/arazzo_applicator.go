@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/motor/autofix/runtime"
+
 	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -21,7 +23,7 @@ import (
 )
 
 func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptions, builtins functions.Functions, control *executionControl) (*RuleSetExecutionResult, bool) {
-	if isJSONSchemaFormat(execution.SpecFormat) {
+	if IsJSONSchemaFormat(execution.SpecFormat) {
 		return nil, false
 	}
 	format, err := arazzo_context.DetectFormat(execution.Spec)
@@ -46,7 +48,7 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	result := &RuleSetExecutionResult{RuleSetExecution: execution, Index: ctx.Index, SpecInfo: ctx.SpecInfo, Arazzo: ctx}
-	needsValidation := execution.captureRepairSources
+	needsValidation := execution.CaptureRepairSources
 	for _, rule := range applicableRulesForFormat(execution.RuleSet, execution.SpecFormat) {
 		if ruleUsesFunction(rule, "arazzoDocument") {
 			needsValidation = true
@@ -65,17 +67,17 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 		if timeout <= 0 {
 			timeout = 5 * time.Second
 		}
-		if execution.captureRepairSources {
-			captured, frozen := execution.RolodexFS.(*repairSources)
+		if execution.CaptureRepairSources {
+			captured, frozen := execution.RolodexFS.(*runtime.Sources)
 			if !frozen {
-				captured = &repairSources{files: make(map[string][]byte), retrievals: make(map[string]string)}
+				captured = &runtime.Sources{Files: make(map[string][]byte), Retrievals: make(map[string]string)}
 			}
-			adapter := &repairSourceResolver{snapshot: captured, reports: resolver}
+			adapter := &runtime.SourceResolver{Snapshot: captured, Reports: resolver}
 			if !frozen {
-				adapter.inner = resolver
+				adapter.Inner = resolver
 			}
 			options = append(options, validation.WithResolver(adapter))
-			result.repairSources = captured
+			result.RepairSources = captured
 		}
 
 		validationCtx, cancel := context.WithTimeout(control.Context(), timeout)
@@ -93,8 +95,9 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 		resolveExecutionAliases(execution.RuleSet, ctx.SpecInfo.SpecFormat, logger), false)
 	populateResultOrigins(result.Results, nil, nil, execution.SpecFileName)
 	var marshalErr error
-	result.ModifiedSpec, marshalErr = marshalFixedDocument(execution.CanonicalDocument, len(result.FixedResults), execution.Spec)
+	result.ModifiedSpec, marshalErr = runtime.MarshalDocument(execution.CanonicalDocument, len(result.FixedResults), execution.Spec)
 	if marshalErr != nil {
+		marshalErr = &RuleExecutionError{Kind: RuleErrorAutoFix, Err: marshalErr}
 		result.Errors = append(result.Errors, marshalErr)
 	}
 	result.Errors = appendContextErrorToErrors(result.Errors, control.Err())
