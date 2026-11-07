@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/repair"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/jsonpath/pkg/jsonpath"
 )
 
 // Filter against the authored document. An index in an ignore file identifies
@@ -32,15 +33,19 @@ func filterRepairCandidateIgnores(before, after *RuleSetExecutionResult, changes
 }
 
 func originalRepairPath(path string, root, candidateRoot *yaml.Node, changes *repair.Correspondence) string {
-	segments, err := utils.ParseFieldPath(strings.TrimPrefix(strings.TrimPrefix(path, "$"), "."))
+	parsed, err := jsonpath.NewPath(path)
+	if err != nil || !parsed.IsSingular() {
+		return ""
+	}
+	segments, err := parsed.GetSegmentInfo()
 	if err != nil {
 		return ""
 	}
 	pointer := ""
 	for _, segment := range segments {
 		token := segment.Key
-		if segment.Type == utils.SegmentArrayIndex {
-			token = strconv.Itoa(segment.Index)
+		if segment.Kind == jsonpath.SegmentKindArrayIndex {
+			token = strconv.FormatInt(segment.Index, 10)
 		}
 		pointer += "/" + repair.EscapeToken(token)
 	}
