@@ -84,6 +84,7 @@ func TestRepairLongValuePreviewAndSavedDocumentAgree(t *testing.T) {
 			m.Update(cmd())
 			require.Equal(t, repairSavePreview, m.repair.save.step, m.repair.save.err)
 			require.Zero(t, m.repair.save.view.XOffset())
+			m.repair.save.acceptAfter = m.repair.save.acceptAfter.Add(-repairSaveAcceptDelay)
 			repairKey(m, tea.KeyEnter, "")
 			var saved struct {
 				Info struct {

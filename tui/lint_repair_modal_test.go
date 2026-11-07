@@ -172,7 +172,7 @@ func TestDashboardRepairAvailabilityDoesNotHideErrorsOrStaleSource(t *testing.T)
 	m.Update(fileChangeMsg{fileName: "review.json"})
 	require.NotContains(t, m.repairStatus(), "FIX AVAILABLE")
 	m.repair.config.Open = func([]byte) (*motor.FixReview, error) { return nil, fmt.Errorf("source cannot be repaired") }
-	repairKey(m, 'f', "f")
+	m.Update(repairKey(m, 'f', "f")())
 	require.Contains(t, m.repairStatus(), "source cannot be repaired")
 	require.NotContains(t, m.repairStatus(), "FIX AVAILABLE")
 }
@@ -247,9 +247,28 @@ func TestDashboardRepairPendingVerificationDoesNotBlockModalKeys(t *testing.T) {
 	m.repair.editReturn = true
 	responsive(func() { m.finishRepairEdit() })
 	require.Equal(t, ModalNone, m.uiState.ActiveModal)
+	// Closing that review releases its guard. A new review can verify while the
+	// old rule still waits, and the old completion cannot replace its preview.
+	responsive(func() { repairKey(m, tea.KeyEscape, "") })
+	require.Nil(t, m.repair.pending)
+	var discover tea.Cmd
+	responsive(func() { discover = repairKey(m, 'f', "f") })
+	require.NotNil(t, discover)
+	responsive(func() { m.Update(discover()) })
+	selectRepairRule(t, m, "info-description")
+	responsive(func() { repairKey(m, 'e', "e") })
+	require.True(t, m.repair.editing)
+	repairKey(m, tea.KeyEscape, "")
+	repairKey(m, ' ', " ")
+	next := repairKey(m, 'v', "v")
+	require.NotNil(t, next)
+	responsive(func() { m.Update(next()) })
+	current := m.repair.preview
+	require.NotNil(t, current)
 	release.Do(func() { close(blocker.release) })
 	m.Update(<-done)
 	require.Nil(t, m.repair.pending)
+	require.Same(t, current, m.repair.preview)
 }
 
 func TestDashboardRepairContactStartsWithEditableProposal(t *testing.T) {

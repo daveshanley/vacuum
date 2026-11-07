@@ -6,6 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/color"
 	"strings"
 	"sync"
+	"time"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
@@ -20,9 +21,11 @@ import (
 // RepairConfig connects dashboard review to the command's lint settings and
 // source-checked writer. Write must reject a changed original source.
 type RepairConfig struct {
-	SourcePath string
-	Open       func(source []byte) (*motor.FixReview, error)
-	Write      func(original, candidate []byte) error
+	// DisabledReason keeps repair keys available to normal table navigation.
+	DisabledReason string
+	SourcePath     string
+	Open           func(source []byte) (*motor.FixReview, error)
+	Write          func(original, candidate []byte) error
 	// PreviewOutput verifies the selected fixes and the requested output options.
 	PreviewOutput func(review *motor.FixReview, choices []motor.FixChoice, save RepairSaveOptions) (*motor.FixPreview, error)
 	// Save publishes the exact preview bytes. A nonempty OutputPath creates a new
@@ -127,6 +130,8 @@ func (r *dashboardRepair) invalidate() {
 }
 func (r *dashboardRepair) close() {
 	r.invalidate()
+	// Old jobs retain their own review until they drain; they must not block a new review.
+	r.pending = nil
 	r.save = nil
 	r.pulseID++
 	r.pulse = 0
@@ -145,25 +150,6 @@ func (r *dashboardRepair) close() {
 		go review.Close()
 	}
 }
-func (m *ViolationResultTableModel) openRepair() {
-	r := m.repair
-	if r == nil || r.config == nil || r.config.Open == nil {
-		return
-	}
-	r.close()
-	r.options = nil
-	r.selected = make(map[int]bool)
-	r.values = make(map[int]string)
-	r.editing = false
-	r.source = append([]byte(nil), m.specContent...)
-	review, err := r.config.Open(r.source)
-	if err != nil {
-		r.status = "Fix review: " + err.Error()
-		return
-	}
-	m.adoptRepairReview(review)
-}
-
 func (m *ViolationResultTableModel) adoptRepairReview(review *motor.FixReview) {
 	r := m.repair
 	r.review = review
@@ -219,7 +205,7 @@ func (m *ViolationResultTableModel) currentRepairOption() *motor.FixOption {
 }
 func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.Cmd) {
 	r := m.repair
-	if r == nil {
+	if r == nil || r.config == nil || r.config.DisabledReason != "" || (r.config.Open == nil && r.review == nil) {
 		return false, nil
 	}
 	if handled, cmd := m.handleRepairDiscovery(msg); handled {
@@ -258,6 +244,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.save.view.SetContent(m.repairReviewContent(r.save.view.Width()))
 			r.save.view.SetXOffset(0)
 			r.save.view.GotoTop()
+			r.save.acceptAfter = time.Now().Add(repairSaveAcceptDelay)
 			return true, nil
 		}
 		// A may open save choices while an earlier V verification is running.
@@ -406,7 +393,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	}
 	switch key.String() {
 	case "esc":
-		if r.onlyFixes || r.pending != nil || (r.preview != nil && r.source != nil) {
+		if r.onlyFixes || r.pending != nil || r.discovery != nil || (r.preview != nil && r.source != nil) {
 			r.close()
 			r.options = nil
 			r.selected = nil
@@ -425,10 +412,10 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		if r.review == nil {
-			m.openRepair()
+			return true, m.discoverRepairsFor(key)
 		}
-		if r.review == nil {
-			return true, nil
+		if r.automatic+r.suggested+r.needsInput == 0 {
+			return false, nil
 		}
 		r.onlyFixes = !r.onlyFixes
 		if r.preview == nil && r.pending == nil && !strings.HasPrefix(r.status, "APPLIED:") {
@@ -453,8 +440,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			r.invalidate()
 			r.status = "Selection changed · a to save · v to preview"
 			m.refreshRepairRows()
+			return true, nil
 		}
-		return true, nil
+		return false, nil
 	case "e":
 		if r.pending != nil {
 			r.status = "Verification running · wait before editing"
@@ -470,6 +458,8 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		r.editing = true
 		r.input = textinput.New()
 		r.input.Placeholder = o.Description
+		width, _ := m.repairModalSize()
+		r.input.SetWidth(max(1, width-8))
 		r.input.SetValue(r.values[o.Index])
 		r.input.CharLimit = 65536
 		r.editReturn = m.uiState.ActiveModal == ModalRepair
@@ -487,10 +477,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		if r.review == nil {
-			m.openRepair()
-		}
-		if r.review == nil {
-			return true, nil
+			return true, m.discoverRepairsFor(key)
 		}
 		var choices []motor.FixChoice
 		if currentChoice != nil {
@@ -512,6 +499,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		}
 		return true, func() tea.Msg { p, err := review.Preview(choices); job.finish(p, err); return repairPreviewMsg{job} }
 	case "a":
+		if r.review == nil {
+			return true, m.discoverRepairsFor(key)
+		}
 		m.openRepairSave()
 		return true, nil
 	}
