@@ -21,6 +21,7 @@ type repairDiscoveryJob struct {
 	review   *motor.FixReview
 	err      error
 	canceled bool
+	action   tea.KeyPressMsg
 }
 type repairDiscoveryMsg struct{ job *repairDiscoveryJob }
 type repairPulseMsg struct{ generation int }
@@ -54,9 +55,11 @@ func (j *repairDiscoveryJob) take() (*motor.FixReview, error) {
 }
 func (m *ViolationResultTableModel) discoverRepairs() tea.Cmd {
 	r := m.repair
-	if r == nil || r.config == nil || r.config.Open == nil || r.discovery != nil || r.review != nil {
+	if r == nil || r.config == nil || r.config.Open == nil || r.config.DisabledReason != "" || r.discovery != nil || r.review != nil {
 		return nil
 	}
+	r.close()
+	r.options, r.byIdentity = nil, nil
 	r.source = append([]byte(nil), m.specContent...)
 	source := r.source
 	open := r.config.Open
@@ -64,6 +67,15 @@ func (m *ViolationResultTableModel) discoverRepairs() tea.Cmd {
 	r.discovery = job
 	r.status = "Checking available fixes"
 	return func() tea.Msg { review, err := open(source); job.finish(review, err); return repairDiscoveryMsg{job} }
+}
+
+// discoverRepairsFor resumes the requested action after background discovery.
+func (m *ViolationResultTableModel) discoverRepairsFor(key tea.KeyPressMsg) tea.Cmd {
+	cmd := m.discoverRepairs()
+	if cmd != nil {
+		m.repair.discovery.action = key
+	}
+	return cmd
 }
 func repairPulse(generation int) tea.Cmd {
 	return tea.Tick(650*time.Millisecond, func(time.Time) tea.Msg { return repairPulseMsg{generation} })
@@ -301,6 +313,9 @@ func (m *ViolationResultTableModel) handleRepairDiscovery(msg tea.Msg) (bool, te
 		if count == 0 {
 			r.status = "No supported fixes for these findings"
 			return true, nil
+		}
+		if msg.job.action.Code != 0 {
+			return m.handleRepairMessage(msg.job.action)
 		}
 		r.status = "Fixes available · F to review"
 		r.pulseID++

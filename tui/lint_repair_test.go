@@ -45,7 +45,7 @@ func repairSourceTestModel(t *testing.T, source []byte, filename string, ruleIDs
 		disk = append([]byte(nil), candidate...)
 		return nil
 	}}}
-	m.openRepair()
+	m.Update(m.discoverRepairs()())
 	t.Cleanup(func() { m.repair.close(); baseline.Close() })
 	return m, &disk
 }
@@ -169,7 +169,7 @@ func TestDashboardFixOpenFailureKeepsFindings(t *testing.T) {
 	m, _ := repairTestModel(t)
 	m.repair.close()
 	m.repair.config.Open = func([]byte) (*motor.FixReview, error) { return nil, fmt.Errorf("source changed") }
-	repairKey(m, 'f', "f")
+	m.Update(repairKey(m, 'f', "f")())
 	require.False(t, m.repair.onlyFixes)
 	require.Len(t, m.filteredResults, 3)
 	require.Contains(t, m.repair.status, "source changed")
