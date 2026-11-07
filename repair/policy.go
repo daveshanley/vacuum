@@ -2,6 +2,7 @@ package repair
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -55,6 +56,24 @@ func ParsePolicy(data []byte, base string, catalogs map[string][]byte) (*Policy,
 	if err := d.Decode(new(any)); err != io.EOF {
 		return nil, fmt.Errorf("policy requires one document")
 	}
+	return parsePolicyDocument(document, data, base, catalogs)
+}
+
+// NewPolicy validates caller-approved values without a serialization round trip.
+// The policy owns a copy of each value so later caller edits cannot change it.
+func NewPolicy(entries []PolicyEntry, base string) (*Policy, error) {
+	owned := append([]PolicyEntry(nil), entries...)
+	for i := range owned {
+		owned[i].Value = *clone(&owned[i].Value)
+	}
+	data, err := json.Marshal(owned)
+	if err != nil {
+		return nil, err
+	}
+	return parsePolicyDocument(policyDocument{Version: 1, Policies: owned}, data, base, nil)
+}
+
+func parsePolicyDocument(document policyDocument, data []byte, base string, catalogs map[string][]byte) (*Policy, error) {
 	if document.Version != 1 {
 		return nil, fmt.Errorf("unsupported policy version %d", document.Version)
 	}
@@ -89,7 +108,31 @@ func ParsePolicy(data []byte, base string, catalogs map[string][]byte) (*Policy,
 		if (entry.Value.Kind == 0) == (entry.Catalog == "") {
 			return nil, fmt.Errorf("policy must supply exactly one value or catalog: %s", entry.ID)
 		}
+		if entry.Value.Kind != 0 {
+			if err := validateTree(&entry.Value, make(map[*yaml.Node]bool)); err != nil {
+				return nil, fmt.Errorf("invalid policy value %s: %w", entry.ID, err)
+			}
+			if _, err := raw(&entry.Value); err != nil {
+				return nil, fmt.Errorf("invalid policy value %s: %w", entry.ID, err)
+			}
+			field := policyField(entry.Rule)
+			if field == "contact" || field == "license" {
+				if entry.Value.Kind != yaml.MappingNode {
+					return nil, fmt.Errorf("policy %s requires an object", entry.ID)
+				}
+				for j := 1; j < len(entry.Value.Content); j += 2 {
+					if entry.Value.Content[j].Tag != "!!str" {
+						return nil, fmt.Errorf("policy %s requires text fields", entry.ID)
+					}
+				}
+			} else if entry.Value.Kind != yaml.ScalarNode || entry.Value.Tag != "!!str" {
+				return nil, fmt.Errorf("policy %s requires text", entry.ID)
+			}
+		}
 		if entry.Catalog != "" {
+			if field := policyField(entry.Rule); field == "contact" || field == "license" {
+				return nil, fmt.Errorf("policy %s requires an object value, not a text catalog", entry.ID)
+			}
 			if strings.Contains(entry.Catalog, "://") {
 				return nil, fmt.Errorf("remote catalogs are not supported")
 			}
@@ -173,7 +216,11 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 		entries[key] = append(entries[key], entry)
 	}
 	operationIDs := make(map[string]int)
-	for _, node := range nodes {
+	for path, node := range nodes {
+		parts, _ := tokens(path)
+		if !(len(parts) == 3 && (parts[0] == "paths" || parts[0] == "webhooks") && reviewedHTTPMethod(parts[2]) || len(parts) == 4 && parts[0] == "components" && parts[1] == "pathItems" && reviewedHTTPMethod(parts[3])) {
+			continue
+		}
 		if id := field(node, "operationId"); id != nil {
 			operationIDs[id.Value]++
 		}

@@ -111,8 +111,43 @@ func valueNode(value json.RawMessage) (*yaml.Node, error) {
 	if err := validateTree(doc.Content[0], make(map[*yaml.Node]bool)); err != nil {
 		return nil, err
 	}
+	clearValueStyle(doc.Content[0])
 	return doc.Content[0], nil
 }
+
+// Values arrive as JSON, but presentation is chosen by the destination document.
+func clearValueStyle(n *yaml.Node) {
+	n.Style = 0
+	n.Line, n.Column = 0, 0
+	for _, child := range n.Content {
+		clearValueStyle(child)
+	}
+}
+
+// Reuse unchanged authored children when a collection replacement only changes
+// order or a subset of members. This preserves their styles and source spans.
+func retainAuthoredChildren(before, after *yaml.Node) {
+	if before.Kind != after.Kind {
+		return
+	}
+	if before.Kind == yaml.MappingNode {
+		indices := make(map[string]int, len(before.Content)/2)
+		for i := 0; i < len(before.Content); i += 2 {
+			indices[before.Content[i].Value] = i
+		}
+		for i := 0; i < len(after.Content); i += 2 {
+			if j, ok := indices[after.Content[i].Value]; ok {
+				after.Content[i] = before.Content[j]
+				if same, err := equalNodes(before.Content[j+1], after.Content[i+1]); err == nil && same {
+					after.Content[i+1] = before.Content[j+1]
+				} else {
+					retainAuthoredChildren(before.Content[j+1], after.Content[i+1])
+				}
+			}
+		}
+	}
+}
+
 func clone(n *yaml.Node) *yaml.Node {
 	c := *n
 	c.Content = make([]*yaml.Node, len(n.Content))
@@ -177,6 +212,17 @@ func applyOperation(root *yaml.Node, op Operation) (*yaml.Node, error) {
 			if op.From == op.Path {
 				return root, nil
 			}
+			// Moving a mapping member to an absent sibling only renames its
+			// key. Preserve its position, comments and source coordinates.
+			fromParent, oldKey, fromErr := parentAt(root, op.From)
+			toParent, newKey, toErr := parentAt(root, op.Path)
+			if fromErr == nil && toErr == nil && fromParent == toParent && fromParent.Kind == yaml.MappingNode {
+				if _, exists := mapIndex(toParent, newKey); !exists {
+					i, _ := mapIndex(fromParent, oldKey)
+					fromParent.Content[i].Value = newKey
+					return root, nil
+				}
+			}
 			root, err = remove(root, op.From)
 			if err != nil {
 				return nil, err
@@ -201,6 +247,7 @@ func set(root *yaml.Node, path string, v *yaml.Node, add bool) (*yaml.Node, erro
 	case yaml.MappingNode:
 		i, ok := mapIndex(parent, key)
 		if ok {
+			retainAuthoredChildren(parent.Content[i+1], v)
 			v.HeadComment = parent.Content[i+1].HeadComment
 			v.LineComment = parent.Content[i+1].LineComment
 			v.FootComment = parent.Content[i+1].FootComment

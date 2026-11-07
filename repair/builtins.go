@@ -337,11 +337,7 @@ func builtin(root *yaml.Node, f Finding, references bool, nodes map[string]*yaml
 			if owner == nil || owner.Kind != yaml.MappingNode || len(owner.Content) != 2 || references || !uncommented(owner) {
 				return nil, nil, "", "schema scope, siblings, references or comments require review"
 			}
-			value, err := raw(n.Content[0])
-			if err != nil {
-				return nil, nil, "", err.Error()
-			}
-			return []Operation{{Op: "replace", Path: p[:strings.LastIndex(p, "/")], Value: value}}, nil, "singleton-combinator", ""
+			return []Operation{{Op: "move", From: p + "/0", Path: p[:strings.LastIndex(p, "/")]}}, nil, "singleton-combinator", ""
 		}
 		return nil, nil, "", "no identity combinator found"
 	default:

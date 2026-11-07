@@ -106,6 +106,7 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 	}
 	root := doc.Content[0]
 	format := utils.CaptureRepairYAMLFormat(root)
+	originalRoot := clone(root)
 	if err := validateTreeShape(root, make(map[*yaml.Node]bool), false); err != nil {
 		return nil, err
 	}
@@ -220,10 +221,7 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 	if len(plan.Operations) == 0 && len(plan.KeyTags) == 0 && len(plan.KeyRemovals) == 0 {
 		return append([]byte(nil), data...), nil
 	}
-	if json.Valid(data) {
-		return utils.RenderRepairJSON(&doc, data)
-	}
-	return utils.RenderRepairYAML(&doc, data, format)
+	return renderSource(originalRoot, root, data, json.Valid(data), format)
 }
 
 func validateTree(n *yaml.Node, seen map[*yaml.Node]bool) error {

@@ -9,8 +9,8 @@ import (
 func TestReviewedRecipes(t *testing.T) {
 	cases := []struct{ name, rule, code, source, pointer, want string }{
 		{"jwt", "owasp-jwt-best-practices", "", `{"bearerFormat":"JWT"}`, "", `{"bearerFormat":"JWT","description":"Implementations should follow the JWT security guidance in RFC8725 (https://www.rfc-editor.org/rfc/rfc8725)."}`},
-		{"script", "no-script-tags-in-markdown", "", `{"description":"<script>alert(1)</script>"}`, "/description", `{"description":"&lt;script&gt;alert(1)&lt;/script&gt;"}`},
-		{"arazzoScript", "arazzo-no-script-tags-in-markdown", "", `{"description":"<SCRIPT>x</SCRIPT>"}`, "/description", `{"description":"&lt;SCRIPT&gt;x&lt;/SCRIPT&gt;"}`},
+		{"script", "no-script-tags-in-markdown", "", `{"description":"<script>alert(1)</script>"}`, "/description", `{"description":"&lt;script>alert(1)&lt;/script>"}`},
+		{"arazzoScript", "arazzo-no-script-tags-in-markdown", "", `{"description":"<SCRIPT>x</SCRIPT>"}`, "/description", `{"description":"&lt;SCRIPT>x&lt;/SCRIPT>"}`},
 		{"serverSlash", "oas3-server-trailing-slash", "", `{"url":"https://api.test/v1/"}`, "/url", `{"url":"https://api.test/v1"}`},
 		{"asyncServerSlash", "asyncapi-3-server-no-trailing-slash", "", `{"pathname":"/v1/"}`, "/pathname", `{"pathname":"/v1"}`},
 		{"channelSlash", "asyncapi-3-channel-no-trailing-slash", "", `{"address":"orders/"}`, "", `{"address":"orders"}`},
@@ -145,14 +145,14 @@ func TestReviewedDeduplicatesProposalsAndKeepsUnavailableFindings(t *testing.T) 
 	}
 }
 
-func TestReviewedOverlappingProposalsDeclineInsteadOfOverwrite(t *testing.T) {
+func TestReviewedIndependentTagsShareGlobalCreation(t *testing.T) {
 	source := []byte(`{"paths":{"/a":{"get":{}},"/b":{"get":{}}}}`)
 	p, err := ReviewedPlan("t.json", source, []Finding{{RuleID: "operation-tags", Pointer: "/paths/~1a/get"}, {RuleID: "operation-tags", Pointer: "/paths/~1b/get"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Targets) != 1 || len(p.Declined) != 1 {
-		t.Fatalf("overlapping global tag writes were admitted: %+v", p)
+	if len(p.Targets) != 2 || len(p.Declined) != 0 {
+		t.Fatalf("independent global tag writes were declined: %+v", p)
 	}
 	if _, err := Apply("t.json", source, p); err != nil {
 		t.Fatal(err)
@@ -241,10 +241,10 @@ func TestReviewedSharesIdenticalValueEditAcrossProposalGroups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Targets) != 2 || len(plan.Operations) != 2 || len(plan.Declined) != 0 {
+	if len(plan.Targets) != 2 || len(plan.Operations) != 3 || len(plan.Declined) != 0 {
 		t.Fatalf("shared value was treated as a conflict: %+v", plan)
 	}
-	if len(plan.ReviewedProposals["operation-tags\x00/paths/~1pets/get"]) != 2 || len(plan.ReviewedProposals["operation-tag-defined\x00/paths/~1pets/post/tags/0"]) != 1 {
+	if len(plan.ReviewedProposals["operation-tags\x00/paths/~1pets/get"]) != 3 || len(plan.ReviewedProposals["operation-tag-defined\x00/paths/~1pets/post/tags/0"]) != 2 {
 		t.Fatal("original per-finding groups were lost")
 	}
 	if _, err := Apply("test.json", source, plan); err != nil {
