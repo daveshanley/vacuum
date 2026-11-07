@@ -153,7 +153,16 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.36` 🔥: **12 report output formats**
+🔥 **New** 🔥: **Autofix in vacuum**
+
+Found problems? Can't be bothered to fix them? vacuum can auto-fix your linting issues for you.
+
+- [Get started with autofix](https://quobix.com/vacuum/autofix/)
+- [Supply your own values](https://quobix.com/vacuum/autofix-policy/)
+
+---
+
+`v0.36`: **12 report output formats**
 
 Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
 Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
@@ -383,6 +392,7 @@ See all the documentation at https://quobix.com/vacuum
 - [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
 - [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [Linting JSON Schema](https://quobix.com/vacuum/json-schema/)
+- [Autofix](https://quobix.com/vacuum/autofix/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
