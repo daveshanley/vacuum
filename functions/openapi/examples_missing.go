@@ -248,39 +248,23 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				if mtProps != nil && mtProps.Len() > 0 {
 
 					hasProps = true
-					var prop *v3.Schema
-					var propName string
-					for k, v := range mtProps.FromOldest() {
-						propSchema := v.SchemaForRead()
-						// a property schema without an underlying value cannot be
-						// judged - skip it rather than flag a false missing-example.
-						if propSchema == nil || propSchema.Value == nil {
+					for name, proxy := range mtProps.FromOldest() {
+						prop := proxy.SchemaForRead()
+						if prop == nil || prop.Value == nil || checkProps(prop) {
 							continue
 						}
-						if !checkProps(propSchema) {
-							propErr = true
-							prop = propSchema
-							propName = k
-							break
+						propErr = true
+						keyNode, valueNode := schemaTypeLookupNodes(prop)
+						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
+						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							model.GetStringTemplates().BuildMissingExampleMessage(name)),
+							locatedPath, prop.KeyNode, mt.ValueNode, mt)
+						if len(allPaths) > 1 {
+							result.Paths = allPaths
 						}
-					}
-					if propErr {
-						if prop != nil {
-							// Find all locations where this property schema appears
-							keyNode, valueNode := schemaTypeLookupNodes(prop)
-							locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
-
-							result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-								model.GetStringTemplates().BuildMissingExampleMessage(propName)),
-								locatedPath,
-								prop.KeyNode, mt.ValueNode, mt)
-
-							// Set the Paths array if there are multiple locations
-							if len(allPaths) > 1 {
-								result.Paths = allPaths
-							}
-
-							results = append(results, result)
+						results = append(results, result)
+						if !context.ExhaustiveRepairFindings {
+							break
 						}
 					}
 				}
@@ -383,38 +367,24 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			if sProps := s.PropertiesForRead(); sProps != nil && sProps.Len() > 0 {
 				hasProps = true
-				var prop *v3.Schema
-				var propName string
-				for k, v := range sProps.FromOldest() {
-					propSchema := v.SchemaForRead()
-					// a property schema without an underlying value cannot be
-					// judged - skip it rather than flag a false missing-example.
-					if propSchema == nil || propSchema.Value == nil {
+				for name, proxy := range sProps.FromOldest() {
+					prop := proxy.SchemaForRead()
+					if prop == nil || prop.Value == nil || checkProps(prop) {
 						continue
 					}
-					if !checkProps(propSchema) {
-						propErr = true
-						prop = propSchema
-						propName = k
-						break
-					}
-				}
-				if propErr && prop != nil {
-					// Find all locations where this property schema appears
+					propErr = true
 					keyNode, valueNode := schemaTypeLookupNodes(prop)
 					locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
-
 					result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
-						locatedPath,
-						prop.KeyNode, s.ValueNode, s)
-
-					// Set the Paths array if there are multiple locations
+						fmt.Sprintf("schema property `%s` is missing `examples` or `example`", name)),
+						locatedPath, prop.KeyNode, s.ValueNode, s)
 					if len(allPaths) > 1 {
 						result.Paths = allPaths
 					}
-
 					results = append(results, result)
+					if !context.ExhaustiveRepairFindings {
+						break
+					}
 				}
 			}
 
