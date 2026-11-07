@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/rulesets"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor/autofix"
+	"github.com/daveshanley/vacuum/rulesets"
 
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/pb33f/testify/require"
@@ -21,20 +23,20 @@ import (
 
 func TestConsoleRepairEnterAppliesAndEscapeCancels(t *testing.T) {
 	for _, tc := range []struct {
-		status   motor.RepairImpactStatus
+		status   autofix.RepairImpactStatus
 		answer   string
 		accepted bool
 	}{
-		{motor.RepairImpactNoBreaking, "\r", true},
-		{motor.RepairImpactNoBreaking, "\x1b", false},
-		{motor.RepairImpactBreaking, "\r", true},
-		{motor.RepairImpactBreaking, "\x1b", false},
-		{motor.RepairImpactUnknown, "\n", true},
-		{motor.RepairImpactUnknown, "\x1b", false},
+		{autofix.RepairImpactNoBreaking, "\r", true},
+		{autofix.RepairImpactNoBreaking, "\x1b", false},
+		{autofix.RepairImpactBreaking, "\r", true},
+		{autofix.RepairImpactBreaking, "\x1b", false},
+		{autofix.RepairImpactUnknown, "\n", true},
+		{autofix.RepairImpactUnknown, "\x1b", false},
 	} {
 		t.Run(string(tc.status)+tc.answer, func(t *testing.T) {
 			var out bytes.Buffer
-			p := &motor.FixPreview{Candidate: []byte("name: new\n"), Fixed: 1, Impact: motor.RepairImpact{Status: tc.status, Reason: "unsupported format"}}
+			p := &autofix.FixPreview{Candidate: []byte("name: new\n"), Fixed: 1, Impact: autofix.RepairImpact{Status: tc.status, Reason: "unsupported format"}}
 			accepted, err := reviewCLIRepair(strings.NewReader(tc.answer), &out, true, false, "api.yaml", []byte("name: old\n"), p)
 			require.NoError(t, err)
 			require.Equal(t, tc.accepted, accepted)
@@ -46,7 +48,7 @@ func TestConsoleRepairEnterAppliesAndEscapeCancels(t *testing.T) {
 }
 
 func TestConsoleRepairCannotAcceptWithoutReview(t *testing.T) {
-	preview := &motor.FixPreview{Candidate: []byte("{}"), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+	preview := &autofix.FixPreview{Candidate: []byte("{}"), Impact: autofix.RepairImpact{Status: autofix.RepairImpactNoBreaking}}
 	var output bytes.Buffer
 	accepted, err := reviewCLIRepair(strings.NewReader("\r"), &output, false, false, "api.json", []byte("{}"), preview)
 	require.ErrorContains(t, err, "require terminal review")
@@ -160,14 +162,14 @@ func TestReviewedCLIRepairAcceptsExactCandidate(t *testing.T) {
 }
 
 func TestConsoleRepairSelectionRejectsUnknownAndDuplicateNumbers(t *testing.T) {
-	options := []motor.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "rule", Path: "$.info"}}}
+	options := []autofix.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "rule", Path: "$.info"}}}
 	for _, answer := range []string{"1\n", "3 3\n", "yes\n"} {
 		_, err := selectCLIRepairs(strings.NewReader(answer), &bytes.Buffer{}, options)
 		require.Error(t, err)
 	}
 	choices, err := selectCLIRepairs(strings.NewReader("3\n"), &bytes.Buffer{}, options)
 	require.NoError(t, err)
-	require.Equal(t, []motor.FixChoice{{Index: 2}}, choices)
+	require.Equal(t, []autofix.FixChoice{{Index: 2}}, choices)
 }
 
 type shortReviewWriter struct{}
@@ -201,7 +203,7 @@ func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var output bytes.Buffer
-			preview := &motor.FixPreview{Candidate: []byte(tc.candidate), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+			preview := &autofix.FixPreview{Candidate: []byte(tc.candidate), Impact: autofix.RepairImpact{Status: autofix.RepairImpactNoBreaking}}
 			accepted, err := reviewCLIRepair(strings.NewReader("\r"), &output, true, false, "api.yaml", []byte(tc.original), preview)
 			require.NoError(t, err)
 			require.True(t, accepted)
@@ -220,7 +222,7 @@ func TestConsoleAcceptanceShowsEveryChangedLine(t *testing.T) {
 }
 
 func TestConsoleAcceptanceStopsWhenFullDiffCannotBeWritten(t *testing.T) {
-	preview := &motor.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 1000)), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+	preview := &autofix.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 1000)), Impact: autofix.RepairImpact{Status: autofix.RepairImpactNoBreaking}}
 	// Allow the styled table heading, then fail partway through the full diff.
 	output := &limitedReviewWriter{remaining: 1024}
 	accepted, err := reviewCLIRepair(errorReader{}, output, true, false, "api.yaml", []byte(strings.Repeat("old: value\n", 1000)), preview)
@@ -247,7 +249,7 @@ func (w *limitedReviewWriter) Write(data []byte) (int, error) {
 func (w *limitedReviewWriter) WriteString(text string) (int, error) { return w.Write([]byte(text)) }
 
 func TestConsoleSelectionEnterReviewsAllAndEscapeCancels(t *testing.T) {
-	options := []motor.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "test", Path: "$.info"}}}
+	options := []autofix.FixOption{{Index: 2, Available: true, Result: &model.RuleFunctionResult{RuleId: "test", Path: "$.info"}}}
 	for _, tc := range []struct {
 		keys  string
 		count int

@@ -30,6 +30,7 @@ func (e *RuleSetExecution) CopyConfig() *RuleSetExecution {
 		ExtractReferencesFromExtensions: e.ExtractReferencesFromExtensions,
 		RepairIgnores:                   e.RepairIgnores,
 		ApplyAutoFixes:                  e.ApplyAutoFixes,
+		CaptureRepairSources:            e.CaptureRepairSources,
 		IgnoreCircularArrayRef:          e.IgnoreCircularArrayRef,
 		IgnoreCircularPolymorphicRef:    e.IgnoreCircularPolymorphicRef,
 		StorageRoot:                     e.StorageRoot,

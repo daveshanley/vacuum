@@ -10,9 +10,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/motor"
 	"golang.org/x/term"
 )
 
@@ -54,7 +55,7 @@ func (c repairConsole) heading(title string) string {
 	return "\n " + c.paint(color.ASCIIBlue+color.ASCIIBold, repairConsoleText(title)) + "\n " + c.paint(color.ASCIIPink, strings.Repeat("─", max(1, c.width-2))) + "\n"
 }
 
-func (c repairConsole) options(options []motor.FixOption) string {
+func (c repairConsole) options(options []autofix.FixOption) string {
 	var out strings.Builder
 	out.WriteString(c.heading("Available fixes"))
 	idWidth, ruleWidth := 3, 4

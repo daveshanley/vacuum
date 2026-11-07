@@ -4,11 +4,12 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"strings"
 	"testing"
 
-	"github.com/daveshanley/vacuum/motor"
+	tea "charm.land/bubbletea/v2"
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/pb33f/testify/require"
 )
 
@@ -32,7 +33,7 @@ func TestRepairVerifiedViewIncludesDistantChanges(t *testing.T) {
 }
 
 func TestRepairImpactRequiresSeparateAcceptance(t *testing.T) {
-	for _, status := range []motor.RepairImpactStatus{motor.RepairImpactBreaking, motor.RepairImpactUnknown} {
+	for _, status := range []autofix.RepairImpactStatus{autofix.RepairImpactBreaking, autofix.RepairImpactUnknown} {
 		t.Run(string(status), func(t *testing.T) {
 			m, disk := repairTestModel(t)
 			original := string(*disk)
@@ -62,7 +63,7 @@ func TestRepairEditInvalidatesImpactAcceptance(t *testing.T) {
 	require.NotNil(t, cmd)
 	m.Update(cmd())
 	prepareRepairSave(t, m)
-	m.repair.preview.Impact.Status = motor.RepairImpactUnknown
+	m.repair.preview.Impact.Status = autofix.RepairImpactUnknown
 	repairKey(m, tea.KeyEnter, "")
 	require.True(t, m.repair.confirmImpact)
 	repairKey(m, 'e', "e")

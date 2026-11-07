@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -26,11 +28,11 @@ func TestDashboardRepairPreviewAndSourceCheckedApply(t *testing.T) {
 	review, err := config.Open(source)
 	require.NoError(t, err)
 	defer review.Close()
-	var choices []motor.FixChoice
+	var choices []autofix.FixChoice
 	for _, option := range review.Options() {
 		require.False(t, option.Selected, "a fix must start unselected")
 		if option.Available {
-			choices = append(choices, motor.FixChoice{Index: option.Index})
+			choices = append(choices, autofix.FixChoice{Index: option.Index})
 		}
 	}
 	preview, err := review.Preview(choices)
@@ -163,7 +165,7 @@ func TestDashboardRepairOutputPathValidation(t *testing.T) {
 	require.Empty(t, output)
 }
 
-func dashboardRepairSaveFixture(t *testing.T) (*tui.RepairConfig, *motor.FixReview, []motor.FixChoice, []byte) {
+func dashboardRepairSaveFixture(t *testing.T) (*tui.RepairConfig, *autofix.FixReview, []autofix.FixChoice, []byte) {
 	t.Helper()
 	source := []byte("openapi: 3.1.0\ninfo:\n  title: Test\n  version: '1'\npaths: {}\ncomponents:\n  schemas:\n    Pet:\n      type: string\n      enum: [a, a]\n")
 	path := filepath.Join(t.TempDir(), "api.yaml")
@@ -174,10 +176,10 @@ func dashboardRepairSaveFixture(t *testing.T) (*tui.RepairConfig, *motor.FixRevi
 	review, err := config.Open(source)
 	require.NoError(t, err)
 	t.Cleanup(review.Close)
-	var choices []motor.FixChoice
+	var choices []autofix.FixChoice
 	for _, option := range review.Options() {
 		if option.Available {
-			choices = append(choices, motor.FixChoice{Index: option.Index})
+			choices = append(choices, autofix.FixChoice{Index: option.Index})
 		}
 	}
 	require.Len(t, choices, 1)

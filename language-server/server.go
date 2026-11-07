@@ -26,6 +26,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/language-server/internal/lsp"
@@ -422,7 +424,7 @@ func (s *ServerState) lintDocumentMode(content, uri, specFileName string, overla
 	var result *motor.RuleSetExecutionResult
 	if repairs {
 		ruleExec.RepairIgnores = ignoredResults
-		_, result = motor.RunRepairs(ruleExec, options, nil, true)
+		_, result = autofix.RunRepairs(ruleExec, options, nil, true)
 	} else {
 		result = motor.ApplyRulesToRuleSetWithOptions(ruleExec, options)
 	}

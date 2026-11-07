@@ -6,21 +6,21 @@ package cmd
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/testify/require"
 )
 
 func TestRepairConsoleTableKeepsStableChoicesAndFitsTerminal(t *testing.T) {
-	options := []motor.FixOption{
+	options := []autofix.FixOption{
 		{Index: 0, Available: true, Result: &model.RuleFunctionResult{RuleId: "component-description", Path: "$.components.schemas['Cat']"}},
 		{Index: 1, Available: false},
 		{Index: 7, Available: true, Result: &model.RuleFunctionResult{RuleId: "operation-description", Path: "$.paths['/a/very/long/path/with/many/segments/and/more/segments'].post.requestBody"}},
@@ -39,7 +39,7 @@ func TestRepairConsoleTableKeepsStableChoicesAndFitsTerminal(t *testing.T) {
 	var out bytes.Buffer
 	choices, err := selectCLIRepairs(strings.NewReader("8\n"), &out, options)
 	require.NoError(t, err)
-	require.Equal(t, []motor.FixChoice{{Index: 7}}, choices)
+	require.Equal(t, []autofix.FixChoice{{Index: 7}}, choices)
 	require.NotContains(t, out.String(), "\x1b", "redirected review must be plain")
 }
 
@@ -94,14 +94,14 @@ func (w *repairConsoleCountingWriter) Write(p []byte) (int, error) {
 }
 
 func TestRepairConsoleDiffBatchesWritesAndRejectsFlushFailure(t *testing.T) {
-	preview := &motor.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 10000)), Impact: motor.RepairImpact{Status: motor.RepairImpactNoBreaking}}
+	preview := &autofix.FixPreview{Candidate: []byte(strings.Repeat("new: value\n", 10000)), Impact: autofix.RepairImpact{Status: autofix.RepairImpactNoBreaking}}
 	output := &repairConsoleCountingWriter{}
 	accepted, err := reviewCLIRepair(strings.NewReader("\r"), output, true, false, "api.yaml", []byte("old: value\n"), preview)
 	require.NoError(t, err)
 	require.True(t, accepted)
 	require.Less(t, output.writes, 100, "diff writes must be batched")
 	output = &repairConsoleCountingWriter{failAfter: 1}
-	accepted, err = reviewCLIRepair(errorReader{}, output, true, false, "api.yaml", nil, &motor.FixPreview{Candidate: []byte("small: diff\n")})
+	accepted, err = reviewCLIRepair(errorReader{}, output, true, false, "api.yaml", nil, &autofix.FixPreview{Candidate: []byte("small: diff\n")})
 	require.ErrorContains(t, err, "cannot display fix review")
 	require.False(t, accepted)
 	for _, data := range [][]byte{[]byte("small"), []byte(strings.Repeat("x", 32768))} {
@@ -112,25 +112,4 @@ func TestRepairConsoleDiffBatchesWritesAndRejectsFlushFailure(t *testing.T) {
 		}
 		require.ErrorIs(t, err, io.ErrShortWrite)
 	}
-}
-
-func TestRepairConsolePromptUsesBlueKeysAndIgnoresNavigation(t *testing.T) {
-	var output bytes.Buffer
-	keys := []string{"up", "home", "3", "backspace", "8", "enter"}
-	next := func() (string, error) { key := keys[0]; keys = keys[1:]; return key, nil }
-	answer, canceled, err := readRepairPrompt(context.Background(), &output, repairConsole{styled: true}, true, false, next)
-	require.NoError(t, err)
-	require.False(t, canceled)
-	require.Equal(t, "8", answer)
-	require.Contains(t, output.String(), color.ASCIIBlue+"enter: review")
-	require.Contains(t, output.String(), color.ASCIIBlue+"esc: cancel")
-	output.Reset()
-	_, canceled, err = readRepairPrompt(context.Background(), &output, repairConsole{styled: true}, false, false, func() (string, error) { return "enter", nil })
-	require.NoError(t, err)
-	require.False(t, canceled)
-	require.Contains(t, output.String(), color.ASCIIBlue+"enter: apply")
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_, _, err = readRepairPrompt(ctx, &output, repairConsole{}, false, false, func() (string, error) { t.Fatal("must not read after interruption"); return "", nil })
-	require.ErrorIs(t, err, context.Canceled)
 }

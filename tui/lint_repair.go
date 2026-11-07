@@ -4,19 +4,20 @@
 package tui
 
 import (
-	"charm.land/bubbles/v2/viewport"
 	"fmt"
-	"github.com/daveshanley/vacuum/color"
 	"strings"
 	"sync"
 	"time"
+
+	"charm.land/bubbles/v2/viewport"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/motor/autofix"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 )
@@ -27,10 +28,10 @@ type RepairConfig struct {
 	// DisabledReason keeps repair keys available to normal table navigation.
 	DisabledReason string
 	SourcePath     string
-	Open           func(source []byte) (*motor.FixReview, error)
+	Open           func(source []byte) (*autofix.FixReview, error)
 	Write          func(original, candidate []byte) error
 	// PreviewOutput verifies the selected fixes and the requested output options.
-	PreviewOutput func(review *motor.FixReview, choices []motor.FixChoice, save RepairSaveOptions) (*motor.FixPreview, error)
+	PreviewOutput func(review *autofix.FixReview, choices []autofix.FixChoice, save RepairSaveOptions) (*autofix.FixPreview, error)
 	// Save publishes the exact preview bytes. A nonempty OutputPath creates a new
 	// file and must never replace an existing destination.
 	Save func(original, candidate []byte, save RepairSaveOptions) error
@@ -52,11 +53,11 @@ type dashboardRepair struct {
 	changes         repairChangeView
 	byIdentity      map[string]int
 	config          *RepairConfig
-	review          *motor.FixReview
-	options         []motor.FixOption
+	review          *autofix.FixReview
+	options         []autofix.FixOption
 	selected        map[int]bool
 	values          map[int]string
-	preview         *motor.FixPreview
+	preview         *autofix.FixPreview
 	pending         *repairPreviewJob
 	source          []byte
 	status          string
@@ -67,7 +68,7 @@ type dashboardRepair struct {
 	discovery       *repairDiscoveryJob
 	pulse           int
 	pulseID         int
-	draft           *motor.FixDraft
+	draft           *autofix.FixDraft
 	draftError      string
 	draftHeading    string
 	draftView       viewport.Model
@@ -83,7 +84,7 @@ type dashboardRepair struct {
 // result that finished just before quit or a file-watch event.
 type repairPreviewJob struct {
 	mu       sync.Mutex
-	result   *motor.FixPreview
+	result   *autofix.FixPreview
 	err      error
 	canceled bool
 }
@@ -98,7 +99,7 @@ func (j *repairPreviewJob) cancel() {
 		j.result = nil
 	}
 }
-func (j *repairPreviewJob) finish(result *motor.FixPreview, err error) {
+func (j *repairPreviewJob) finish(result *autofix.FixPreview, err error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	if j.canceled {
@@ -109,7 +110,7 @@ func (j *repairPreviewJob) finish(result *motor.FixPreview, err error) {
 	}
 	j.result, j.err = result, err
 }
-func (j *repairPreviewJob) take() (*motor.FixPreview, error) {
+func (j *repairPreviewJob) take() (*autofix.FixPreview, error) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	result := j.result
@@ -153,7 +154,7 @@ func (r *dashboardRepair) close() {
 		go review.Close()
 	}
 }
-func (m *ViolationResultTableModel) adoptRepairReview(review *motor.FixReview) {
+func (m *ViolationResultTableModel) adoptRepairReview(review *autofix.FixReview) {
 	r := m.repair
 	r.review = review
 	r.options = review.Options()
@@ -189,7 +190,7 @@ func fixIdentity(r *model.RuleFunctionResult) string {
 	}
 	return fmt.Sprintf("%s\x00%s\x00%s\x00%d:%d\x00%s", id, r.Path, r.DiagnosticCode, line, column, r.Message)
 }
-func (m *ViolationResultTableModel) repairOption(result *model.RuleFunctionResult) *motor.FixOption {
+func (m *ViolationResultTableModel) repairOption(result *model.RuleFunctionResult) *autofix.FixOption {
 	if m.repair == nil {
 		return nil
 	}
@@ -199,7 +200,7 @@ func (m *ViolationResultTableModel) repairOption(result *model.RuleFunctionResul
 	}
 	return nil
 }
-func (m *ViolationResultTableModel) currentRepairOption() *motor.FixOption {
+func (m *ViolationResultTableModel) currentRepairOption() *autofix.FixOption {
 	i := m.table.Cursor()
 	if i < 0 || i >= len(m.filteredResults) {
 		return nil
@@ -332,7 +333,7 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 	if m.uiState.ActiveModal == ModalCode && key.String() == "v" && m.hasRepairPreview() {
 		return true, nil
 	}
-	var currentChoice *motor.FixChoice
+	var currentChoice *autofix.FixChoice
 	if m.uiState.ActiveModal == ModalRepair && key.String() == "v" {
 		if option := m.currentRepairOption(); option != nil {
 			choice := r.choice(option)
@@ -482,9 +483,9 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		if r.review == nil {
 			return true, m.discoverRepairsFor(key)
 		}
-		var choices []motor.FixChoice
+		var choices []autofix.FixChoice
 		if currentChoice != nil {
-			choices = []motor.FixChoice{*currentChoice}
+			choices = []autofix.FixChoice{*currentChoice}
 		} else {
 			choices = r.selectedChoices()
 		}
@@ -512,8 +513,8 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 }
 
 // choice copies the displayed value so asynchronous verification owns its input.
-func (r *dashboardRepair) choice(option *motor.FixOption) motor.FixChoice {
-	choice := motor.FixChoice{Index: option.Index}
+func (r *dashboardRepair) choice(option *autofix.FixOption) autofix.FixChoice {
+	choice := autofix.FixChoice{Index: option.Index}
 	if option.Editable {
 		value := r.values[option.Index]
 		choice.Value = &value
@@ -521,8 +522,8 @@ func (r *dashboardRepair) choice(option *motor.FixOption) motor.FixChoice {
 	return choice
 }
 
-func (r *dashboardRepair) selectedChoices() []motor.FixChoice {
-	var choices []motor.FixChoice
+func (r *dashboardRepair) selectedChoices() []autofix.FixChoice {
+	var choices []autofix.FixChoice
 	for _, option := range r.options {
 		if r.selected[option.Index] {
 			choices = append(choices, r.choice(&option))

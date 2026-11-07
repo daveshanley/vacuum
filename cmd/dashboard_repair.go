@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/daveshanley/vacuum/motor/autofix"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -38,7 +40,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			ignored = currentIgnores
 			configMu.Unlock()
 		},
-		Open: func(snapshot []byte) (*motor.FixReview, error) {
+		Open: func(snapshot []byte) (*autofix.FixReview, error) {
 			if disabled != "" {
 				return nil, fmt.Errorf("%s", disabled)
 			}
@@ -62,7 +64,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			configMu.RUnlock()
 			next.Spec = append([]byte(nil), snapshot...)
 			next.SpecFileName = source
-			return motor.NewFixReview(next, options)
+			return autofix.NewFixReview(next, options)
 		},
 		Write: func(original, candidate []byte) error {
 			if disabled != "" {
@@ -73,7 +75,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			}
 			return writeRepairFile(source, "", original, candidate)
 		},
-		PreviewOutput: func(review *motor.FixReview, choices []motor.FixChoice, save tui.RepairSaveOptions) (*motor.FixPreview, error) {
+		PreviewOutput: func(review *autofix.FixReview, choices []autofix.FixChoice, save tui.RepairSaveOptions) (*autofix.FixPreview, error) {
 			if disabled != "" {
 				return nil, fmt.Errorf("%s", disabled)
 			}
@@ -90,7 +92,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 					format = "json"
 				}
 			}
-			return review.PreviewOutput(choices, motor.FixOutputOptions{OutputPath: output, Format: format, BundleMode: save.BundleMode})
+			return review.PreviewOutput(choices, autofix.FixOutputOptions{OutputPath: output, Format: format, BundleMode: save.BundleMode})
 		},
 		Save: func(original, candidate []byte, save tui.RepairSaveOptions) error {
 			if disabled != "" {
