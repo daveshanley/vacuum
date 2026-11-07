@@ -104,6 +104,8 @@ An invalid example can be replaced with a validated instance generated from its
 schema. Existing valid data is preferred where supported. Generation is bounded
 and deterministic; unsupported constraints or failed validation cause a decline.
 Example generation does not authorize replacing a schema default.
+Repair review lists each missing property example so the baseline includes all
+missing siblings before any edit. Plain lint keeps its grouped property messages.
 
 Editing uses a separate modal. Enter saves the value for review; Escape keeps
 the prior value. Cursor blinking does not resize the surrounding content.
