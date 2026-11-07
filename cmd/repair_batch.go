@@ -4,15 +4,22 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/daveshanley/vacuum/motor"
 )
 
-// previewCLIRepairs keeps the largest verified prefix found by splitting failed
-// batches. Each accepted batch is checked together with all earlier survivors.
+type repairBatchReviewer interface {
+	Options() []motor.FixOption
+	Preview([]motor.FixChoice) (*motor.FixPreview, error)
+}
+
+// previewCLIRepairs excludes unresolved targets and splits other failed batches.
+// Each accepted batch is checked together with all earlier survivors.
 // Dashboard selections continue to use the strict all-or-nothing Preview API.
-func previewCLIRepairs(review *motor.FixReview, choices []motor.FixChoice, options *motor.ExecutionOptions) (*motor.FixPreview, []string, error) {
+func previewCLIRepairs(review repairBatchReviewer, choices []motor.FixChoice, options *motor.ExecutionOptions) (*motor.FixPreview, []string, error) {
 	var accepted []motor.FixChoice
 	var warnings []string
 	var preview *motor.FixPreview
@@ -34,6 +41,41 @@ func previewCLIRepairs(review *motor.FixReview, choices []motor.FixChoice, optio
 		}
 		if options != nil && options.Context != nil && options.Context.Err() != nil {
 			return options.Context.Err()
+		}
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return err
+		}
+		var rejected *motor.FixSelectionError
+		if errors.As(err, &rejected) && len(rejected.Indexes) > 0 {
+			inBatch := make(map[int]bool, len(batch))
+			for _, choice := range batch {
+				inBatch[choice.Index] = true
+			}
+			failed := make(map[int]bool, len(rejected.Indexes))
+			for _, index := range rejected.Indexes {
+				if !inBatch[index] {
+					failed = nil
+					break
+				}
+				failed[index] = true
+			}
+			// Never remove an accepted choice to accommodate a later batch.
+			// Unknown indexes also retain the conservative bisection path.
+			if len(failed) > 0 {
+				survivors := make([]motor.FixChoice, 0, len(batch)-len(failed))
+				for _, choice := range batch {
+					if failed[choice.Index] {
+						option := records[choice.Index]
+						warnings = append(warnings, fmt.Sprintf("fix declined: %s at %s: selected target remains unresolved", option.Result.RuleId, option.Result.Path))
+					} else {
+						survivors = append(survivors, choice)
+					}
+				}
+				if len(survivors) == 0 {
+					return nil
+				}
+				return visit(survivors)
+			}
 		}
 		if len(batch) == 1 {
 			option := records[batch[0].Index]
