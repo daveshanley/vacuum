@@ -52,12 +52,17 @@ func renderSource(before, after *yaml.Node, data []byte, jsonDocument bool, form
 		return nil, err
 	}
 	out := append(append(append([]byte(nil), data[:span.start]...), body...), data[span.end:]...)
+	if span.end == len(data) && bytes.HasSuffix(data, []byte("\n")) && !bytes.HasSuffix(out, []byte("\n")) {
+		if bytes.HasSuffix(data, []byte("\r\n")) {
+			out = append(out, '\r')
+		}
+		out = append(out, '\n')
+	}
 	parsed, err := ParseDocument(out)
 	if err != nil {
 		return nil, fmt.Errorf("cannot preserve source syntax: %w", err)
 	}
-	same, err := equalNodes(parsed.Content[0], after)
-	if err != nil || !same {
+	if !sameNodeValues(parsed.Content[0], after) {
 		return nil, fmt.Errorf("source-preserving repair differs from the requested edits")
 	}
 	return out, nil
@@ -151,6 +156,16 @@ func (r *sourceRenderer) scalarEnd(n *yaml.Node, start, bound int, inFlow bool) 
 	}
 	if n.Style&(yaml.LiteralStyle|yaml.FoldedStyle) != 0 {
 		end := bound
+		indicatorEnd := bytes.IndexByte(r.data[start:bound], '\n')
+		if indicatorEnd < 0 {
+			indicatorEnd = bound - start
+		}
+		if bytes.Contains(r.data[start:start+indicatorEnd], []byte("+")) {
+			for end > start && (r.data[end-1] == ' ' || r.data[end-1] == '\t') {
+				end--
+			}
+			return end
+		}
 		// The following sibling's indentation is not part of the scalar.
 		for end > start && (r.data[end-1] == ' ' || r.data[end-1] == '\t' || r.data[end-1] == '\r' || r.data[end-1] == '\n') {
 			end--
@@ -184,6 +199,9 @@ func (r *sourceRenderer) scalarEnd(n *yaml.Node, start, bound int, inFlow bool) 
 				rowEnd = tail + next
 			}
 			line := bytes.TrimSpace(r.data[tail:rowEnd])
+			if bytes.Equal(line, []byte("...")) || bytes.Equal(line, []byte("---")) {
+				break
+			}
 			if len(line) > 0 && line[0] != '#' {
 				end = rowEnd
 			}
@@ -193,6 +211,20 @@ func (r *sourceRenderer) scalarEnd(n *yaml.Node, start, bound int, inFlow bool) 
 		end--
 	}
 	return end
+}
+
+// Compare parsed node values directly: authored YAML may contain timestamp or
+// other tagged scalars that cannot be represented through JSON normalization.
+func sameNodeValues(a, b *yaml.Node) bool {
+	if a.Kind != b.Kind || a.Tag != b.Tag || a.Value != b.Value || len(a.Content) != len(b.Content) {
+		return false
+	}
+	for i := range a.Content {
+		if !sameNodeValues(a.Content[i], b.Content[i]) {
+			return false
+		}
+	}
+	return true
 }
 func samePresentation(a, b *yaml.Node) bool {
 	if a.Kind != b.Kind || a.Tag != b.Tag || a.Value != b.Value || a.Style != b.Style || len(a.Content) != len(b.Content) {
@@ -224,6 +256,9 @@ func (r *sourceRenderer) fresh(n *yaml.Node, indent int, flow bool) ([]byte, err
 	}
 	copy := clone(n)
 	copy.HeadComment, copy.FootComment, copy.LineComment = "", "", ""
+	if flow && copy.Kind == yaml.ScalarNode && copy.Tag == "!!str" && strings.ContainsAny(copy.Value, "{}[],") {
+		copy.Style = yaml.DoubleQuotedStyle
+	}
 	if flow && (copy.Kind == yaml.MappingNode || copy.Kind == yaml.SequenceNode) {
 		copy.Style |= yaml.FlowStyle
 	}
@@ -354,7 +389,11 @@ func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 			if j >= step {
 				out.Write(r.data[r.spans[before.Content[j-1]].end:r.spans[before.Content[j]].start])
 			} else {
-				out.WriteString(separator)
+				if bytes.HasSuffix(out.Bytes(), []byte(newline)) {
+					out.WriteString(strings.TrimPrefix(separator, newline))
+				} else {
+					out.WriteString(separator)
+				}
 			}
 		}
 		if j >= 0 {
