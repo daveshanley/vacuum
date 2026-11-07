@@ -148,10 +148,8 @@ github.com/pb33f/jsonschema/v6 v6.0.3 h1:TMIkE1xCmnF8Cy+anIBs+r4ASfGtwzfFxYsrrIn
 github.com/pb33f/jsonschema/v6 v6.0.3/go.mod h1:cYPShw+w1Jrs0YgpE2rk1FLdIAsKfWcotv/54G6ddFo=
 github.com/pb33f/libasyncapi v0.0.7 h1:0CTUZwjQm4Fya6Znb7q/1kBWvp/92v5CaB9T55zJMiA=
 github.com/pb33f/libasyncapi v0.0.7/go.mod h1:OcM42Lo3J4F9Tz55RZIOxcAubOv1BGRg9gy8Sp36skk=
-github.com/pb33f/libopenapi v0.42.3 h1:0VXnFgz04LtWjIsmCqGYA5E2Mx0DOZcOTjy5KHYw88k=
-github.com/pb33f/libopenapi v0.42.3/go.mod h1:IlfeXtmcY38KEnGJ4OMWFA8I62BCNamuQa8omLnk6R0=
-github.com/pb33f/libopenapi v0.42.4-0.20261107083235-c371b759925f h1:nehEeHKAQz8Xcoyxgyj4ljlziXsusO6XEKtE+ftYt/U=
-github.com/pb33f/libopenapi v0.42.4-0.20261107083235-c371b759925f/go.mod h1:ap6qfNXmQ55iuXzef+k/3o/1zJOoSLCvL2snqDghVHw=
+github.com/pb33f/libopenapi v0.42.4-0.20261107083934-857939a40b8f h1:clOBmNDAoJuYRD51e5Mouxl5ZMPFWWqbW6Gd/Gt6ekY=
+github.com/pb33f/libopenapi v0.42.4-0.20261107083934-857939a40b8f/go.mod h1:ap6qfNXmQ55iuXzef+k/3o/1zJOoSLCvL2snqDghVHw=
 github.com/pb33f/libopenapi-validator v0.16.2 h1:DUA5g+F3i0M02RqOH8kuJMY2NcgaK6u7uhLkwWAxEng=
 github.com/pb33f/libopenapi-validator v0.16.2/go.mod h1:6Oi2qisw4J5VjokIZnvOEovf3e8k9ObDzW5+IgYLaQ8=
 github.com/pb33f/ordered-map/v2 v2.3.2 h1:wDyaZ2Pv9QLh64X4utCeD5Zoi9nIv2aW3lwv172O5PQ=
