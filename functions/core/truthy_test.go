@@ -282,3 +282,29 @@ func TestTruthyRepairOwnerUsesParsedFieldPath(t *testing.T) {
 		})
 	}
 }
+
+func TestTruthyRepairOwnerLiteralBracketsAndBuiltinCode(t *testing.T) {
+	source := []byte("properties:\n  x[y]: {}\ninfo: {}\n")
+	var root yaml.Node
+	assert.NoError(t, yaml.Unmarshal(source, &root))
+	for _, tc := range []struct {
+		field, code string
+		line        int
+	}{
+		{"properties['x[y]'].description", "properties['x[y]'].description-missing", 2},
+		{"info.contact", "contact-missing", 3},
+		{"info.description", "description-missing", 3},
+	} {
+		rule := buildCoreTestRule("$", model.SeverityError, "truthy", tc.field, nil)
+		ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Rule, ctx.Given = &rule, "$"
+		results := (&Truthy{}).RunRule([]*yaml.Node{root.Content[0]}, ctx)
+		if !assert.Len(t, results, 1) {
+			continue
+		}
+		if assert.NotNil(t, results[0].RepairNode) {
+			assert.Equal(t, tc.line, results[0].RepairNode.Line)
+		}
+		assert.Equal(t, tc.code, results[0].DiagnosticCode)
+	}
+}
