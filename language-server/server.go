@@ -213,6 +213,12 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			return nil
 		}
 
+		doc.mu.RLock()
+		previousVersion := doc.Version
+		doc.mu.RUnlock()
+		if params.TextDocument.Version <= previousVersion {
+			state.logger.Warn("document version did not increase; applying edit", "uri", params.TextDocument.URI, "version", params.TextDocument.Version)
+		}
 		if err := applyDocumentChanges(doc, params.ContentChanges, params.TextDocument.Version); err != nil {
 			return err
 		}
@@ -236,7 +242,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 
 	handler.TextDocumentCodeAction = func(context *lsp.Context, params *protocol.CodeActionParams) (any, error) {
-		return state.codeActions(params), nil
+		return state.codeActions(context.Context, params), nil
 	}
 
 	handler.WorkspaceExecuteCommand = func(context *lsp.Context, params *protocol.ExecuteCommandParams) (any, error) {
@@ -286,9 +292,6 @@ func applyDocumentChanges(doc *Document, changes []any, versions ...protocol.Int
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
-	if len(versions) > 0 && versions[0] <= doc.Version {
-		return fmt.Errorf("stale document version")
-	}
 	content := doc.Content
 	for _, change := range changes {
 		switch current := change.(type) {
@@ -308,6 +311,7 @@ func applyDocumentChanges(doc *Document, changes []any, versions ...protocol.Int
 		}
 	}
 	doc.Content = content
+	doc.revision++
 	if len(versions) > 0 {
 		doc.Version = versions[0]
 	}
