@@ -256,7 +256,14 @@ func TestTruthyRepairOwnerUsesParsedFieldPath(t *testing.T) {
 	var root yaml.Node
 	assert.NoError(t, yaml.Unmarshal(source, &root))
 	node := root.Content[0]
-	for _, field := range []string{"servers[0].url", "properties['x.y'].description", "properties.other.description", `a\.b.description`, "wrapped.properties['x.y'].description"} {
+	for _, tc := range []struct {
+		field     string
+		ownerLine int
+	}{
+		{"servers[0].url", 2}, {"properties['x.y'].description", 4}, {"properties.other.description", 5},
+		{`a\.b.description`, 6}, {"wrapped.properties['x.y'].description", 10},
+	} {
+		field := tc.field
 		t.Run(field, func(t *testing.T) {
 			rule := buildCoreTestRule("$", model.SeverityError, "truthy", field, nil)
 			rule.Resolved = true
@@ -268,6 +275,7 @@ func TestTruthyRepairOwnerUsesParsedFieldPath(t *testing.T) {
 			}
 			assert.NotNil(t, results[0].RepairNode)
 			assert.NotSame(t, node, results[0].RepairNode)
+			assert.Equal(t, tc.ownerLine, results[0].RepairNode.Line)
 			assert.Equal(t, yaml.MappingNode, results[0].RepairNode.Kind)
 			assert.Empty(t, results[0].RepairNode.Content)
 			assert.Equal(t, field+"-missing", results[0].DiagnosticCode)
