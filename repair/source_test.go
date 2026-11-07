@@ -2,6 +2,7 @@ package repair
 
 import (
 	"encoding/json"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
 	"strings"
 	"testing"
@@ -119,4 +120,35 @@ func TestApplyPreservesFlowCommentBeforeSurvivingItem(t *testing.T) {
 	got, err := Apply("source", source, plan)
 	require.NoError(t, err)
 	require.Equal(t, "values: [a, # Keep b comment\n  b]\n", string(got))
+}
+
+func TestSourcePreservesTaggedScalarsAndDocumentMarkers(t *testing.T) {
+	source := []byte("---\ndate: 2024-01-01\nfoo: old\n...\n")
+	plan := NewPlan("source", source)
+	plan.Operations = []Operation{{Op: "replace", Path: "/foo", Value: json.RawMessage(`"new"`)}}
+	got, err := Apply("source", source, plan)
+	require.NoError(t, err)
+	require.Equal(t, strings.Replace(string(source), "old", "new", 1), string(got))
+}
+func TestSourceAppendPreservesKeepChompValue(t *testing.T) {
+	source := []byte("info:\n  description: |+\n    Text\n\n\n")
+	plan := NewPlan("source", source)
+	plan.Operations = []Operation{{Op: "add", Path: "/info/title", Value: json.RawMessage(`"Pets"`)}}
+	got, err := Apply("source", source, plan)
+	require.NoError(t, err)
+	require.Equal(t, "info:\n  description: |+\n    Text\n\n\n  title: Pets\n", string(got))
+}
+func TestSourceQuotesNewFlowScalarWhenRequired(t *testing.T) {
+	source := []byte("parameter: {name: id, in: path}\n")
+	plan := NewPlan("source", source)
+	plan.Operations = []Operation{{Op: "add", Path: "/parameter/description", Value: json.RawMessage(`"Path parameter for /pets/{id}."`)}}
+	got, err := Apply("source", source, plan)
+	require.NoError(t, err)
+	require.Contains(t, string(got), `description: "Path parameter for /pets/{id}."`)
+}
+func TestNewPolicyRejectsCyclicCallerNodes(t *testing.T) {
+	node := yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+	node.Content = []*yaml.Node{&node}
+	_, err := NewPolicy([]PolicyEntry{{Value: node}}, t.TempDir())
+	require.Error(t, err)
 }
