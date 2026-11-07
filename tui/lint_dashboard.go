@@ -340,9 +340,6 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 func (m *ViolationResultTableModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.docsSpinner.Tick)
-	if cmd := m.discoverRepairs(); cmd != nil {
-		cmds = append(cmds, cmd)
-	}
 
 	// initialize file watcher if enabled
 	if m.watchConfig != nil && m.watchConfig.Enabled {
@@ -444,11 +441,10 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.onlyFixes = false
-			m.repair.status = "Source reloaded · checking fixes"
+			m.repair.status = "Source reloaded · f to review fixes"
 			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit || m.uiState.ActiveModal == ModalRepairSave {
 				m.CloseActiveModal()
 			}
-			cmds = append(cmds, m.discoverRepairs())
 		}
 
 		// update change stats if provided (for what-changed mode)

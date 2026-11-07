@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -26,7 +27,11 @@ const (
 	repairSaveError
 )
 
+// A second Enter from the bundle step must not accept an unseen preview.
+const repairSaveAcceptDelay = 250 * time.Millisecond
+
 type repairSaveState struct {
+	acceptAfter time.Time
 	retry       repairSaveStep
 	step        repairSaveStep
 	destination int
@@ -47,9 +52,6 @@ func (s *repairSaveState) fail(message string, retry repairSaveStep) {
 
 func (m *ViolationResultTableModel) openRepairSave() {
 	r := m.repair
-	if r.review == nil && r.discovery == nil {
-		m.openRepair()
-	}
 	path := r.config.SourcePath
 	if path == "" {
 		path = m.fileName
@@ -59,7 +61,11 @@ func (m *ViolationResultTableModel) openRepairSave() {
 	}
 	ext := filepath.Ext(path)
 	input := textinput.New()
-	input.SetValue(strings.TrimSuffix(path, ext) + ".fixed" + ext)
+	value := strings.TrimSuffix(path, ext) + ".fixed" + ext
+	width, _ := m.repairModalSize()
+	width = min(width, max(72, min(100, ansi.StringWidth(value)+8)))
+	input.SetWidth(max(1, width-8))
+	input.SetValue(value)
 	input.CharLimit = 4096
 	styles := input.Styles()
 	styles.Focused.Text = styles.Focused.Text.Foreground(color.RGBYellow)
@@ -205,6 +211,9 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			s.step = repairSaveDestination
 			s.err = ""
 		case "enter":
+			if time.Now().Before(s.acceptAfter) {
+				return true, nil
+			}
 			p := r.preview
 			if p == nil {
 				s.err = "Verify the output before saving."
@@ -246,6 +255,9 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 	case repairSaveError:
 		if key.String() == "enter" {
 			s.step, s.err = s.retry, ""
+			if s.step == repairSavePreview {
+				s.acceptAfter = time.Now().Add(repairSaveAcceptDelay)
+			}
 			s.view.SoftWrap = s.step != repairSavePreview
 			s.view.SetContent(m.repairReviewContent(s.view.Width()))
 			s.view.GotoTop()

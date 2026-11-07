@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -31,6 +32,7 @@ func verifyRepairSave(t *testing.T, m *ViolationResultTableModel) {
 	m.Update(cmd())
 	require.Equal(t, repairSavePreview, m.repair.save.step, m.repair.save.err)
 	require.NotNil(t, m.repair.preview)
+	m.repair.save.acceptAfter = time.Time{} // The user has read the preview.
 }
 
 func TestRepairSaveDirectSelectionFlow(t *testing.T) {
@@ -85,6 +87,7 @@ func TestRepairSaveCopyKeepsSourceAndFindings(t *testing.T) {
 	require.NotNil(t, cmd)
 	m.Update(cmd())
 	require.Equal(t, repairSavePreview, m.repair.save.step, m.repair.save.err)
+	m.repair.save.acceptAfter = time.Time{}
 	require.Equal(t, RepairSaveOptions{OutputPath: "copy.yaml", BundleMode: "inline"}, verified)
 	expected := append([]byte(nil), m.repair.preview.Candidate...)
 	repairKey(m, tea.KeyEnter, "")
@@ -165,6 +168,7 @@ func TestRepairSaveFailuresStayVisibleAndDoNotWrite(t *testing.T) {
 	repairKey(m, tea.KeyEnter, "")
 	cmd = repairKey(m, tea.KeyEnter, "")
 	m.Update(cmd())
+	m.repair.save.acceptAfter = time.Time{}
 	m.repair.config.Save = func([]byte, []byte, RepairSaveOptions) error { return fmt.Errorf("destination already exists") }
 	repairKey(m, tea.KeyEnter, "")
 	require.Equal(t, repairSaveError, m.repair.save.step)
@@ -174,6 +178,7 @@ func TestRepairSaveFailuresStayVisibleAndDoNotWrite(t *testing.T) {
 
 func TestRepairSaveResizeBlinkAndWatch(t *testing.T) {
 	m, _ := repairTestModel(t)
+	m.repair.config.SourcePath = "/" + strings.Repeat("long-source-directory/", 20) + "spec.yaml"
 	selectRepairRule(t, m, "info-description")
 	repairKey(m, ' ', " ")
 	repairKey(m, 'a', "a")
@@ -301,4 +306,25 @@ func TestRepairSaveDividerAndControlsTouchBottomBorder(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRepairSaveRequiresFreshEnterAfterPreview(t *testing.T) {
+	m, disk := repairTestModel(t)
+	original := string(*disk)
+	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
+	repairKey(m, 'a', "a")
+	repairKey(m, tea.KeyEnter, "")
+	verify := repairKey(m, tea.KeyEnter, "")
+	repairKey(m, tea.KeyEnter, "") // Already queued while verification runs.
+	m.Update(verify())
+	require.Equal(t, repairSavePreview, m.repair.save.step)
+	m.View()
+	repairKey(m, tea.KeyEnter, "") // Double-tap after a fast verification.
+	require.Equal(t, repairSavePreview, m.repair.save.step)
+	require.Equal(t, original, string(*disk))
+	m.repair.save.acceptAfter = time.Now().Add(-time.Millisecond)
+	repairKey(m, tea.KeyEnter, "")
+	require.Equal(t, repairSaveDone, m.repair.save.step)
+	require.NotEqual(t, original, string(*disk))
 }
