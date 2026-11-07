@@ -198,10 +198,15 @@ func (r *sourceRenderer) scalarEnd(n *yaml.Node, start, bound int, inFlow bool) 
 			if next := bytes.IndexByte(r.data[tail:bound], '\n'); next >= 0 {
 				rowEnd = tail + next
 			}
-			line := bytes.TrimSpace(r.data[tail:rowEnd])
-			if bytes.Equal(line, []byte("...")) || bytes.Equal(line, []byte("---")) {
-				break
+			row := r.data[tail:rowEnd]
+			if len(row) >= 3 && (bytes.Equal(row[:3], []byte("...")) || bytes.Equal(row[:3], []byte("---"))) {
+				rest := bytes.TrimSpace(row[3:])
+				separated := len(row) == 3 || row[3] == ' ' || row[3] == '\t' || row[3] == '\r'
+				if separated && (len(rest) == 0 || rest[0] == '#') {
+					break
+				}
 			}
+			line := bytes.TrimSpace(row)
 			if len(line) > 0 && line[0] != '#' {
 				end = rowEnd
 			}
