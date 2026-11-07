@@ -94,3 +94,31 @@ func TestRepairBatchStopsOnReviewDeadline(t *testing.T) {
 	require.Empty(t, warnings)
 	require.Len(t, probe.calls, 1)
 }
+
+func TestRepairBatchRechecksSurvivorsAfterTypedRejection(t *testing.T) {
+	for _, remainingError := range []error{
+		&motor.FixSelectionError{Indexes: []int{0, 2}, Err: errors.New("survivors remain unresolved")},
+		errors.New("survivors introduce a diagnostic"),
+	} {
+		t.Run(remainingError.Error(), func(t *testing.T) {
+			probe := &batchReviewProbe{}
+			probe.preview = func([]motor.FixChoice) (*motor.FixPreview, error) {
+				if len(probe.calls) == 1 {
+					return nil, &motor.FixSelectionError{Indexes: []int{1}, Err: errors.New("first target remains")}
+				}
+				return nil, remainingError
+			}
+			preview, warnings, err := previewCLIRepairs(probe, []motor.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}}, nil)
+			require.Nil(t, preview, "a failed survivor candidate must never be returned")
+			require.ErrorContains(t, err, "no selected fixes passed verification")
+			require.Len(t, warnings, 3)
+			require.Equal(t, []motor.FixChoice{{Index: 0}, {Index: 2}}, probe.calls[1])
+			var rejected *motor.FixSelectionError
+			if errors.As(remainingError, &rejected) {
+				require.Len(t, probe.calls, 2)
+			} else {
+				require.Len(t, probe.calls, 4, "unattributed survivor failure must still bisect")
+			}
+		})
+	}
+}
