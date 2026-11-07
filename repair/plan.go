@@ -1,3 +1,6 @@
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
+
 // Package repair plans and applies source-checked document edits without I/O.
 // Applying a plan does not verify API semantics; callers must reparse and lint
 // the candidate with the original rules and independently approved edit scope.
