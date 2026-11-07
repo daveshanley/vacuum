@@ -53,7 +53,7 @@ func previewCLIRepairs(review *motor.FixReview, choices []motor.FixChoice, optio
 		return nil, warnings, err
 	}
 	if preview == nil {
-		return nil, warnings, fmt.Errorf("no selected fixes passed verification: %v", warnings)
+		return nil, warnings, fmt.Errorf("no selected fixes passed verification")
 	}
 	return preview, warnings, nil
 }
