@@ -54,6 +54,7 @@ func runDocumentRules(
 		func(rule *model.Rule) ruleContext {
 			ruleResolved := opts.ResolveAllRefs || rule.Resolved
 			return ruleContext{
+				contract:           opts.Contract,
 				rule:               rule,
 				specNode:           specInfo.RootNode,
 				specNodeUnresolved: specInfo.RootNode,

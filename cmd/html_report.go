@@ -223,6 +223,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					resultSet, ruleset, err = BuildResultsWithDocCheckSkipAndExecutionFlags(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
 						turboFlags, &ExecutionFlags{
+							Contract:                     ruleContract(cmd),
 							ResolveAllRefs:               resolveAllRefsFlag,
 							NestedRefsDocContext:         nestedRefsDocContextFlag,
 							SpecFilePath:                 specFile,
@@ -317,7 +318,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						var executionOptions *motor.ExecutionOptions
 						if ruleset != nil && ruleset.RuleSetExecution != nil {
 							execution = ruleset.RuleSetExecution
-							executionOptions = newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
+							executionOptions = newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag, ruleContract(cmd))
 						}
 						var originalCurrentErrors []error
 						if ruleset != nil {

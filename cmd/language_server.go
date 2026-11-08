@@ -127,7 +127,7 @@ Open editor buffers, including unsaved changes, take precedence over stored file
 				}
 
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 				if rsErr != nil {
 					return rsErr
 				}
@@ -168,7 +168,7 @@ Open editor buffers, including unsaved changes, take precedence over stored file
 				}
 			}
 
-			return runLanguageServer(GetVersion(), &lfr, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
+			return runLanguageServer(GetVersion(), &lfr, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag, ruleContract(cmd)))
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")

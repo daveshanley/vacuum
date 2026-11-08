@@ -52,8 +52,10 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 				if err != nil {
 					return err
 				}
-				segments = append(segments, field...)
 				selected = exactNode(node, field)
+				if selected != nil || rfc.Contract != model.OpenLintV1Draft {
+					segments = append(segments, field...)
+				}
 			}
 
 			input := goja.Undefined()
@@ -144,6 +146,13 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 					}
 				}
 				located := locateNode(rfc.ExecutionRoot, resultPath)
+				if rfc.Contract == model.OpenLintV1Draft {
+					located = exactNode(rfc.ExecutionRoot, resultPath)
+					for located == nil && len(resultPath) > 0 {
+						resultPath = resultPath[:len(resultPath)-1]
+						located = exactNode(rfc.ExecutionRoot, resultPath)
+					}
+				}
 				if located == nil {
 					located = node
 				}

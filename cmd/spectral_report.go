@@ -190,7 +190,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				}
 
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 				if rsErr != nil {
 					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
@@ -303,7 +303,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					}
 				}
 
-				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
+				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag, ruleContract(cmd))
 				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:                         selectedRSForFile,
 					Spec:                            specBytes,

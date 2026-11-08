@@ -47,16 +47,21 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 }
 
 // BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
-func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool, httpClient *http.Client) (*rulesets.RuleSet, error) {
+func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool, httpClient *http.Client, contracts ...model.Contract) (*rulesets.RuleSet, error) {
+	contract := model.NativeContract
+	if len(contracts) > 0 {
+		contract = contracts[0]
+	}
 	if strings.HasPrefix(rulesetFlag, "http://") || strings.HasPrefix(rulesetFlag, "https://") {
 		// Handle remote ruleset URL directly
 		if !remote {
 			return nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
 		}
-		downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
+		downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient, contract)
 		if rsErr != nil {
 			return nil, rsErr
 		}
+		downloadedRS.Contract = contract
 		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
 		return generated, generated.LoadError()
 	} else {
@@ -65,10 +70,11 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve ruleset path '%s': %w", rulesetFlag, err)
 		}
-		userRS, rsErr := rulesets.LoadLocalRuleSet(context.Background(), resolvedPath)
+		userRS, rsErr := rulesets.LoadLocalRuleSet(context.Background(), resolvedPath, contract)
 		if rsErr != nil {
 			return nil, rsErr
 		}
+		userRS.Contract = contract
 		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
 		return generated, generated.LoadError()
 	}

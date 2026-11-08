@@ -8,6 +8,7 @@ package jsruleset
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,10 @@ import (
 
 // PrepareWithReader compiles modules using the supplied reader for every captured file.
 func PrepareWithReader(ctx context.Context, entry string, readFile func(string) ([]byte, error)) (*Prepared, error) {
+	return prepareWithSource(ctx, entry, readFile, nil)
+}
+
+func prepareWithSource(ctx context.Context, entry string, readFile func(string) ([]byte, error), source *string) (*Prepared, error) {
 	if readFile == nil {
 		readFile = os.ReadFile
 	}
@@ -91,7 +96,12 @@ func PrepareWithReader(ctx context.Context, entry string, readFile func(string) 
 			return api.OnLoadResult{Contents: &s, Loader: loader, ResolveDir: filepath.Dir(a.Path)}, nil
 		})
 	}}
-	result := api.Build(api.BuildOptions{EntryPoints: []string{entry}, Bundle: true, PreserveSymlinks: true, Write: false, Format: api.FormatCommonJS, Platform: api.PlatformNeutral, MainFields: []string{"module", "main"}, Conditions: []string{"default"}, Target: api.ES2017, Plugins: []api.Plugin{plugin}, LogLevel: api.LogLevelSilent, TreeShaking: api.TreeShakingFalse, Metafile: true})
+	options := api.BuildOptions{EntryPoints: []string{entry}, Bundle: true, PreserveSymlinks: true, Write: false, Format: api.FormatCommonJS, Platform: api.PlatformNeutral, MainFields: []string{"module", "main"}, Conditions: []string{"default"}, Target: api.ES2017, Plugins: []api.Plugin{plugin}, LogLevel: api.LogLevelSilent, TreeShaking: api.TreeShakingFalse, Metafile: true}
+	if source != nil {
+		options.EntryPoints = nil
+		options.Stdin = &api.StdinOptions{Contents: *source, ResolveDir: filepath.Dir(entry), Sourcefile: entry, Loader: api.LoaderJS}
+	}
+	result := api.Build(options)
 	if len(result.Errors) > 0 {
 		return nil, fmt.Errorf("JavaScript ruleset %s: %s", entry, strings.Join(api.FormatMessages(result.Errors, api.FormatMessagesOptions{Kind: api.ErrorMessage}), "\n"))
 	}
@@ -122,4 +132,43 @@ func PrepareWithReader(ctx context.Context, entry string, readFile func(string) 
 	}
 	sort.Slice(p.files, func(i, j int) bool { return p.files[i].Path < p.files[j].Path })
 	return p, nil
+}
+
+// PrepareFunctions binds named local functions through the existing module runtime.
+// The synthetic module contains function registrations only; declarative rules
+// keep their original loader semantics.
+func PrepareFunctions(ctx context.Context, source string, files map[string]string, readFile func(string) ([]byte, error)) (*Prepared, error) {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var module strings.Builder
+	module.WriteString("const rules={};\n")
+	for i, name := range names {
+		path, _ := json.Marshal(files[name])
+		key, _ := json.Marshal(name)
+		fmt.Fprintf(&module, "import f%d from %s; rules[%s]={given:'$',then:{function:f%d}};\n", i, path, key, i)
+	}
+	module.WriteString("export default {rules};\n")
+	text := module.String()
+	prepared, err := prepareWithSource(ctx, source, readFile, &text)
+	if err != nil {
+		return nil, err
+	}
+	var normalized struct {
+		Rules map[string]struct {
+			Then struct {
+				Function string `json:"function"`
+			} `json:"then"`
+		} `json:"rules"`
+	}
+	if err = json.Unmarshal(prepared.Data(), &normalized); err != nil {
+		return nil, err
+	}
+	prepared.functionNames = make(map[string]string, len(names))
+	for _, name := range names {
+		prepared.functionNames[name] = normalized.Rules[name].Then.Function
+	}
+	return prepared, nil
 }

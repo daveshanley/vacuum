@@ -18,3 +18,8 @@ func PrepareWithReader(ctx context.Context, entry string, readFile func(string) 
 	}
 	return nil, fmt.Errorf("JavaScript ruleset module compilation is unavailable in browser builds: %s", entry)
 }
+
+// PrepareFunctions rejects local function module compilation in browser builds.
+func PrepareFunctions(ctx context.Context, source string, files map[string]string, readFile func(string) ([]byte, error)) (*Prepared, error) {
+	return PrepareWithReader(ctx, source, readFile)
+}

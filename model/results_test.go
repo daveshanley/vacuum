@@ -49,3 +49,27 @@ func TestRuleResultSet_PrepareForSerialization(t *testing.T) {
 	}
 
 }
+
+func TestSpectralReportPreservesQuotedPathAndUsesZeroBasedPositions(t *testing.T) {
+	result := RuleFunctionResult{
+		Rule:      &Rule{Id: "r", Severity: SeverityWarn},
+		Path:      `$.paths['/v1/file.json#stream'].responses['200']`,
+		StartNode: &yaml.Node{Line: 2, Column: 3}, EndNode: &yaml.Node{Line: 2, Column: 8},
+	}
+	// Existing native functions can populate a one-based range. It must not
+	// override report coordinates derived from source nodes.
+	result.Range.Start.Line = 2
+	result.Range.Start.Char = 3
+	report := NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
+	assert.Equal(t, []string{"paths", "/v1/file.json#stream", "responses", "200"}, report[0].Path)
+	assert.Equal(t, 1, report[0].Range.Start.Line)
+	assert.Equal(t, 2, report[0].Range.Start.Char)
+	result.RangeIsZeroBased = true
+	result.Range.Start.Line = 0
+	result.Range.Start.Char = 0
+	result.Range.End.Line = 0
+	result.Range.End.Char = 4
+	report = NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
+	assert.Equal(t, 0, report[0].Range.Start.Char)
+	assert.Equal(t, 4, report[0].Range.End.Char)
+}

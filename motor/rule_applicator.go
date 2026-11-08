@@ -59,6 +59,8 @@ type RuleLookupError struct {
 // document edits remain private until the complete rule succeeds. Other objects
 // exposed through RuleFunctionContext remain caller-owned and must not be mutated.
 type ExecutionOptions struct {
+	// Contract selects the rule contract; empty uses the loaded ruleset contract.
+	Contract model.Contract
 	// ReportFunctionErrors asks supporting functions to report runtime failures as
 	// execution errors in addition to their legacy diagnostic output.
 	ReportFunctionErrors bool
@@ -173,6 +175,7 @@ func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
 }
 
 type ruleContext struct {
+	contract             model.Contract
 	reportFunctionErrors bool
 
 	evidence    *RuleEvidence
@@ -522,6 +525,43 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if executionOptions != nil {
 		opts = *executionOptions
 	}
+	if opts.Contract == model.NativeContract && execution.RuleSet != nil {
+		opts.Contract = execution.RuleSet.Contract
+	}
+	var openLintSource *datamodel.SpecInfo
+	var parserResults []model.RuleFunctionResult
+	if opts.Contract == model.OpenLintV1Draft {
+		copyExecution := copyExecutionConfig(execution)
+		copyExecution.SkipDocumentCheck = true
+		execution = copyExecution
+		opts.ReportFunctionErrors = true
+		control.reportFunctionErrors = true
+		var valid bool
+		openLintSource, parserResults, valid = parseOpenLintDocument(execution.Spec)
+		if !valid {
+			return &RuleSetExecutionResult{RuleSetExecution: execution, SpecInfo: openLintSource, Results: parserResults}
+		}
+		var declared []string
+		var matches map[string]bool
+		prepared, err := execution.RuleSet.ForOpenLintDocument(control.Context(), execution.SpecFileName, func(formats []string) map[string]bool {
+			declared = formats
+			matches = detectOpenLintFormats(openLintSource.RootNode, formats)
+			return matches
+		})
+		if err != nil {
+			return executionErrorResult(execution, control, &RuleExecutionError{Kind: RuleErrorConfiguration, Err: err})
+		}
+		execution.RuleSet = prepared
+		execution.SpecInfo = openLintSource
+		parserResults = append(parserResults, openLintParserDiagnostics(openLintSource.RootNode, prepared)...)
+		anyFormat := false
+		for _, matches := range matches {
+			anyFormat = anyFormat || matches
+		}
+		if len(declared) > 0 && !anyFormat {
+			parserResults = append(parserResults, openLintDiagnostic("unrecognized-format", "warn", "Document does not match the declared formats", "$", nil))
+		}
+	}
 	if execution.RuleSet != nil && execution.RuleSet.Executable != nil {
 		bound, closeScope, err := bindExecutableRuleset(execution, control)
 		if err != nil {
@@ -535,20 +575,27 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			return executionErrorResult(execution, control, errs...)
 		}
 	}
+	if opts.Contract == model.OpenLintV1Draft {
+		if errs := ValidateRuleSet(execution.RuleSet, execution.CustomFunctions); len(errs) > 0 {
+			return executionErrorResult(execution, control, errs...)
+		}
+	}
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
 	if errs := validateRuleFunctions(execution.RuleSet, builtinFunctions, execution.CustomFunctions); len(errs) > 0 {
 		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: errs}
 	}
-	var ruleResults []model.RuleFunctionResult
+	ruleResults := parserResults
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
 
-	if arazzoResult, handled := applyArazzoRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
-		return arazzoResult
-	}
-	if asyncResult, handled := applyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
-		return asyncResult
+	if opts.Contract != model.OpenLintV1Draft {
+		if arazzoResult, handled := applyArazzoRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
+			return arazzoResult
+		}
+		if asyncResult, handled := applyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
+			return asyncResult
+		}
 	}
 	if controlErr := control.Err(); controlErr != nil {
 		return executionErrorResult(execution, control)
@@ -747,7 +794,16 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	var specInfo *datamodel.SpecInfo
 	var specInfoUnresolved *datamodel.SpecInfo
-	if docResolved == nil {
+	if openLintSource != nil {
+		specInfoUnresolved = openLintSource
+		var valid bool
+		specInfo, _, valid = parseOpenLintDocument(execution.Spec)
+		if !valid {
+			return executionErrorResult(execution, control, fmt.Errorf("document changed during parsing"))
+		}
+		indexConfig.SpecInfo = specInfo
+		indexConfigUnresolved.SpecInfo = specInfoUnresolved
+	} else if docResolved == nil {
 		var resolvedErr error
 		var unresolvedErr error
 		var builtResolvedDoc libopenapi.Document
@@ -843,14 +899,17 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var indexResolved *index.SpecIndex
 	var indexUnresolved *index.SpecIndex
 
-	version := docResolved.GetVersion()
-	if isJSONSchemaFormat(execution.SpecFormat) {
+	version := ""
+	if docResolved != nil {
+		version = docResolved.GetVersion()
+	}
+	if isJSONSchemaFormat(execution.SpecFormat) || opts.Contract == model.OpenLintV1Draft {
 		version = ""
 	}
 
 	// When skip-check is enabled, the document version might not be detected
 	// but we still need to know if it's OAS2 or OAS3 for rule filtering
-	if version == "" && execution.SkipDocumentCheck && specInfo != nil && !isJSONSchemaFormat(execution.SpecFormat) {
+	if version == "" && execution.SkipDocumentCheck && specInfo != nil && !isJSONSchemaFormat(execution.SpecFormat) && opts.Contract != model.OpenLintV1Draft {
 		// Try to detect the version from the spec directly
 		if specInfo.SpecType != "" {
 			if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "swagger") {
@@ -1093,7 +1152,10 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		})
 
 		wg.Go(func() {
-			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
+			unResInfo := specInfoUnresolved
+			if unResInfo == nil {
+				unResInfo, _ = datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
+			}
 			rolodexUnresolved, unresolvedRolodexErr = BuildRolodexFromIndexConfig(&unresRoloConfig, execution.RolodexFS)
 			if unresolvedRolodexErr != nil || rolodexUnresolved == nil {
 				return
@@ -1244,8 +1306,18 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		HowToFix: CircularReferencesFix,
 	}
 
+	if opts.Contract == model.OpenLintV1Draft {
+		resolvingRule.Id = "invalid-ref"
+		resolvingRule.Severity = model.SeverityError
+	}
+	referenceDiagnostics := map[[2]int]bool{}
 	// add all resolving errors to the results.
 	for _, er := range resolvingErrors {
+		if opts.Contract == model.OpenLintV1Draft && er.CircularReference != nil {
+			// The resolver has already bounded the cycle. OpenLint treats a
+			// reference cycle as a graph edge, not an unresolved reference.
+			continue
+		}
 		if isJSONSchemaFormat(execution.SpecFormat) && schemautil.IsDynamicScopeResolvingError(er) {
 			continue
 		}
@@ -1267,6 +1339,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			res.EndNode.Line = 1
 			res.EndNode.Column = 1
 		}
+		if opts.Contract == model.OpenLintV1Draft {
+			referenceDiagnostics[[2]int{res.StartNode.Line, res.StartNode.Column}] = true
+		}
 		ruleResults = append(ruleResults, res)
 	}
 
@@ -1275,7 +1350,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	// RolodexFS (like bunkhouse's RevisionFS) is used, the same circular reference
 	// can be detected by both the root resolver and per-file resolvers, producing
 	// entries with different FullDefinition paths but identical Start.Definition.
-	if !execution.SkipCircularCheck {
+	if !execution.SkipCircularCheck && opts.Contract != model.OpenLintV1Draft {
 		seen := make(map[string]bool)
 		for _, cr := range circularReferences {
 			if seen[cr.Start.Definition] {
@@ -1308,6 +1383,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		for _, er := range indexResolved.GetReferenceIndexErrors() {
 			var idxError *index.IndexingError
 			errors.As(er, &idxError)
+			if opts.Contract == model.OpenLintV1Draft && idxError.Node != nil && referenceDiagnostics[[2]int{idxError.Node.Line, idxError.Node.Column}] {
+				continue
+			}
 			if isJSONSchemaFormat(execution.SpecFormat) && schemautil.IsDynamicScopeIndexingError(idxError) {
 				continue
 			}
@@ -1453,6 +1531,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				}
 
 				return ruleContext{
+					contract:           opts.Contract,
 					rule:               rule,
 					specNode:           ruleSpecNode,
 					specNodeUnresolved: execution.CanonicalDocument,
@@ -1525,6 +1604,27 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		errs = append(errs, marshalErr)
 	}
 
+	if opts.Contract == model.OpenLintV1Draft {
+		kept := ruleResults[:0]
+		ranges := newOpenLintRangeIndex(execution.Spec, openLintSource.RootNode)
+		for _, finding := range ruleResults {
+			path := openLintPathSegments(finding.Path)
+			severity := execution.RuleSet.OpenLintSeverity(finding.RuleId, path, finding.Rule.Severity)
+			if severity == "off" {
+				continue
+			}
+			if severity != finding.Rule.Severity {
+				rule := *finding.Rule
+				rule.Severity = severity
+				finding.Rule = &rule
+				finding.RuleSeverity = severity
+			}
+			ranges.setResultRange(&finding)
+			finding.RangeIsZeroBased = true
+			kept = append(kept, finding)
+		}
+		ruleResults = kept
+	}
 	result := preparedResult(errs)
 	result.Results = ruleResults
 	result.IgnoredResults = ignoredResults
@@ -1699,6 +1799,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
+			Contract:         ctx.contract,
 			ExecutionContext: ctx.executionContext,
 			ExecutionRoot:    ctx.specNode,
 			Options:          ruleAction.FunctionOptions,
@@ -1749,7 +1850,21 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			if ctx.evidence != nil {
 				ctx.evidence.Invocations++
 			}
-			results := ruleFunction.RunRule(selected, rfc)
+			invocation := rfc
+			if ctx.contract == model.OpenLintV1Draft && len(selected) == 1 {
+				if messagePaths == nil {
+					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
+				}
+				if path, ok := messagePaths.Lookup(selected[0]); ok {
+					invocation.Given = path
+				}
+			}
+			results := ruleFunction.RunRule(selected, invocation)
+			if ctx.contract == model.OpenLintV1Draft && ctx.rule.Message == "" && ctx.rule.Description != "" {
+				for i := range results {
+					results[i].Message = ctx.rule.Description
+				}
+			}
 			if templated {
 				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
 					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
@@ -1893,7 +2008,43 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						continue
 					}
 
-					runRuleResults := runRule([]*yaml.Node{node})
+					var runRuleResults []model.RuleFunctionResult
+					if ctx.contract == model.OpenLintV1Draft {
+						targets, err := openLintTargets(ctx, ruleAction, node)
+						if err != nil {
+							*ctx.errors = append(*ctx.errors, err)
+							continue
+						}
+						savedAction := rfc.RuleAction
+						selectedAction := *savedAction
+						selectedAction.Field = ""
+						rfc.RuleAction = &selectedAction
+						for _, target := range targets {
+							var results []model.RuleFunctionResult
+							if target == nil && ruleFunction.GetCategory() == model.FunctionCategoryCustomJS {
+								rfc.RuleAction = savedAction
+								results = runRule([]*yaml.Node{node})
+								rfc.RuleAction = &selectedAction
+							} else {
+								results = runRule([]*yaml.Node{target})
+							}
+							for i := range results {
+								if results[i].StartNode == nil {
+									results[i].StartNode = node
+									results[i].EndNode = vacuumUtils.BuildEndNode(node)
+								}
+								if target == nil {
+									if path, ok := messagePathIndex(ctx.specNode, ctx.schemaPathCache).Lookup(node); ok {
+										results[i].Path = path
+									}
+								}
+							}
+							runRuleResults = append(runRuleResults, results...)
+						}
+						rfc.RuleAction = savedAction
+					} else {
+						runRuleResults = runRule([]*yaml.Node{node})
+					}
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult

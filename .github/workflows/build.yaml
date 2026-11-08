@@ -84,6 +84,9 @@ jobs:
       - name: Build
         run: go build -tags html_report_ui -o bin/vacuum
 
+      - name: Test pinned OpenLint contract
+        run: GOWORK=off node scripts/test-openlint.mjs
+
       - name: Lint HTML report UI
         run: npm run lint
         working-directory: html-report/ui

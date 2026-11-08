@@ -57,6 +57,9 @@ func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*ya
 				}
 			}
 		}
+		if ctx.contract == model.OpenLintV1Draft && needsLocation {
+			pointer = "#" + pointer
+		}
 		result.Message = strings.NewReplacer(
 			"{{property}}", property, "{{path}}", pointer, "{{value}}", value,
 			"{{description}}", rule.Description, "{{error}}", result.Message,

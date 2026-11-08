@@ -76,7 +76,7 @@ func GetDashboardCommand() *cobra.Command {
 			turboFlag, _ := cmd.Flags().GetBool("turbo")
 			resolveAllRefsFlag, _ := cmd.Flags().GetBool("resolve-all-refs")
 			nestedRefsDocContextFlag, _ := cmd.Flags().GetBool("nested-refs-doc-context")
-			executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
+			executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag, ruleContract(cmd))
 
 			// Load and apply breaking rules config early, before any change comparison
 			breakingConfig, breakingConfigErr := utils.LoadBreakingRulesConfig(breakingConfigPath)
@@ -205,7 +205,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 
 					var rsErr error
-					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 					if rsErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
