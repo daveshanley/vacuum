@@ -47,7 +47,10 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 			}
 			segments = append([]any(nil), segments...)
 			selected := node
-			if rfc.RuleAction.Field != "" {
+			if rfc.MissingValue {
+				selected = nil
+			}
+			if !rfc.MissingValue && rfc.RuleAction.Field != "" {
 				field, err := pathSegments("$." + rfc.RuleAction.Field)
 				if err != nil {
 					return err

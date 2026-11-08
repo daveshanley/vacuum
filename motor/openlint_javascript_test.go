@@ -24,6 +24,9 @@ func TestOpenLintJavaScriptDocumentAndMissingFields(t *testing.T) {
 		{"duplicate-off", "info:\n  title: first\n  title: second\n", "duplicateKeys: off", "", "object:second:[\"info\"]", 0},
 		{"duplicate-warn", "info:\n  title: first\n  title: second\n", "duplicateKeys: warn", "", "object:second:[\"info\"]", 1},
 		{"missing-field", "info: {title: known}\n", "", "description", "undefined:known:[\"info\"]", 0},
+		{"missing-wildcard", "info: {title: known}\n", "", "$.missing[*]", "undefined:known:[\"info\"]", 0},
+		{"missing-bracket", "info: {title: known}\n", "", "'$[\"missing\"]'", "undefined:known:[\"info\"]", 0},
+		{"missing-index", "info: {title: known, values: []}\n", "", "$.values[1]", "undefined:known:[\"info\"]", 0},
 		{"present-null", "info: {title: known, description: null}\n", "", "description", "object:known:[\"info\",\"description\"]", 0},
 	}
 	for _, tc := range cases {

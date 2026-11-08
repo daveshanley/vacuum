@@ -20,6 +20,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 )
 
 func openLintDiagnostic(code, severity, message, path string, node *yaml.Node) model.RuleFunctionResult {
@@ -175,7 +176,7 @@ func detectOpenLintFormats(root *yaml.Node, formats []string) map[string]bool {
 			}
 			drafts := map[string]string{"jsonSchemaDraft4": "draft-04", "jsonSchemaDraft6": "draft-06", "jsonSchemaDraft7": "draft-07", "jsonSchemaDraft2019_09": "draft/2019-09", "jsonSchemaDraft2020_12": "draft/2020-12"}
 			if draft, ok := drafts[format]; ok {
-				matched = regexp.MustCompile(`^https?://json-schema.org/` + draft + `/(hyper-)?schema#?$`).MatchString(schema)
+				matched = regexp.MustCompile(`^https?://json-schema\.org/` + draft + `/(hyper-)?schema#?$`).MatchString(schema)
 			}
 		}
 		found[format] = matched
@@ -208,7 +209,7 @@ func openLintTargets(ctx ruleContext, action model.RuleAction, node *yaml.Node) 
 	if err != nil {
 		return nil, fmt.Errorf("field %q: %w", action.Field, err)
 	}
-	if len(targets) == 0 && !strings.ContainsAny(action.Field, "*?[") {
+	if len(targets) == 0 {
 		return []*yaml.Node{nil}, nil
 	}
 	return targets, nil
@@ -220,6 +221,7 @@ type openLintRangeIndex struct {
 	text         []rune
 	lines        []int
 	columns      []int
+	endColumn    int
 	ends         map[openLintSourceNode]int
 	bounds       map[int]int
 	flows        map[int]bool
@@ -233,7 +235,7 @@ type openLintSourceNode struct {
 
 func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 	index := &openLintRangeIndex{text: []rune(string(source)), lines: []int{0}, ends: make(map[openLintSourceNode]int), bounds: make(map[int]int), flows: make(map[int]bool), blockIndents: make(map[int]int)}
-	index.columns = make([]int, len(index.text)+1)
+	index.columns = make([]int, len(index.text))
 	column := 0
 	for offset, r := range index.text {
 		index.columns[offset] = column
@@ -246,7 +248,7 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 			column++
 		}
 	}
-	index.columns[len(index.text)] = column
+	index.endColumn = column
 	// Parser nodes are in source order. The next node bounds a scalar scan;
 	// this keeps indentation and separators for later siblings out of its span.
 	var offsets, boundaries []int
@@ -323,7 +325,11 @@ func (index *openLintRangeIndex) offset(node *yaml.Node) int {
 func (index *openLintRangeIndex) position(offset int) reports.RangeItem {
 	offset = min(max(0, offset), len(index.text))
 	line := sort.Search(len(index.lines), func(i int) bool { return index.lines[i] > offset }) - 1
-	return reports.RangeItem{Line: max(0, line), Char: index.columns[offset]}
+	column := index.endColumn
+	if offset < len(index.columns) {
+		column = index.columns[offset]
+	}
+	return reports.RangeItem{Line: max(0, line), Char: column}
 }
 
 // valueStart skips YAML properties; tags and anchors are not part of the value.
@@ -515,6 +521,107 @@ func (index *openLintRangeIndex) setResultRange(result *model.RuleFunctionResult
 	}
 	result.Range.Start = index.position(index.valueStart(node))
 	result.Range.End = index.position(index.end(node))
+}
+
+// openLintSourceLocations uses only documents already loaded by the resolver.
+// External trees are parsed once from cached bytes so resolved Content pointers
+// cannot change the authored bounds or paths of their owning document.
+type openLintSourceLocations struct {
+	root     *openLintRangeIndex
+	roots    map[string]bool
+	loaded   map[string]*datamodel.SpecInfo
+	external map[string]*openLintExternalLocations
+}
+
+type openLintExternalLocations struct {
+	ranges    *openLintRangeIndex
+	locations map[openLintSourceNode]openLintNodeLocation
+}
+
+type openLintNodeLocation struct {
+	node *yaml.Node
+	path string
+}
+
+func newOpenLintSourceLocations(root *datamodel.SpecInfo, rootPath string, rolodexes ...*index.Rolodex) *openLintSourceLocations {
+	locations := &openLintSourceLocations{
+		root:     newOpenLintRangeIndex(*root.SpecBytes, root.RootNode),
+		roots:    map[string]bool{"": true, rootPath: true},
+		loaded:   make(map[string]*datamodel.SpecInfo),
+		external: make(map[string]*openLintExternalLocations),
+	}
+	// Cache authored container ends before resolved nodes can supply children
+	// from another source at the same root position.
+	locations.root.end(root.RootNode)
+	for _, rolodex := range rolodexes {
+		if rolodex == nil {
+			continue
+		}
+		if idx := rolodex.GetRootIndex(); idx != nil {
+			locations.roots[idx.GetSpecAbsolutePath()] = true
+		}
+		for _, idx := range rolodex.GetIndexes() {
+			path := idx.GetSpecAbsolutePath()
+			if cfg := idx.GetConfig(); cfg != nil && cfg.SpecInfo != nil && cfg.SpecInfo.SpecBytes != nil && locations.loaded[path] == nil {
+				locations.loaded[path] = cfg.SpecInfo
+			}
+		}
+	}
+	return locations
+}
+
+func (locations *openLintSourceLocations) setResultLocation(result *model.RuleFunctionResult) error {
+	if result.Origin == nil || locations.roots[result.Origin.AbsoluteLocation] {
+		locations.root.setResultRange(result)
+		return nil
+	}
+	source := result.Origin.AbsoluteLocation
+	external := locations.external[source]
+	if external == nil {
+		info := locations.loaded[source]
+		if info == nil && result.Origin.Index != nil {
+			if cfg := result.Origin.Index.GetConfig(); cfg != nil {
+				info = cfg.SpecInfo
+			}
+		}
+		if info == nil || info.SpecBytes == nil {
+			return fmt.Errorf("source positions unavailable for loaded document %q", source)
+		}
+		authored, _, valid := parseOpenLintDocument(*info.SpecBytes)
+		if !valid {
+			return fmt.Errorf("cannot parse loaded document %q for source positions", source)
+		}
+		external = &openLintExternalLocations{ranges: newOpenLintRangeIndex(*info.SpecBytes, authored.RootNode), locations: make(map[openLintSourceNode]openLintNodeLocation)}
+		paths := vacuumUtils.BuildNodePathIndex(authored.RootNode)
+		var visit func(*yaml.Node)
+		visit = func(node *yaml.Node) {
+			path, _ := paths.Lookup(node)
+			key := openLintSourceNode{offset: external.ranges.offset(node), kind: node.Kind}
+			external.locations[key] = openLintNodeLocation{node: node, path: path}
+			for _, child := range node.Content {
+				visit(child)
+			}
+		}
+		visit(authored.RootNode)
+		locations.external[source] = external
+	}
+	if result.StartNode == nil {
+		return nil
+	}
+	key := openLintSourceNode{offset: external.ranges.offset(result.StartNode), kind: result.StartNode.Kind}
+	location, ok := external.locations[key]
+	if !ok || location.node.Line != result.StartNode.Line || location.node.Column != result.StartNode.Column {
+		return fmt.Errorf("source node unavailable in loaded document %q at %d:%d", source, result.StartNode.Line, result.StartNode.Column)
+	}
+	authoredResult := model.RuleFunctionResult{StartNode: location.node}
+	external.ranges.setResultRange(&authoredResult)
+	result.Range = authoredResult.Range
+	result.Path = location.path
+	if len(result.Paths) > 0 {
+		result.Paths = []string{location.path}
+	}
+	result.PathFromRuleGiven = false
+	return nil
 }
 
 func openLintPathSegments(path string) []string {

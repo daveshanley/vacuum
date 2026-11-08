@@ -569,9 +569,18 @@ func (rs *RuleSet) matchOpenLintOverride(source string, override map[string]any)
 		return nil, false, err
 	}
 	relative = filepath.ToSlash(relative)
+	patterns := openLintGiven(override["files"])
+	// Scope depends on every entry, including globs that do not match this file.
+	pointerScoped := true
+	for _, pattern := range patterns {
+		if !strings.Contains(pattern, "#") {
+			pointerScoped = false
+			break
+		}
+	}
 	var pointers [][]string
 	matched := false
-	for _, pattern := range openLintGiven(override["files"]) {
+	for _, pattern := range patterns {
 		glob, pointer, hasPointer := strings.Cut(pattern, "#")
 		ok, err := openLintGlob(glob, relative)
 		if err != nil {
@@ -581,7 +590,7 @@ func (rs *RuleSet) matchOpenLintOverride(source string, override map[string]any)
 			continue
 		}
 		matched = true
-		if hasPointer {
+		if pointerScoped && hasPointer {
 			segments := []string{}
 			if pointer != "" {
 				for _, segment := range strings.Split(strings.TrimPrefix(pointer, "/"), "/") {

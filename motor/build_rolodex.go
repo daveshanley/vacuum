@@ -43,7 +43,11 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig, customFS fs
 
 		if customFS == nil {
 			// create a remote filesystem
-			remoteFS, err := index.NewRemoteFSWithConfig(indexConfig)
+			// Each remote file must install its own source metadata. Retaining
+			// the root SpecInfo would attach the root bytes to every remote index.
+			remoteConfig := *indexConfig
+			remoteConfig.SpecInfo = nil
+			remoteFS, err := index.NewRemoteFSWithConfig(&remoteConfig)
 			if err != nil {
 				return nil, err
 			}

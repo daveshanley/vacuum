@@ -1606,7 +1606,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	if opts.Contract == model.OpenLintV1Draft {
 		kept := ruleResults[:0]
-		ranges := newOpenLintRangeIndex(execution.Spec, openLintSource.RootNode)
+		locations := newOpenLintSourceLocations(openLintSource, execution.SpecFileName, rolodexUnresolved, rolodexResolved)
 		for _, finding := range ruleResults {
 			path := openLintPathSegments(finding.Path)
 			severity := execution.RuleSet.OpenLintSeverity(finding.RuleId, path, finding.Rule.Severity)
@@ -1619,7 +1619,10 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				finding.Rule = &rule
 				finding.RuleSeverity = severity
 			}
-			ranges.setResultRange(&finding)
+			if err := locations.setResultLocation(&finding); err != nil {
+				errs = append(errs, &RuleExecutionError{Kind: RuleErrorFunction, RuleID: finding.RuleId, Err: err})
+				continue
+			}
 			finding.RangeIsZeroBased = true
 			kept = append(kept, finding)
 		}
@@ -2022,9 +2025,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						for _, target := range targets {
 							var results []model.RuleFunctionResult
 							if target == nil && ruleFunction.GetCategory() == model.FunctionCategoryCustomJS {
-								rfc.RuleAction = savedAction
+								rfc.MissingValue = true
 								results = runRule([]*yaml.Node{node})
-								rfc.RuleAction = &selectedAction
+								rfc.MissingValue = false
 							} else {
 								results = runRule([]*yaml.Node{target})
 							}

@@ -106,6 +106,50 @@ overrides:
 	require.Equal(t, "warn", rs.Rules["r"].Severity)
 }
 
+func TestOpenLintMixedOverridesAreFileScoped(t *testing.T) {
+	for _, patterns := range []string{
+		"['*.yaml', '*.yaml#/a']",
+		"['other.yaml', 'api.yaml#/a']",
+	} {
+		t.Run(patterns, func(t *testing.T) {
+			rs, dir := loadOpenLintTestSet(t, map[string]string{"rules.yaml": fmt.Sprintf(`rules:
+  disabled: {given: $, then: {function: falsy}}
+overrides:
+  - files: %s
+    rules:
+      disabled: off
+      added: {given: $.b, severity: error, then: {function: falsy}}
+`, patterns)})
+			compiled, err := rs.ForOpenLintDocument(context.Background(), filepath.Join(dir, "api.yaml"), nil)
+			require.NoError(t, err)
+			require.Len(t, compiled.Rules, 1)
+			require.Contains(t, compiled.Rules, "added")
+			require.Equal(t, "error", compiled.Rules["added"].Severity)
+			require.Equal(t, []string{"$.b"}, compiled.Rules["added"].Given)
+			require.Empty(t, compiled.openLint.pointers)
+		})
+	}
+}
+
+func TestOpenLintMixedOverrideExtendsReplacesInheritedRules(t *testing.T) {
+	rs, dir := loadOpenLintTestSet(t, map[string]string{
+		"base.yaml": "rules: {base: {given: $, then: {function: falsy}}}",
+		"next.yaml": "rules: {next: {given: $, then: {function: truthy}}}",
+		"rules.yaml": `extends: ./base.yaml
+rules: {own: {given: $, then: {function: falsy}}}
+overrides:
+  - files: ['other.yaml', 'api.yaml#/a']
+    extends: ./next.yaml
+`,
+	})
+	compiled, err := rs.ForOpenLintDocument(context.Background(), filepath.Join(dir, "api.yaml"), nil)
+	require.NoError(t, err)
+	require.Len(t, compiled.Rules, 2)
+	require.Contains(t, compiled.Rules, "own")
+	require.Contains(t, compiled.Rules, "next")
+	require.Empty(t, compiled.openLint.pointers)
+}
+
 func TestOpenLintPointerScopesCompareSegments(t *testing.T) {
 	rs, dir := loadOpenLintTestSet(t, map[string]string{"rules.yaml": `rules: {r: {given: $, then: {function: falsy}}}
 overrides:
