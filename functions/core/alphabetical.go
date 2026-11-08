@@ -5,6 +5,8 @@
 package core
 
 import (
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 	"strconv"
 
 	"github.com/daveshanley/vacuum/model"
@@ -40,11 +42,15 @@ func (a Alphabetical) GetCategory() string {
 // RunRule reports unordered adjacent values. Plain maps report their first unordered pair.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	keyedBy := context.GetOptionsStringMap()["keyedBy"]
+	var ordering *collate.Collator
+	if context.Contract == model.OpenLintV1Draft {
+		ordering = collate.New(language.English)
+	}
 	greater := func(left, right *yaml.Node) bool {
 		if left == nil || right == nil {
 			return false
 		}
-		if keyedBy == "" && isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
+		if (keyedBy == "" || context.Contract == model.OpenLintV1Draft) && isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
 			// Keep integer comparisons exact before using the mixed numeric path.
 			if left.Tag == "!!int" && right.Tag == "!!int" {
 				l, le := strconv.ParseInt(left.Value, 10, 64)
@@ -60,10 +66,16 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		if keyedBy == "" && (left.Tag != "!!str" || right.Tag != "!!str") {
 			return false
 		}
+		if ordering != nil {
+			return ordering.CompareString(left.Value, right.Value) > 0
+		}
 		return left.Value > right.Value
 	}
 	var results []model.RuleFunctionResult
 	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
 		if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
 		}
@@ -73,10 +85,10 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 			j := i + 1
-			for j < len(values) && !alphabeticalComparable(values[i], values[j], keyedBy != "") {
+			for context.Contract != model.OpenLintV1Draft && j < len(values) && !alphabeticalComparable(values[i], values[j], keyedBy != "") {
 				j++
 			}
-			if j == len(values) || !greater(values[i], values[j]) {
+			if j == len(values) || context.Contract == model.OpenLintV1Draft && !alphabeticalComparable(values[i], values[j], false) || !greater(values[i], values[j]) {
 				continue
 			}
 			path, paths, objects := locateNodePaths(&context, node)

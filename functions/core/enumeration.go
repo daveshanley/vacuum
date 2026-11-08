@@ -94,6 +94,9 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	}
 
 	for _, node := range nodes {
+		if context.Contract == model.OpenLintV1Draft && (node == nil || node.Kind != yaml.ScalarNode) {
+			continue
+		}
 		var matches bool
 		if allowed, ok := optValues.([]any); ok {
 			matches = enumScalarMatches(node, allowed)

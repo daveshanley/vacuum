@@ -12,8 +12,11 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/jsonschema/v6"
+	"github.com/pb33f/jsonschema/v6/kind"
 	"github.com/pb33f/libopenapi-validator/config"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -91,7 +94,7 @@ func (sch Schema) ValidateOptions(options any) error {
 			return fmt.Errorf("schema dialect must be a string")
 		}
 		switch dialect {
-		case "draft4", "draft6", "draft7", "draft2019-09", "draft2020-12":
+		case "auto", "draft4", "draft6", "draft7", "draft2019-09", "draft2020-12":
 		default:
 			return fmt.Errorf("unsupported schema dialect %q", dialect)
 		}
@@ -194,11 +197,13 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	// Copy the high-level wrapper before setting the dialect on caller-owned schemas.
 	ownedSchema := *schema
 	schema = &ownedSchema
-	if schema.SchemaTypeRef == "" {
-		dialect, _ := utils.ExtractValueFromInterfaceMap("dialect", context.Options).(string)
+	dialect, _ := utils.ExtractValueFromInterfaceMap("dialect", context.Options).(string)
+	if schema.SchemaTypeRef == "" || context.Contract == model.OpenLintV1Draft && dialect != "" && dialect != "auto" {
 		switch dialect {
-		case "":
-			// Keep the validator default when no dialect is selected.
+		case "", "auto":
+			if context.Contract == model.OpenLintV1Draft {
+				schema.SchemaTypeRef = "http://json-schema.org/draft-07/schema#"
+			}
 		case "draft7":
 			schema.SchemaTypeRef = "http://json-schema.org/draft-07/schema#"
 		case "draft4":
@@ -221,6 +226,10 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	// Without a field, the selector has already identified the value to validate.
 	if forceBool, _ := forceValidationOnCurrentNode.(bool); forceBool || context.RuleAction.Field == "" {
 		for x, node := range nodes {
+			if context.Contract == model.OpenLintV1Draft && node == nil {
+				results = append(results, missingOpenLintValue(context))
+				continue
+			}
 			results = append(results, validateNodeAgainstSchema(&context, schema, nil, node, context, x)...)
 		}
 		return results
@@ -349,6 +358,34 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 	}
 
+	if context.Contract == model.OpenLintV1Draft {
+		var expanded []*validationErrors.SchemaValidationFailure
+		requiredByRoot := make(map[*jsonschema.ValidationError]map[openLintSchemaLocation][]string)
+		for _, failure := range schemaErrors {
+			if original := failure.OriginalJsonSchemaError; original != nil && strings.HasSuffix(failure.KeywordLocation, "/required") {
+				required, exists := requiredByRoot[original]
+				if !exists {
+					required = openLintRequiredProperties(original)
+					requiredByRoot[original] = required
+				}
+				var pointer strings.Builder
+				for _, part := range failure.InstancePath {
+					pointer.WriteByte('/')
+					pointer.WriteString(strings.ReplaceAll(strings.ReplaceAll(part, "~", "~0"), "/", "~1"))
+				}
+				if missing := required[openLintSchemaLocation{failure.KeywordLocation, pointer.String()}]; len(missing) > 1 {
+					for _, property := range missing {
+						copyFailure := *failure
+						copyFailure.Reason = fmt.Sprintf("missing property %q", property)
+						expanded = append(expanded, &copyFailure)
+					}
+					continue
+				}
+			}
+			expanded = append(expanded, failure)
+		}
+		schemaErrors = expanded
+	}
 	for c := range schemaErrors {
 
 		var locatedObjects []v3.Foundational
@@ -415,7 +452,7 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&r))
 				}
 			}
-			if allErrors, specified := utils.ExtractValueFromInterfaceMap("allErrors", context.Options).(bool); specified && !allErrors {
+			if allErrors, specified := utils.ExtractValueFromInterfaceMap("allErrors", context.Options).(bool); (!specified && context.Contract == model.OpenLintV1Draft) || (specified && !allErrors) {
 				break
 			}
 		}
@@ -447,4 +484,20 @@ func buildSchemaResultMessage(messageTemplate, defaultMessage, errorText string,
 		return messageTemplate
 	}
 	return strings.ReplaceAll(messageTemplate, schemaErrorPlaceholder, errorText)
+}
+
+type openLintSchemaLocation struct{ keyword, instance string }
+
+// Index each validator tree once; several flattened failures can share its root.
+func openLintRequiredProperties(original *jsonschema.ValidationError) map[openLintSchemaLocation][]string {
+	required := make(map[openLintSchemaLocation][]string)
+	for _, output := range helpers.FlattenSchemaOutputErrors(original.DetailedOutput()) {
+		if output.Error == nil {
+			continue
+		}
+		if missing, ok := output.Error.Kind.(*kind.Required); ok {
+			required[openLintSchemaLocation{output.KeywordLocation, output.InstanceLocation}] = missing.Missing
+		}
+	}
+	return required
 }

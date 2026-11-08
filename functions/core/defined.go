@@ -45,6 +45,12 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	for _, node := range nodes {
+		if context.Contract == model.OpenLintV1Draft && context.RuleAction.Field == "" {
+			if node == nil {
+				results = append(results, missingOpenLintValue(context))
+			}
+			continue
+		}
 		// Like Spectral, a matched scalar has no fields, so 'field' does not apply and the value is defined.
 		if node.Kind == yaml.ScalarNode {
 			continue

@@ -111,6 +111,9 @@ func (u UnreferencedReusableObject) RunRule(nodes []*yaml.Node, context model.Ru
 	}
 	var results []model.RuleFunctionResult
 	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
 		if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
 		}

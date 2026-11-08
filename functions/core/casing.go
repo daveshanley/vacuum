@@ -101,6 +101,9 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	// From here on out, we are processing a single node
 	node := nodes[0]
+	if context.Contract == model.OpenLintV1Draft && (node == nil || context.RuleAction.Field == "" && (node.Kind != yaml.ScalarNode || node.Tag != "!!str" || node.Value == "")) {
+		return nil
+	}
 
 	// when 'field' is set, the casing applies to the value of that field, not to the matched node.
 	// '@key' is the spectral idiom for checking the keys of the matched node, which is the default.
@@ -213,6 +216,9 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	// Go through each node and check if the casing is correct
 	for _, n := range nodesToMatch {
+		if context.Contract == model.OpenLintV1Draft && (n.Tag != "!!str" || n.Value == "") {
+			continue
+		}
 		if !rx.MatchString(n.Value) {
 			var locatedPath string
 			var allPaths []string
