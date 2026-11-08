@@ -67,6 +67,10 @@ type ArazzoContext interface {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
+	// MissingValue indicates an empty field selection. The supplied node locates
+	// its parent; custom functions must receive an undefined input value.
+	MissingValue bool `json:"-" yaml:"-"`
+
 	// Contract selects the semantics of this invocation.
 	Contract Contract `json:"-" yaml:"-"`
 	// ExecutionContext carries the rule deadline, including time spent queued.

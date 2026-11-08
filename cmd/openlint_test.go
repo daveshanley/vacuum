@@ -10,6 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/testify/require"
+	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,4 +49,16 @@ func TestOpenLintSpectralReportRejectsMalformedSelectors(t *testing.T) {
 		_, err := os.Stat(output)
 		require.ErrorIs(t, err, os.ErrNotExist)
 	}
+}
+
+func TestOpenLintRequiresExplicitRuleset(t *testing.T) {
+	command := &cobra.Command{Use: "lint"}
+	command.Flags().Bool("openlint", true, "")
+	command.Flags().String("ruleset", "", "")
+	require.ErrorContains(t, validateOpenLintCommand(command), "requires --ruleset")
+	require.NoError(t, command.Flags().Set("ruleset", "rules.yaml"))
+	require.NoError(t, validateOpenLintCommand(command))
+	require.NoError(t, command.Flags().Set("ruleset", ""))
+	require.NoError(t, command.Flags().Set("openlint", "false"))
+	require.NoError(t, validateOpenLintCommand(command))
 }

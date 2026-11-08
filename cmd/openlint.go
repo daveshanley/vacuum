@@ -6,7 +6,10 @@ package cmd
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+	"os"
 )
 
 func ruleContract(cmd *cobra.Command) model.Contract {
@@ -29,5 +32,23 @@ func validateOpenLintCommand(cmd *cobra.Command) error {
 	if fix, _ := cmd.Flags().GetBool("fix"); fix {
 		return fmt.Errorf("--openlint cannot be combined with --fix")
 	}
+	if path, _ := cmd.Flags().GetString("ruleset"); path == "" {
+		return fmt.Errorf("--openlint requires --ruleset (-r); supply an OpenLint ruleset")
+	}
 	return nil
+}
+
+func renderOpenLintContract(cmd *cobra.Command) {
+	if ruleContract(cmd) == model.NativeContract || cmd.Name() != "lint" || !term.IsTerminal(int(os.Stdout.Fd())) {
+		return
+	}
+	for _, flag := range []string{"silent", "pipeline-output", "github-annotations"} {
+		if enabled, _ := cmd.Flags().GetBool(flag); enabled {
+			return
+		}
+	}
+	if formats, _ := cmd.Flags().GetStringSlice("format"); len(formats) > 0 {
+		return
+	}
+	tui.RenderInfo("OpenLint contract: %s", model.OpenLintV1Draft)
 }

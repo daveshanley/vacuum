@@ -26,6 +26,9 @@ func TestOpenLintDocumentExecution(t *testing.T) {
 		{"array", "[]", `rules: {r: {given: '$', then: {function: falsy}}}`, []string{"r"}, []string{"$"}},
 		{"keys", "paths: {'/good': {}, '/Bad': {}}", `rules: {r: {given: '$.paths', then: {field: '@key', function: pattern, functionOptions: {match: '^/[a-z]+$'}}}}`, []string{"r"}, []string{"$.paths['/Bad']"}},
 		{"missing", "info: {}", `rules: {r: {given: '$.info', then: {field: description, function: defined}}}`, []string{"r"}, []string{"$.info"}},
+		{"missing-wildcard", "info: {}", `rules: {r: {given: '$.info', then: {field: '$.missing[*]', function: defined}}}`, []string{"r"}, []string{"$.info"}},
+		{"missing-bracket", "info: {}", `rules: {r: {given: '$.info', then: {field: '$["missing"]', function: defined}}}`, []string{"r"}, []string{"$.info"}},
+		{"missing-index", "info: {values: []}", `rules: {r: {given: '$.info', then: {field: '$.values[1]', function: defined}}}`, []string{"r"}, []string{"$.info"}},
 		{"ref-key", "x: {$ref: missing}", `rules: {r: {given: '$.x', resolved: false, then: {field: '$ref', function: undefined}}}`, []string{"invalid-ref", "r"}, nil},
 		{"multiple-documents", "{}\n---\n{}", `rules: {r: {given: '$', then: {function: falsy}}}`, []string{"parser", "r"}, nil},
 		{"duplicate", "x: 1\nx: 2", `rules: {}`, []string{"parser"}, nil},
@@ -140,5 +143,14 @@ func BenchmarkOpenLintResultRanges(b *testing.B) {
 			result := model.RuleFunctionResult{StartNode: node}
 			index.setResultRange(&result)
 		}
+	}
+}
+
+func TestOpenLintSchemaFormatRequiresExactHost(t *testing.T) {
+	for _, host := range []string{"json-schema.org", "json-schemaXorg"} {
+		var root yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte("$schema: https://"+host+"/draft-07/schema#"), &root))
+		matches := detectOpenLintFormats(&root, []string{"jsonSchemaDraft7"})
+		require.Equal(t, host == "json-schema.org", matches["jsonSchemaDraft7"])
 	}
 }
