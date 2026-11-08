@@ -222,6 +222,14 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	valid := true
 	var errs []string
 	schema := ruleFunction.GetSchema()
+	if ctx.Contract == OpenLintV1Draft {
+		if schema.Name == "defined" || schema.Name == "undefined" {
+			schema.RequiresField = false
+		}
+		if schema.Name == "xor" {
+			schema.MaxProperties = 0
+		}
+	}
 	numProps := 0
 
 	if options, ok := ctx.Options.(map[string]interface{}); ok {

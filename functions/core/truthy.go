@@ -44,7 +44,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	isArray := false
-	if len(nodes) == 1 && utils.IsNodeArray(nodes[0]) && len(nodes[0].Content) > 0 {
+	if len(nodes) == 1 && utils.IsNodeArray(nodes[0]) && len(nodes[0].Content) > 0 && context.Contract != model.OpenLintV1Draft {
 		nodes = nodes[0].Content
 		isArray = true
 	}
@@ -53,6 +53,10 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	message := context.Rule.Message
 
 	for x, node := range nodes {
+		if context.Contract == model.OpenLintV1Draft && node == nil {
+			results = append(results, missingOpenLintValue(context))
+			continue
+		}
 
 		if node.Kind == yaml.DocumentNode {
 			node = node.Content[0]
@@ -78,7 +82,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		}
 
 		// check if the target is falsy (which means truthy check fails)
-		if isFalsyNode(targetNode) {
+		if falsyForContract(targetNode, context.Contract) {
 			if isArray {
 				pathValue = model.GetStringTemplates().BuildArrayPath(pathValue, x)
 			}
@@ -146,4 +150,30 @@ func isFalsyNode(node *yaml.Node) bool {
 		return true
 	}
 	return false
+}
+
+func falsyForContract(node *yaml.Node, contract model.Contract) bool {
+	if contract != model.OpenLintV1Draft {
+		return isFalsyNode(node)
+	}
+	if node == nil || node.Tag == "!!null" {
+		return true
+	}
+	if node.Kind != yaml.ScalarNode {
+		return false
+	}
+	switch node.Tag {
+	case "!!str":
+		return node.Value == ""
+	case "!!bool":
+		return node.Value == "false"
+	case "!!int", "!!float":
+		var n float64
+		return node.Decode(&n) == nil && n == 0
+	}
+	return false
+}
+
+func missingOpenLintValue(context model.RuleFunctionContext) model.RuleFunctionResult {
+	return model.RuleFunctionResult{Rule: context.Rule, Path: givenPathValue(context.Given), Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, "value must be defined")}
 }

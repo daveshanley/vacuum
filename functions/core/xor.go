@@ -52,7 +52,7 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		properties = opts["properties"]
 	}
 
-	if len(properties) != 2 {
+	if len(properties) < 2 || context.Contract != model.OpenLintV1Draft && len(properties) != 2 {
 		return nil
 	}
 
@@ -70,16 +70,23 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
 		}
-		if node == nil {
+		if node == nil || (context.Contract == model.OpenLintV1Draft && node.Kind != yaml.MappingNode) {
 			continue
 		}
 		seenCount := 0
 
 		// look through our properties for a match (or no match), the end result needs to be exactly 1.
 		for _, v := range properties {
-			fieldNode, _ := utils.FindKeyNode(strings.TrimSpace(v), node.Content)
+			name := strings.TrimSpace(v)
+			if context.Contract == model.OpenLintV1Draft {
+				name = v
+			}
+			fieldNode, _ := utils.FindKeyNode(name, node.Content)
+			if context.Contract == model.OpenLintV1Draft {
+				fieldNode, _ = utils.FindKeyNodeTop(name, node.Content)
+			}
 
-			if fieldNode != nil && fieldNode.Value == strings.TrimSpace(v) {
+			if fieldNode != nil && fieldNode.Value == name {
 				seenCount++
 			}
 		}

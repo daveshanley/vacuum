@@ -4,12 +4,18 @@
 package core
 
 import (
+	"context"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
 	"regexp"
+	"strings"
+	"time"
+	"unicode/utf16"
 )
 
 // Pattern is a rule that will match or not match (or both) a regular expression.
@@ -45,29 +51,33 @@ func (p Pattern) GetCategory() string {
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	// extract match/notMatch from props - these are local variables, not struct state
 	props := context.GetOptionsStringMap()
-	match := props["match"]
-	notMatch := props["notMatch"]
+	match, hasMatch := props["match"]
+	notMatch, hasNotMatch := props["notMatch"]
+	if context.Contract != model.OpenLintV1Draft {
+		hasMatch = match != ""
+		hasNotMatch = notMatch != ""
+	}
 
 	// make sure we have something to look at
-	if match == "" && notMatch == "" {
+	if (!hasMatch && !hasNotMatch) || (context.Contract != model.OpenLintV1Draft && match == "" && notMatch == "") {
 		return nil
 	}
 
 	// compile regexes once at the start - no caching needed since we compile per-invocation
-	var matchRx, notMatchRx *regexp.Regexp
+	var matchRx, notMatchRx patternMatcher
 	var matchErr, notMatchErr error
 
-	if match != "" {
-		if context.Rule.PrecompiledPattern != nil {
-			matchRx = context.Rule.PrecompiledPattern
+	if hasMatch {
+		if context.Rule.PrecompiledPattern != nil && context.Contract != model.OpenLintV1Draft {
+			matchRx.native = context.Rule.PrecompiledPattern
 		} else {
-			matchRx, matchErr = regexp.Compile(match)
+			matchRx, matchErr = compilePattern(match, context)
 		}
 	}
 
-	if notMatch != "" {
+	if hasNotMatch {
 		// PrecompiledPattern is typically for 'match', compile notMatch separately
-		notMatchRx, notMatchErr = regexp.Compile(notMatch)
+		notMatchRx, notMatchErr = compilePattern(notMatch, context)
 	}
 
 	var results []model.RuleFunctionResult
@@ -104,13 +114,16 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	// if multiple patterns are being pulled in, unpack them
-	if len(nodes) == 1 && len(nodes[0].Content) > 0 {
+	if context.Contract != model.OpenLintV1Draft && len(nodes) == 1 && len(nodes[0].Content) > 0 {
 		nodes = nodes[0].Content
 	}
 
 	// iterate through key-value pairs
 	var currentField string
 	for x, node := range nodes {
+		if context.Contract == model.OpenLintV1Draft && (node == nil || node.Tag != "!!str") {
+			continue
+		}
 		if utils.IsNodeMap(node) {
 			continue
 		}
@@ -141,11 +154,14 @@ func (p Pattern) validatePatternOnNode(
 	locatedObjects []v3.Foundational,
 	message, ruleMessage string,
 	match, notMatch string,
-	matchRx, notMatchRx *regexp.Regexp,
+	matchRx, notMatchRx patternMatcher,
 	matchErr, notMatchErr error,
 	context model.RuleFunctionContext,
 ) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	if context.Contract == model.OpenLintV1Draft && node.Tag != "!!str" {
+		return nil
+	}
 
 	if context.Arazzo != nil {
 		locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
@@ -154,19 +170,29 @@ func (p Pattern) validatePatternOnNode(
 	}
 
 	// check match pattern
-	if match != "" {
+	if matchRx.configured() || matchErr != nil {
 		if matchErr != nil {
 			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, match, matchErr, context))
-		} else if !matchRx.MatchString(node.Value) {
+		} else if matched, err := matchRx.matchString(node.Value); err != nil {
+			if context.ReportError != nil {
+				context.ReportError(err)
+			}
+			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, match, err, context))
+		} else if !matched {
 			results = append(results, p.buildPatternMismatchResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, match, node.Value, context))
 		}
 	}
 
 	// check notMatch pattern
-	if notMatch != "" {
+	if notMatchRx.configured() || notMatchErr != nil {
 		if notMatchErr != nil {
 			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, notMatch, notMatchErr, context))
-		} else if notMatchRx.MatchString(node.Value) {
+		} else if matched, err := notMatchRx.matchString(node.Value); err != nil {
+			if context.ReportError != nil {
+				context.ReportError(err)
+			}
+			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, notMatch, err, context))
+		} else if matched {
 			results = append(results, p.buildPatternMatchedResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, notMatch, context))
 		}
 	}
@@ -276,4 +302,198 @@ func (p Pattern) attachResultToModel(locatedObjects []v3.Foundational, result *m
 			arr.AddRuleFunctionResult(v3.ConvertRuleResult(result))
 		}
 	}
+}
+
+type patternMatcher struct {
+	native  *regexp.Regexp
+	ecma    *regexp2.Regexp
+	context context.Context
+	unicode bool
+	sticky  bool
+}
+
+func (m patternMatcher) configured() bool { return m.native != nil || m.ecma != nil }
+
+func (m patternMatcher) matchString(value string) (bool, error) {
+	if m.native != nil {
+		return m.native.MatchString(value), nil
+	}
+	if m.context != nil {
+		if err := m.context.Err(); err != nil {
+			return false, err
+		}
+	}
+	if m.unicode {
+		if m.sticky {
+			match, err := m.ecma.FindStringMatch(value)
+			return match != nil && match.RuneIndex == 0, err
+		}
+		return m.ecma.MatchString(value)
+	}
+	units := make([]rune, 0, len(value))
+	for _, r := range value {
+		if r > 0xffff {
+			high, low := utf16.EncodeRune(r)
+			units = append(units, high, low)
+		} else {
+			units = append(units, r)
+		}
+	}
+	if m.sticky {
+		match, err := m.ecma.FindRunesMatch(units)
+		return match != nil && match.RuneIndex == 0, err
+	}
+	return m.ecma.MatchRunes(units)
+}
+
+func compilePattern(pattern string, ctx model.RuleFunctionContext) (patternMatcher, error) {
+	if ctx.Contract != model.OpenLintV1Draft {
+		rx, err := regexp.Compile(pattern)
+		if err != nil {
+			return patternMatcher{}, err
+		}
+		return patternMatcher{native: rx}, nil
+	}
+	expression, options, sticky, err := openLintPattern(pattern)
+	if err != nil {
+		return patternMatcher{}, err
+	}
+	if err := validateOpenLintPatternGroups(expression); err != nil {
+		return patternMatcher{}, err
+	}
+	unicode := options&regexp2.Unicode != 0
+	if !unicode {
+		var encoded strings.Builder
+		for _, r := range expression {
+			if r > 0xffff {
+				high, low := utf16.EncodeRune(r)
+				fmt.Fprintf(&encoded, `\u%04x\u%04x`, high, low)
+			} else {
+				encoded.WriteRune(r)
+			}
+		}
+		expression = encoded.String()
+	}
+	rx, err := regexp2.Compile(expression, options)
+	if err != nil {
+		return patternMatcher{}, err
+	}
+	rx.MatchTimeout = time.Second
+	if ctx.RuleTimeout > 0 && ctx.RuleTimeout < rx.MatchTimeout {
+		rx.MatchTimeout = ctx.RuleTimeout
+	}
+	return patternMatcher{ecma: rx, context: ctx.ExecutionContext, unicode: unicode, sticky: sticky}, nil
+}
+
+func openLintPattern(pattern string) (string, regexp2.RegexOptions, bool, error) {
+	options := regexp2.RegexOptions(regexp2.ECMAScript)
+	if !strings.HasPrefix(pattern, "/") {
+		return pattern, options, false, nil
+	}
+	end := strings.LastIndex(pattern[1:], "/") + 1
+	if end == 0 {
+		return pattern, options, false, nil
+	}
+	expression, flags := pattern[1:end], pattern[end+1:]
+	seen := map[rune]bool{}
+	sticky := false
+	for _, flag := range flags {
+		if seen[flag] {
+			return "", 0, false, fmt.Errorf("duplicate regular expression flag %q", flag)
+		}
+		seen[flag] = true
+		switch flag {
+		case 'i':
+			options |= regexp2.IgnoreCase
+		case 'm':
+			options |= regexp2.Multiline
+		case 's':
+			options |= regexp2.Singleline
+		case 'u':
+			options |= regexp2.Unicode
+		case 'd', 'g': // Index captures and persistent lastIndex do not affect a fresh boolean test.
+		case 'y':
+			sticky = true
+		default:
+			return "", 0, false, fmt.Errorf("unsupported regular expression flag %q", flag)
+		}
+	}
+	return expression, options, sticky, nil
+}
+
+// regexp2 also accepts .NET groups in ECMAScript mode. Reject those extensions
+// before compilation, including groups after lookarounds and backreferences.
+func validateOpenLintPatternGroups(expression string) error {
+	inClass := false
+	for i := 0; i < len(expression); i++ {
+		switch expression[i] {
+		case '\\':
+			i++
+		case '[':
+			inClass = true
+		case ']':
+			inClass = false
+		case '(':
+			if inClass || i+1 >= len(expression) || expression[i+1] != '?' {
+				continue
+			}
+			invalid := func() error {
+				return fmt.Errorf("invalid JavaScript regular expression group at byte %d", i)
+			}
+			if i+2 >= len(expression) {
+				return invalid()
+			}
+			switch expression[i+2] {
+			case ':', '=', '!':
+				continue
+			case '<':
+				if i+3 < len(expression) && (expression[i+3] == '=' || expression[i+3] == '!') {
+					continue
+				}
+				end := strings.IndexByte(expression[i+3:], '>')
+				if end < 0 || strings.Contains(expression[i+3:i+3+end], "-") {
+					return invalid()
+				}
+				// The compiler validates the capture name itself.
+				i += 3 + end
+				continue
+			}
+			// ECMAScript permits scoped i, m and s modifiers, but no global
+			// inline flags. A flag cannot appear twice or on both sides of '-'.
+			var seen uint8
+			minus, scoped := false, false
+			for j := i + 2; j < len(expression); j++ {
+				var bit uint8
+				switch expression[j] {
+				case 'i':
+					bit = 1
+				case 'm':
+					bit = 2
+				case 's':
+					bit = 4
+				case '-':
+					if minus {
+						return invalid()
+					}
+					minus = true
+					continue
+				case ':':
+					scoped = seen != 0
+				default:
+					return invalid()
+				}
+				if scoped {
+					break
+				}
+				if bit == 0 || seen&bit != 0 {
+					return invalid()
+				}
+				seen |= bit
+			}
+			if !scoped {
+				return invalid()
+			}
+		}
+	}
+	return nil
 }

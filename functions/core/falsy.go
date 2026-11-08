@@ -49,6 +49,9 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 	}
 
 	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
 		// handle document nodes by unwrapping
 		if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
@@ -70,7 +73,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 		}
 
 		// check if the target is truthy (which means falsy check fails)
-		if targetNode != nil && isTruthyNode(targetNode) {
+		if targetNode != nil && !falsyForContract(targetNode, context.Contract) {
 			var locatedObjects []v3.Foundational
 			var allPaths []string
 			var err error

@@ -46,6 +46,12 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	ruleMessage := context.Rule.Description
 
 	for _, node := range nodes {
+		if context.Contract == model.OpenLintV1Draft && context.RuleAction.Field == "" {
+			if node != nil {
+				results = append(results, model.RuleFunctionResult{Rule: context.Rule, Path: pathValue, StartNode: node, EndNode: vacuumUtils.BuildEndNode(node), Message: vacuumUtils.SuppliedOrDefault(message, "value must be undefined")})
+			}
+			continue
+		}
 
 		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 		fieldNode, fieldNodeValue := result.KeyNode, result.ValueNode

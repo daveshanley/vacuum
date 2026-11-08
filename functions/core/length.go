@@ -4,6 +4,7 @@
 package core
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
@@ -44,6 +45,9 @@ func (l Length) GetCategory() string {
 
 // RunRule will execute the Length rule, based on supplied context and a supplied []*yaml.Node slice.
 func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	if context.Contract == model.OpenLintV1Draft {
+		return openLintLength(nodes, context)
+	}
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {
 		return nil
@@ -269,4 +273,69 @@ func createMaxError(desc, field string, max int) model.RuleFunctionResult {
 
 func createMinError(desc, field string, min int) model.RuleFunctionResult {
 	return model.BuildFunctionResultWithDescription(desc, field, "must be longer/greater than", min)
+}
+
+func openLintLength(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	options := context.GetOptionsStringMap()
+	minimum, hasMin := options["min"]
+	maximum, hasMax := options["max"]
+	minValue, minErr := strconv.ParseFloat(minimum, 64)
+	maxValue, maxErr := strconv.ParseFloat(maximum, 64)
+	var results []model.RuleFunctionResult
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+			node = node.Content[0]
+		}
+		if context.RuleAction.Field != "" {
+			node = vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false)).ValueNode
+			if node == nil {
+				continue
+			}
+		}
+		var size float64
+		switch node.Kind {
+		case yaml.MappingNode:
+			size = float64(len(node.Content) / 2)
+		case yaml.SequenceNode:
+			size = float64(len(node.Content))
+		case yaml.ScalarNode:
+			switch node.Tag {
+			case "!!str":
+				for _, r := range node.Value {
+					size++
+					if r > 0xffff {
+						size++
+					}
+				}
+			case "!!int", "!!float":
+				if node.Decode(&size) != nil {
+					continue
+				}
+			default:
+				continue
+			}
+		default:
+			continue
+		}
+		message := ""
+		if hasMin && minErr == nil && size < minValue {
+			message = fmt.Sprintf("length must be at least %g", minValue)
+		} else if hasMax && maxErr == nil && size > maxValue {
+			message = fmt.Sprintf("length must be at most %g", maxValue)
+		}
+		if message == "" {
+			continue
+		}
+		path, paths, objects := locateNodePaths(&context, node)
+		result := model.RuleFunctionResult{Rule: context.Rule, StartNode: node, EndNode: vacuumUtils.BuildEndNode(node), Path: path, Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, message)}
+		if len(paths) > 1 {
+			result.Paths = paths
+		}
+		addResultToLocatedModel(objects, &result)
+		results = append(results, result)
+	}
+	return results
 }

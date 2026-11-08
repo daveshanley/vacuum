@@ -67,6 +67,8 @@ type ArazzoContext interface {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
+	// Contract selects the semantics of this invocation.
+	Contract Contract `json:"-" yaml:"-"`
 	// ExecutionContext carries the rule deadline, including time spent queued.
 	ExecutionContext context.Context `json:"-" yaml:"-"`
 	// ExecutionRoot is the tree used for selector evaluation in this invocation.
@@ -125,6 +127,9 @@ type ResultSourceContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
+	// RangeIsZeroBased marks a source range already converted to report coordinates.
+	RangeIsZeroBased bool `json:"-" yaml:"-"`
+
 	Message           string               `json:"message" yaml:"message"`                                   // What failed and why?
 	Range             reports.Range        `json:"range" yaml:"range"`                                       // Where did it happen?
 	Path              string               `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
