@@ -31,11 +31,15 @@ jobs:
           node-version: '26.12.1'
       - name: Install JSON Schema CLI
         run: npm install @sourcemeta/jsonschema@17.2.1
+      # Keep the pinned upstream schema unchanged; validate its structure without
+      # applying local style rules or automatic rewrites to it.
+      - name: Validate OpenLint Schema
+        run: npx jsonschema metaschema rulesets/schemas/openlint-v1.schema.json
       - name: Lint JSON Schemas
-        run: npx jsonschema lint rulesets/schemas
+        run: npx jsonschema lint rulesets/schemas --ignore rulesets/schemas/openlint-v1.schema.json
         continue-on-error: true
       - name: Fix JSON Schema issues
-        run: npx jsonschema lint rulesets/schemas --fix
+        run: npx jsonschema lint rulesets/schemas --ignore rulesets/schemas/openlint-v1.schema.json --fix
       - name: Commit fixes
         env:
           TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
