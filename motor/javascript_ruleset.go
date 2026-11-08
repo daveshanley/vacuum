@@ -14,7 +14,10 @@ func bindExecutableRuleset(source *RuleSetExecution, control *executionControl) 
 	}
 	fail := func(err error) (*RuleSetExecution, func(), error) { scope.Close(); return nil, nil, err }
 	var data any
-	if len(source.Spec) > 0 {
+	if source.RuleSet.Contract == model.OpenLintV1Draft && source.SpecInfo != nil && source.SpecInfo.RootNode != nil {
+		// The OpenLint parser has already applied the configured diagnostic policy.
+		data = source.SpecInfo.RootNode
+	} else if len(source.Spec) > 0 {
 		err = yaml.Unmarshal(source.Spec, &data)
 	} else if source.SpecInfo != nil && source.SpecInfo.RootNode != nil {
 		err = source.SpecInfo.RootNode.Decode(&data)
@@ -34,7 +37,24 @@ func bindExecutableRuleset(source *RuleSetExecution, control *executionControl) 
 	if err != nil {
 		return fail(err)
 	}
-	execution := &RuleSetExecution{
+	execution := copyExecutionConfig(source)
+	execution.RuleSet = source.RuleSet.CopyForExecution()
+	if source.RuleSet.Contract != model.OpenLintV1Draft {
+		execution.RuleSet.FormatMatches = matches
+	}
+	execution.CustomFunctions = make(map[string]model.RuleFunction, len(source.CustomFunctions))
+	for name, fn := range source.CustomFunctions {
+		execution.CustomFunctions[name] = fn
+	}
+	for name, fn := range scope.Functions() {
+		execution.CustomFunctions[name] = fn
+	}
+	return execution, scope.Close, nil
+}
+
+// copyExecutionConfig copies caller configuration without copying worker or release state.
+func copyExecutionConfig(source *RuleSetExecution) *RuleSetExecution {
+	return &RuleSetExecution{
 		RuleSet:                         source.RuleSet,
 		SpecFileName:                    source.SpecFileName,
 		Spec:                            source.Spec,
@@ -74,14 +94,4 @@ func bindExecutableRuleset(source *RuleSetExecution, control *executionControl) 
 		SkipSchemaErrors:                source.SkipSchemaErrors,
 		SpecFormat:                      source.SpecFormat,
 	}
-	execution.RuleSet = source.RuleSet.CopyForExecution()
-	execution.RuleSet.FormatMatches = matches
-	execution.CustomFunctions = make(map[string]model.RuleFunction, len(source.CustomFunctions))
-	for name, fn := range source.CustomFunctions {
-		execution.CustomFunctions[name] = fn
-	}
-	for name, fn := range scope.Functions() {
-		execution.CustomFunctions[name] = fn
-	}
-	return execution, scope.Close, nil
 }

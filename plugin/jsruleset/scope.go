@@ -19,20 +19,21 @@ import (
 // Scope owns one module instance and serializes JavaScript calls for a document.
 // Close cancels pending work and waits for the VM owner before releasing it.
 type Scope struct {
-	paths      map[*yaml.Node]map[*yaml.Node][]any
-	native     map[string]model.RuleFunction
-	vm         *goja.Runtime
-	loop       *eventloop.EventLoop
-	ctx        context.Context
-	cancel     context.CancelFunc
-	gate       chan struct{}
-	once       sync.Once
-	functions  map[string]goja.Callable
-	formats    map[string]goja.Callable
-	normalized []byte
-	document   goja.Value
-	source     string
-	current    *model.RuleFunctionContext
+	paths         map[*yaml.Node]map[*yaml.Node][]any
+	native        map[string]model.RuleFunction
+	vm            *goja.Runtime
+	loop          *eventloop.EventLoop
+	ctx           context.Context
+	cancel        context.CancelFunc
+	gate          chan struct{}
+	once          sync.Once
+	functions     map[string]goja.Callable
+	functionNames map[string]string
+	formats       map[string]goja.Callable
+	normalized    []byte
+	document      goja.Value
+	source        string
+	current       *model.RuleFunctionContext
 }
 
 // Open initializes a fresh module instance and checks its exported contract
@@ -55,6 +56,7 @@ func (p *Prepared) open(parent context.Context, fetchConfig *config.FetchConfig)
 	ctx, cancel := context.WithCancel(parent)
 	s := &Scope{vm: goja.New(), ctx: ctx, cancel: cancel, gate: make(chan struct{}, 1), functions: map[string]goja.Callable{}, formats: map[string]goja.Callable{}}
 	s.paths = make(map[*yaml.Node]map[*yaml.Node][]any)
+	s.functionNames = p.functionNames
 	s.gate <- struct{}{}
 	s.loop = eventloop.New(s.vm)
 	fm, err := fetch.NewFetchModuleFromConfig(s.loop, fetchConfig)
@@ -197,6 +199,9 @@ func (s *Scope) Functions() map[string]model.RuleFunction {
 	for name := range s.functions {
 		out[name] = &adapter{name: name, scope: s}
 	}
+	for name, handle := range s.functionNames {
+		out[name] = &adapter{name: handle, scope: s}
+	}
 	return out
 }
 
@@ -206,16 +211,28 @@ func (p *Prepared) Functions() map[string]model.RuleFunction {
 	for _, name := range p.names {
 		out[name] = &adapter{name: name}
 	}
+	for name, handle := range p.functionNames {
+		out[name] = &adapter{name: handle}
+	}
 	return out
 }
 
 // MatchFormats evaluates callable predicates against the original document once.
+// A YAML node uses the same ordered value conversion as custom function inputs.
 func (s *Scope) MatchFormats(ctx context.Context, data any, source string) (map[string]bool, error) {
 	matches := map[string]bool{}
 	deadline, cancel := context.WithTimeout(ctx, initializationTimeout)
 	defer cancel()
 	err := s.run(deadline, func() error {
-		s.document = s.vm.ToValue(data)
+		if node, ok := data.(*yaml.Node); ok {
+			var err error
+			s.document, err = s.nodeValue(node, map[*yaml.Node]bool{})
+			if err != nil {
+				return err
+			}
+		} else {
+			s.document = s.vm.ToValue(data)
+		}
 		s.source = source
 		for name, fn := range s.formats {
 			v, e := s.loop.Run(deadline, func(vm *goja.Runtime) (goja.Value, error) {

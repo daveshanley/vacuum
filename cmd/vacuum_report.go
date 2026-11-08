@@ -193,7 +193,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				}
 
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 				if rsErr != nil {
 					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
@@ -313,7 +313,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					}
 				}
 
-				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
+				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag, ruleContract(cmd))
 				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:                         selectedRSForFile,
 					Spec:                            specBytes,

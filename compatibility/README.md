@@ -1,5 +1,24 @@
 # Ruleset compatibility
 
+Run the complete pinned OpenLint suite against the current source build:
+
+```sh
+GOWORK=off node scripts/test-openlint.mjs
+```
+
+This requires Go, Node and Git. The first run downloads the pinned specification
+and conformance runner into `.cache/openlint`. It runs the original 238 specification
+fixtures and 14 interop fixtures through `spectral-report --openlint`. The upstream
+matcher and expectations are unchanged. Every case must be exact; detected,
+unsupported, failed and missing cases fail the command. The JSON report is kept
+under `.cache/openlint/conformance/results`.
+
+The contract is the OpenLint v1 draft at
+`4e95c96e4a7ecb17320cd11fc2fcd2571e8d0291`. The runner is pinned at
+`0714e478a99b271486c93e10a327db4564170f61`. This is a draft, not a final standard.
+
+## Native behavior
+
 Run the pinned OpenLint core-function cases with Go:
 
 ```sh

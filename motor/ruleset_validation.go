@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/functions"
+	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 )
@@ -56,6 +57,15 @@ func validateRuleFunctions(rs *rulesets.RuleSet, builtin functions.Functions, cu
 // Harnesses use this stricter preflight so an invalid action cannot pass merely
 // because its selector matched no nodes. Normal lint behavior is unchanged.
 func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction) []error {
+	if rs != nil && rs.Contract == model.OpenLintV1Draft {
+		rules, err := rs.RulesForValidation()
+		if err != nil {
+			return []error{&RuleExecutionError{Kind: RuleErrorConfiguration, Err: err}}
+		}
+		view := rs.CopyForExecution()
+		view.Rules = rules
+		rs = view
+	}
 	if rs != nil && rs.Executable != nil {
 		copied := make(map[string]model.RuleFunction, len(custom))
 		for name, fn := range custom {
@@ -97,6 +107,12 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 		actions := 0
 		forEachRuleAction(rule, func(action model.RuleAction) bool {
 			actions++
+			if rs.Contract == model.OpenLintV1Draft {
+				if err := core.ValidateOpenLintOptions(action.Function, action.FunctionOptions); err != nil {
+					errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Function: action.Function, Err: err})
+					return false
+				}
+			}
 			f := builtin.FindFunction(action.Function)
 			if f == nil {
 				f = custom[action.Function]
@@ -104,13 +120,13 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 			if f == nil {
 				return false
 			}
-			valid, issues := validateFunctionSchema(f, model.RuleFunctionContext{Rule: rule, RuleAction: &action, Options: action.FunctionOptions})
+			valid, issues := validateFunctionSchema(f, model.RuleFunctionContext{Contract: rs.Contract, Rule: rule, RuleAction: &action, Options: action.FunctionOptions})
 			if !valid || len(issues) > 0 {
 				errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Function: action.Function, Err: fmt.Errorf("%v", issues)})
 			}
 			return false
 		})
-		if actions == 0 {
+		if actions == 0 && rs.Contract != model.OpenLintV1Draft {
 			errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Err: fmt.Errorf("requires at least one action")})
 		}
 	}

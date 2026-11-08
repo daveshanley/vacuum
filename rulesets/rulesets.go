@@ -233,6 +233,13 @@ type RuleSets interface {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
+	openLint            *openLintDefinition
+	openLintParents     []*RuleSet
+	openLintParentModes []string
+	openLintRules       map[string]openLintRule
+
+	// Contract selects loading and execution semantics.
+	Contract model.Contract `json:"-" yaml:"-"`
 	// Executable holds immutable JavaScript code. Each execution opens a fresh runtime.
 	Executable *jsruleset.Prepared `json:"-" yaml:"-"`
 	// FormatMatches contains callable format results for one execution only.
@@ -399,9 +406,13 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset *RuleSet, httpClient *http.Client) *RuleSet {
 
+	if ruleset.Contract == model.OpenLintV1Draft {
+		return rsm.generateOpenLintRuleSet(ruleset, httpClient)
+	}
 	extends := ruleset.GetExtendsValue()
 
 	rs := &RuleSet{
+		Contract:         ruleset.Contract,
 		DocumentationURI: ruleset.DocumentationURI,
 		Formats:          ruleset.Formats,
 		Extends:          ruleset.Extends,
@@ -965,7 +976,10 @@ func (rs *RuleSet) GetExtendsValue() map[string]string {
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
-func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
+func CreateRuleSetUsingJSON(jsonData []byte, contracts ...model.Contract) (*RuleSet, error) {
+	if len(contracts) > 0 && contracts[0] == model.OpenLintV1Draft {
+		return createOpenLintRuleSet(jsonData)
+	}
 	jsonString := string(jsonData)
 	if !utils.IsJSON(jsonString) {
 		return nil, errors.New("data is not JSON")
@@ -1083,7 +1097,12 @@ func FilterRulesForTurbo(rs *RuleSet) int {
 }
 
 // CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
-func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
+func CreateRuleSetFromData(data []byte, contracts ...model.Contract) (*RuleSet, error) {
+	if len(contracts) > 0 && contracts[0] == model.OpenLintV1Draft {
+		if err := validateOpenLintDocument(data); err != nil {
+			return nil, err
+		}
+	}
 	d := data
 	if !utils.IsJSON(string(d)) {
 		j, err := utils.ConvertYAMLtoJSON(data)
@@ -1092,5 +1111,5 @@ func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
 		}
 		d = j
 	}
-	return CreateRuleSetUsingJSON(d)
+	return CreateRuleSetUsingJSON(d, contracts...)
 }

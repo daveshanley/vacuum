@@ -70,6 +70,7 @@ func ResolveSpecPathForExecution(specFilePath string) (string, error) {
 
 // LintFlags holds all the command line flags for lint operations
 type LintFlags struct {
+	Contract                 model.Contract
 	FormattedOutput          bool // Suppress terminal chrome when an explicit report format is selected.
 	GlobPattern              string
 	DetailsFlag              bool
@@ -159,6 +160,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("remote") && viper.IsSet("lint.remote") {
 		flags.RemoteFlag = viper.GetBool("lint.remote")
 	}
+	flags.Contract = ruleContract(cmd)
 	flags.SkipCheckFlag, _ = cmd.Flags().GetBool("skip-check")
 	if !cmd.Flags().Changed("skip-check") && viper.IsSet("lint.skip-check") {
 		flags.SkipCheckFlag = viper.GetBool("lint.skip-check")
@@ -426,7 +428,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 
 		var rsErr error
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
-			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient)
+			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient, flags.Contract)
 		if rsErr != nil {
 			if flags.GitHubAnnotations {
 				RenderGitHubAnnotationError(rsErr, "")

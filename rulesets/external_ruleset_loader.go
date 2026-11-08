@@ -173,19 +173,24 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 	defer source.mutex.Unlock()
 
 	return &RuleSet{
-		Executable:       source.Executable,
-		Description:      source.Description,
-		DocumentationURI: source.DocumentationURI,
-		Formats:          append([]string(nil), source.Formats...),
-		RuleDefinitions:  cloneRuleDefinitionMap(source.RuleDefinitions),
-		Rules:            cloneRuleMap(source.Rules),
-		Extends:          source.Extends,
-		Aliases:          cloneInterfaceMap(source.Aliases),
-		ParsedAliases:    cloneParsedAliasMap(source.ParsedAliases),
-		extendsMeta:      cloneStringMap(source.extendsMeta),
-		loadErrors:       append([]error(nil), source.loadErrors...),
-		sourceLocation:   source.sourceLocation,
-		readLocalFile:    source.readLocalFile,
+		Contract:            source.Contract,
+		openLint:            source.openLint,
+		openLintParents:     source.openLintParents,
+		openLintParentModes: source.openLintParentModes,
+		openLintRules:       source.openLintRules,
+		Executable:          source.Executable,
+		Description:         source.Description,
+		DocumentationURI:    source.DocumentationURI,
+		Formats:             append([]string(nil), source.Formats...),
+		RuleDefinitions:     cloneRuleDefinitionMap(source.RuleDefinitions),
+		Rules:               cloneRuleMap(source.Rules),
+		Extends:             source.Extends,
+		Aliases:             cloneInterfaceMap(source.Aliases),
+		ParsedAliases:       cloneParsedAliasMap(source.ParsedAliases),
+		extendsMeta:         cloneStringMap(source.extendsMeta),
+		loadErrors:          append([]error(nil), source.loadErrors...),
+		sourceLocation:      source.sourceLocation,
+		readLocalFile:       source.readLocalFile,
 	}
 }
 

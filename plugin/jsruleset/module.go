@@ -21,11 +21,12 @@ type File struct {
 // Prepared owns immutable compiled code and normalized rule data. It is safe to
 // share across documents; each execution must open its own Scope.
 type Prepared struct {
-	program    *goja.Program
-	normalized []byte
-	files      []File
-	entry      string
-	names      []string
+	program       *goja.Program
+	normalized    []byte
+	files         []File
+	entry         string
+	names         []string
+	functionNames map[string]string
 }
 
 // Data returns the normalized declarative ruleset, with stable callable handles.

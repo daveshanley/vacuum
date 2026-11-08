@@ -285,10 +285,10 @@ func applicableRulesForFormat(ruleSet *rulesets.RuleSet, format string) []*model
 			continue
 		}
 		ruleFormats := applicableRuleFormats(ruleSet, rule)
-		if len(ruleFormats) == 0 && model.FormatMatches(model.AsyncAPI3, format) {
+		if len(ruleFormats) == 0 && ruleSet.Contract != model.OpenLintV1Draft && model.FormatMatches(model.AsyncAPI3, format) {
 			continue
 		}
-		if len(ruleFormats) > 0 && (format != "" || ruleSet.Executable != nil) {
+		if len(ruleFormats) > 0 && (format != "" || ruleSet.Executable != nil || ruleSet.Contract == model.OpenLintV1Draft) {
 			matches := false
 			for _, ruleFormat := range ruleFormats {
 				if ruleSet.MatchesFormat(ruleFormat, format) {
@@ -309,6 +309,9 @@ func applicableRulesForFormat(ruleSet *rulesets.RuleSet, format string) []*model
 }
 
 func applicableRuleFormats(ruleSet *rulesets.RuleSet, rule *model.Rule) []string {
+	if ruleSet != nil && ruleSet.Contract == model.OpenLintV1Draft {
+		return rule.Formats
+	}
 	if len(rule.Formats) > 0 {
 		return rule.Formats
 	}

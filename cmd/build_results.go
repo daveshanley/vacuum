@@ -36,6 +36,7 @@ type TurboFlags struct {
 
 // ExecutionFlags holds execution configuration for BuildResults functions.
 type ExecutionFlags struct {
+	Contract                        model.Contract
 	ResolveAllRefs                  bool
 	NestedRefsDocContext            bool
 	SpecFilePath                    string
@@ -87,7 +88,7 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 		return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
 	}
 
-	selectedRS, specFormat, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, specBytes, remote, httpClientConfig, turboFlags)
+	selectedRS, specFormat, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, specBytes, remote, httpClientConfig, turboFlags, executionFlags.Contract)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,7 +98,7 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 
 func (f *ExecutionFlags) isEmpty() bool {
 	return f == nil ||
-		(!f.ResolveAllRefs &&
+		(f.Contract == model.NativeContract && !f.ResolveAllRefs &&
 			!f.NestedRefsDocContext &&
 			f.SpecFilePath == "" &&
 			!f.ExtractReferencesFromExtensions &&
@@ -130,7 +131,7 @@ func selectRuleSetForBuildResults(
 	specBytes []byte,
 	remote bool,
 	httpClientConfig utils.HTTPClientConfig,
-	turboFlags *TurboFlags) (*rulesets.RuleSet, string, error) {
+	turboFlags *TurboFlags, contracts ...model.Contract) (*rulesets.RuleSet, string, error) {
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
@@ -156,7 +157,7 @@ func selectRuleSetForBuildResults(
 		}
 
 		var rsErr error
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient)
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient, contracts...)
 		if rsErr != nil {
 			return nil, "", rsErr
 		}
@@ -249,7 +250,14 @@ func ruleSetConfigurationError(result *motor.RuleSetExecutionResult) error {
 			return err
 		}
 	}
+	if result.RuleSetExecution != nil && result.RuleSetExecution.RuleSet.Contract == model.OpenLintV1Draft && len(result.Errors) > 0 {
+		return errors.Join(result.Errors...)
+	}
 	for _, err := range result.Errors {
+		var configuration *motor.RuleExecutionError
+		if errors.As(err, &configuration) && (configuration.Kind == motor.RuleErrorConfiguration || (result.RuleSetExecution != nil && result.RuleSetExecution.RuleSet.Contract == model.OpenLintV1Draft)) {
+			return errors.Join(result.Errors...)
+		}
 		var unknown *motor.UnknownFunctionError
 		if errors.As(err, &unknown) {
 			return errors.Join(result.Errors...)
