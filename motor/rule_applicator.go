@@ -1586,12 +1586,19 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		}
 	}
 
+	pathRolodex := rolodexResolved
+	if opts.Contract == model.OpenLintV1Draft {
+		// OpenLint findings keep their selected path. Native reference-alias
+		// expansion adds use-site paths and can replace the authored location.
+		// Reference validation above and external source mapping below still run.
+		pathRolodex = nil
+	}
 	ruleResults = finalizeResultPaths(
 		ruleResults,
 		specNodeResolved,
 		execution.CanonicalDocument,
 		execution.SpecFileName,
-		rolodexResolved,
+		pathRolodex,
 		resolvedAliases,
 		true,
 	)

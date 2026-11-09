@@ -55,23 +55,31 @@ func parseOpenLintDocument(spec []byte) (*datamodel.SpecInfo, []model.RuleFuncti
 
 func openLintParserDiagnostics(root *yaml.Node, rs *rulesets.RuleSet) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-	paths := vacuumUtils.BuildNodePathIndex(root)
+	// Most documents have no parser diagnostics. Build paths only when a
+	// diagnostic needs one, rather than indexing every node on every run.
+	var paths *vacuumUtils.NodePathIndex
+	pathFor := func(node *yaml.Node) string {
+		if paths == nil {
+			paths = vacuumUtils.BuildNodePathIndex(root)
+		}
+		path, _ := paths.Lookup(node)
+		return path
+	}
 	var walk func(*yaml.Node)
 	walk = func(n *yaml.Node) {
 		if n.Kind == yaml.MappingNode {
 			seen := map[string]bool{}
 			for i := 0; i+1 < len(n.Content); i += 2 {
 				key := n.Content[i]
-				path, _ := paths.Lookup(key)
 				if seen[key.Value] {
 					if severity := rs.ParserSeverity("duplicateKeys", "error"); severity != "off" {
-						results = append(results, openLintDiagnostic("parser", severity, "Duplicate key: "+key.Value, path, key))
+						results = append(results, openLintDiagnostic("parser", severity, "Duplicate key: "+key.Value, pathFor(key), key))
 					}
 				}
 				seen[key.Value] = true
 				if key.Kind != yaml.ScalarNode || key.Tag != "!!str" {
 					if severity := rs.ParserSeverity("incompatibleValues", "error"); severity != "off" {
-						results = append(results, openLintDiagnostic("parser", severity, "Mapping keys must be strings", path, key))
+						results = append(results, openLintDiagnostic("parser", severity, "Mapping keys must be strings", pathFor(key), key))
 					}
 				}
 				walk(n.Content[i+1])
@@ -220,8 +228,7 @@ func openLintTargets(ctx ruleContext, action model.RuleAction, node *yaml.Node) 
 type openLintRangeIndex struct {
 	text         []rune
 	lines        []int
-	columns      []int
-	endColumn    int
+	wideRunes    []int
 	ends         map[openLintSourceNode]int
 	bounds       map[int]int
 	flows        map[int]bool
@@ -235,20 +242,13 @@ type openLintSourceNode struct {
 
 func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 	index := &openLintRangeIndex{text: []rune(string(source)), lines: []int{0}, ends: make(map[openLintSourceNode]int), bounds: make(map[int]int), flows: make(map[int]bool), blockIndents: make(map[int]int)}
-	index.columns = make([]int, len(index.text))
-	column := 0
 	for offset, r := range index.text {
-		index.columns[offset] = column
 		if r == '\n' || (r == '\r' && (offset+1 == len(index.text) || index.text[offset+1] != '\n')) {
 			index.lines = append(index.lines, offset+1)
-			column = 0
 		} else if r > 0xffff {
-			column += 2
-		} else {
-			column++
+			index.wideRunes = append(index.wideRunes, offset)
 		}
 	}
-	index.endColumn = column
 	// Parser nodes are in source order. The next node bounds a scalar scan;
 	// this keeps indentation and separators for later siblings out of its span.
 	var offsets, boundaries []int
@@ -325,11 +325,17 @@ func (index *openLintRangeIndex) offset(node *yaml.Node) int {
 func (index *openLintRangeIndex) position(offset int) reports.RangeItem {
 	offset = min(max(0, offset), len(index.text))
 	line := sort.Search(len(index.lines), func(i int) bool { return index.lines[i] > offset }) - 1
-	column := index.endColumn
-	if offset < len(index.columns) {
-		column = index.columns[offset]
+	line = max(0, line)
+	start := index.lines[line]
+	// Rune offsets already give the column for BMP text. Store only the
+	// supplementary characters that add a second UTF-16 unit, not a column
+	// integer for every character in the document. Searches stay logarithmic
+	// even for compact JSON with many findings on one long line.
+	column := offset - start
+	if len(index.wideRunes) > 0 {
+		column += sort.SearchInts(index.wideRunes, offset) - sort.SearchInts(index.wideRunes, start)
 	}
-	return reports.RangeItem{Line: max(0, line), Char: column}
+	return reports.RangeItem{Line: line, Char: column}
 }
 
 // valueStart skips YAML properties; tags and anchors are not part of the value.

@@ -12,6 +12,23 @@ import (
 	"github.com/pb33f/testify/require"
 )
 
+func TestOpenLintUTF16PositionsAcrossLineEndings(t *testing.T) {
+	index := newOpenLintRangeIndex([]byte("a😀b\r\n𐐀c\rd😀\n"), nil)
+	expected := []reports.RangeItem{
+		{Line: 0, Char: 0}, {Line: 0, Char: 1}, {Line: 0, Char: 3},
+		{Line: 0, Char: 4}, {Line: 0, Char: 5},
+		{Line: 1, Char: 0}, {Line: 1, Char: 2}, {Line: 1, Char: 3},
+		{Line: 2, Char: 0}, {Line: 2, Char: 1}, {Line: 2, Char: 3},
+		{Line: 3, Char: 0},
+	}
+	for offset, position := range expected {
+		require.Equal(t, position, index.position(offset), "offset %d", offset)
+	}
+	require.Equal(t, expected[0], index.position(-1))
+	require.Equal(t, expected[len(expected)-1], index.position(100))
+	require.Equal(t, reports.RangeItem{}, newOpenLintRangeIndex(nil, nil).position(0))
+}
+
 func TestOpenLintYAMLSourceRanges(t *testing.T) {
 	for _, tc := range []struct {
 		name, source string
