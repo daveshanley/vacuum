@@ -235,7 +235,8 @@ type openLintRangeIndex struct {
 	lines        []int
 	wideRunes    []int
 	ends         map[openLintSourceNode]int
-	bounds       map[int]int
+	offsets      []int
+	bounds       []int
 	flows        map[int]bool
 	blockIndents map[int]int
 }
@@ -246,7 +247,7 @@ type openLintSourceNode struct {
 }
 
 func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
-	index := &openLintRangeIndex{text: []rune(string(source)), lines: []int{0}, ends: make(map[openLintSourceNode]int), bounds: make(map[int]int), flows: make(map[int]bool), blockIndents: make(map[int]int)}
+	index := &openLintRangeIndex{text: []rune(string(source)), lines: []int{0}, ends: make(map[openLintSourceNode]int), flows: make(map[int]bool), blockIndents: make(map[int]int)}
 	for offset, r := range index.text {
 		if r == '\n' || (r == '\r' && (offset+1 == len(index.text) || index.text[offset+1] != '\n')) {
 			index.lines = append(index.lines, offset+1)
@@ -257,7 +258,7 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 	// Parser nodes are in source order. The next node bounds a scalar scan;
 	// this keeps indentation and separators for later siblings out of its span.
 	var offsets, boundaries []int
-	linePrefixes := make(map[int]int)
+	lastLineStart, linePrefix := -1, 0
 	var visit func(*yaml.Node, bool, int)
 	visit = func(node *yaml.Node, flow bool, parentIndent int) {
 		if node == nil {
@@ -269,9 +270,8 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 			boundary := offset
 			if node.Line > 0 && node.Line <= len(index.lines) {
 				lineStart := index.lines[node.Line-1]
-				prefix, ok := linePrefixes[lineStart]
-				if !ok {
-					prefix = lineStart
+				if lineStart != lastLineStart {
+					prefix := lineStart
 					for prefix < len(index.text) {
 						ch := index.text[prefix]
 						if ch == ' ' || ch == '\t' {
@@ -284,9 +284,9 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 						}
 						break
 					}
-					linePrefixes[lineStart] = prefix
+					lastLineStart, linePrefix = lineStart, prefix
 				}
-				if offset <= prefix {
+				if offset <= linePrefix {
 					boundary = lineStart
 				}
 			}
@@ -315,8 +315,9 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 				limit = boundaries[i+1]
 			}
 		}
-		index.bounds[offset] = limit
+		boundaries[i] = limit
 	}
+	index.offsets, index.bounds = offsets, boundaries
 	return index
 }
 
@@ -343,16 +344,23 @@ func (index *openLintRangeIndex) position(offset int) reports.RangeItem {
 	return reports.RangeItem{Line: line, Char: column}
 }
 
+func (index *openLintRangeIndex) scanLimit(offset int) int {
+	if i := sort.SearchInts(index.offsets, offset); i < len(index.offsets) && index.offsets[i] == offset {
+		return index.bounds[i]
+	}
+	return len(index.text)
+}
+
 // valueStart skips YAML properties; tags and anchors are not part of the value.
 func (index *openLintRangeIndex) valueStart(node *yaml.Node) int {
 	start := index.offset(node)
 	if node.Kind != yaml.ScalarNode && node.Style&yaml.FlowStyle == 0 {
 		return start
 	}
-	limit, ok := index.bounds[start]
-	if !ok {
-		limit = len(index.text)
+	if start >= len(index.text) || (index.text[start] != '!' && index.text[start] != '&') {
+		return start
 	}
+	limit := index.scanLimit(start)
 	for start < limit && (index.text[start] == '!' || index.text[start] == '&') {
 		for start < limit && !openLintSpace(index.text[start]) {
 			start++
@@ -397,8 +405,11 @@ func (index *openLintRangeIndex) end(node *yaml.Node) int {
 
 func (index *openLintRangeIndex) nodeEnd(node *yaml.Node, flow bool) int {
 	key := openLintSourceNode{offset: index.offset(node), kind: node.Kind}
-	if end, ok := index.ends[key]; ok {
-		return end
+	container := node.Kind == yaml.DocumentNode || node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode
+	if container {
+		if end, ok := index.ends[key]; ok {
+			return end
+		}
 	}
 	start := index.valueStart(node)
 	end := start
@@ -418,10 +429,7 @@ func (index *openLintRangeIndex) nodeEnd(node *yaml.Node, flow bool) int {
 			}
 		}
 	case yaml.ScalarNode:
-		limit, ok := index.bounds[key.offset]
-		if !ok {
-			limit = len(index.text)
-		}
+		limit := index.scanLimit(key.offset)
 		if start < len(index.text) && (index.text[start] == '"' || index.text[start] == '\'') {
 			quote := index.text[start]
 			end = start + 1
@@ -450,7 +458,11 @@ func (index *openLintRangeIndex) nodeEnd(node *yaml.Node, flow bool) int {
 	case yaml.AliasNode:
 		end = min(len(index.text), start+1+len([]rune(node.Value)))
 	}
-	index.ends[key] = end
+	// Containers can receive resolved children from another source. Preserve
+	// their authored ends; scalar bounds can be read directly without caching.
+	if container {
+		index.ends[key] = end
+	}
 	return end
 }
 

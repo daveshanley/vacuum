@@ -796,11 +796,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var specInfoUnresolved *datamodel.SpecInfo
 	if openLintSource != nil {
 		specInfoUnresolved = openLintSource
-		var valid bool
-		specInfo, _, valid = parseOpenLintDocument(execution.Spec)
-		if !valid {
-			return executionErrorResult(execution, control, fmt.Errorf("document changed during parsing"))
-		}
+		// Resolution mutates nodes, so keep an independent graph. Clone the
+		// parsed tree instead of decoding the same bytes and strings twice.
+		resolvedInfo := *openLintSource
+		resolvedInfo.RootNode = utils.CloneYAMLNode(openLintSource.RootNode)
+		specInfo = &resolvedInfo
 		indexConfig.SpecInfo = specInfo
 		indexConfigUnresolved.SpecInfo = specInfoUnresolved
 	} else if docResolved == nil {
@@ -1867,7 +1867,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			invocation := rfc
 			if ctx.contract == model.OpenLintV1Draft && len(selected) == 1 {
 				if messagePaths == nil {
-					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
+					messagePaths = vacuumUtils.NodePathIndexForContext(invocation, ctx.specNode)
 				}
 				if path, ok := messagePaths.Lookup(selected[0]); ok {
 					invocation.Given = path
@@ -2048,7 +2048,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 									results[i].EndNode = vacuumUtils.BuildEndNode(node)
 								}
 								if target == nil {
-									if path, ok := messagePathIndex(ctx.specNode, ctx.schemaPathCache).Lookup(node); ok {
+									if path, ok := messagePaths.Lookup(node); ok {
 										results[i].Path = path
 									}
 								}

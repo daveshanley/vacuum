@@ -290,3 +290,18 @@ func TestOpenLintDirectAndReferencedContainersCollapse(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenLintResolutionPreservesAuthoredGraph(t *testing.T) {
+	source := []byte("Target: &target\n  description: long\nUse: {$ref: '#/Target'}\nAlias: *target\n")
+	original, _, valid := parseOpenLintDocument(source)
+	require.True(t, valid)
+	raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte("rules:\n  r: {given: $.Use.description, then: {function: falsy}}\n"), model.OpenLintV1Draft)
+	require.NoError(t, err)
+	rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
+	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: source, SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft})
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "$.Target.description", result.Results[0].Path)
+	require.Equal(t, original.RootNode, result.RuleSetExecution.CanonicalDocument, "resolution must not alter reference or alias nodes in the authored tree")
+}
