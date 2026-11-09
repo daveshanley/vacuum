@@ -41,7 +41,12 @@ func CheckForLocalExtends(extends map[string]string) bool {
 
 // DownloadRemoteRuleSet downloads a remote ruleset and returns a *RuleSet
 // returns an error if it cannot download the ruleset
-func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *http.Client, contracts ...model.Contract) (*RuleSet, error) {
+func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *http.Client) (*RuleSet, error) {
+	return DownloadRemoteRuleSetWithContract(ctx, location, httpClient, model.NativeContract)
+}
+
+// DownloadRemoteRuleSetWithContract downloads a ruleset for the selected lint contract.
+func DownloadRemoteRuleSetWithContract(ctx context.Context, location string, httpClient *http.Client, contract model.Contract) (*RuleSet, error) {
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot download ruleset, location is empty")
@@ -90,7 +95,7 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, fmt.Errorf("remote ruleset '%s' is empty, cannot extend", location)
 	}
 
-	downloadedRS, rsErr := CreateRuleSetFromData(ruleBytes, contracts...)
+	downloadedRS, rsErr := CreateRuleSetFromDataWithContract(ruleBytes, contract)
 	if rsErr != nil {
 		return nil, rsErr
 	}
@@ -108,14 +113,24 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 
 // LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
 // returns an error if it cannot load the ruleset
-func LoadLocalRuleSet(ctx context.Context, location string, contracts ...model.Contract) (*RuleSet, error) {
-	return LoadLocalRuleSetWithReader(ctx, location, os.ReadFile, contracts...)
+func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
+	return LoadLocalRuleSetWithContract(ctx, location, model.NativeContract)
+}
+
+// LoadLocalRuleSetWithContract loads a local ruleset for the selected lint contract.
+func LoadLocalRuleSetWithContract(ctx context.Context, location string, contract model.Contract) (*RuleSet, error) {
+	return LoadLocalRuleSetWithReaderAndContract(ctx, location, os.ReadFile, contract)
 }
 
 // LoadLocalRuleSetWithReader loads a ruleset and its local extensions through
 // readFile. The reader receives absolute paths and must be safe for asynchronous
 // extension loading. This lets callers evaluate the same bytes they record.
-func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile func(string) ([]byte, error), contracts ...model.Contract) (*RuleSet, error) {
+func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile func(string) ([]byte, error)) (*RuleSet, error) {
+	return LoadLocalRuleSetWithReaderAndContract(ctx, location, readFile, model.NativeContract)
+}
+
+// LoadLocalRuleSetWithReaderAndContract loads a ruleset through readFile for the selected lint contract.
+func LoadLocalRuleSetWithReaderAndContract(ctx context.Context, location string, readFile func(string) ([]byte, error), contract model.Contract) (*RuleSet, error) {
 	if readFile == nil {
 		readFile = os.ReadFile
 	}
@@ -132,7 +147,7 @@ func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile f
 		if err != nil {
 			return nil, err
 		}
-		rs, err := CreateRuleSetFromData(prepared.Data(), contracts...)
+		rs, err := CreateRuleSetFromDataWithContract(prepared.Data(), contract)
 		if err != nil {
 			return nil, err
 		}
@@ -165,7 +180,7 @@ func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile f
 		return nil, fmt.Errorf("local ruleset '%s' is empty, cannot extend", location)
 	}
 
-	downloadedRS, rsErr := CreateRuleSetFromData(ruleBytes, contracts...)
+	downloadedRS, rsErr := CreateRuleSetFromDataWithContract(ruleBytes, contract)
 	if rsErr != nil {
 		return nil, rsErr
 	}

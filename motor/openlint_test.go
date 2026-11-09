@@ -19,7 +19,7 @@ import (
 )
 
 func TestOpenLintUnresolvedFindingKeepsAuthoredReferencePath(t *testing.T) {
-	raw, err := rulesets.CreateRuleSetFromData([]byte(`rules:
+	raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(`rules:
   description:
     resolved: false
     given: $..description
@@ -106,7 +106,7 @@ func TestOpenLintDocumentExecution(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			raw, err := rulesets.CreateRuleSetFromData([]byte(tc.rules), model.OpenLintV1Draft)
+			raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(tc.rules), model.OpenLintV1Draft)
 			require.NoError(t, err)
 			rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 			require.NoError(t, rs.LoadError())
@@ -128,7 +128,7 @@ func TestOpenLintDocumentExecution(t *testing.T) {
 }
 
 func TestOpenLintUTF16Range(t *testing.T) {
-	raw, err := rulesets.CreateRuleSetFromData([]byte(`rules: {b: {given: '$.b', then: {function: truthy}}}`), model.OpenLintV1Draft)
+	raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(`rules: {b: {given: '$.b', then: {function: truthy}}}`), model.OpenLintV1Draft)
 	require.NoError(t, err)
 	rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte(`{"a":"😀", "b":""}`), SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft, Context: context.Background()})
@@ -153,7 +153,7 @@ func TestOpenLintOverrideParserAndFormats(t *testing.T) {
 		{"override-format", "openapi: 3.1.0", "formats: [oas3]\n    rules: {r: {given: '$', then: {function: falsy}}}", []string{"r"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			raw, err := rulesets.CreateRuleSetFromData([]byte("rules: {}\noverrides:\n  - files: ['**/api.yaml']\n    "+tc.extra+"\n"), model.OpenLintV1Draft)
+			raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte("rules: {}\noverrides:\n  - files: ['**/api.yaml']\n    "+tc.extra+"\n"), model.OpenLintV1Draft)
 			require.NoError(t, err)
 			rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 			result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte(tc.document), SpecFileName: "/tmp/api.yaml", SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft})

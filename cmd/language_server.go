@@ -127,7 +127,7 @@ Open editor buffers, including unsaved changes, take precedence over stored file
 				}
 
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocationWithContract(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 				if rsErr != nil {
 					return rsErr
 				}

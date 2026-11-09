@@ -157,7 +157,11 @@ func selectRuleSetForBuildResults(
 		}
 
 		var rsErr error
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient, contracts...)
+		contract := model.NativeContract
+		if len(contracts) > 0 {
+			contract = contracts[0]
+		}
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocationWithContract(rulesetFlag, defaultRuleSets, remote, httpClient, contract)
 		if rsErr != nil {
 			return nil, "", rsErr
 		}
@@ -254,10 +258,6 @@ func ruleSetConfigurationError(result *motor.RuleSetExecutionResult) error {
 		return errors.Join(result.Errors...)
 	}
 	for _, err := range result.Errors {
-		var configuration *motor.RuleExecutionError
-		if errors.As(err, &configuration) && (configuration.Kind == motor.RuleErrorConfiguration || (result.RuleSetExecution != nil && result.RuleSetExecution.RuleSet.Contract == model.OpenLintV1Draft)) {
-			return errors.Join(result.Errors...)
-		}
 		var unknown *motor.UnknownFunctionError
 		if errors.As(err, &unknown) {
 			return errors.Join(result.Errors...)

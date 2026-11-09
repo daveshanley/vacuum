@@ -190,7 +190,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				}
 
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocationWithContract(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 				if rsErr != nil {
 					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr

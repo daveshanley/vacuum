@@ -50,7 +50,7 @@ func TestRuleResultSet_PrepareForSerialization(t *testing.T) {
 
 }
 
-func TestSpectralReportPreservesQuotedPathAndUsesZeroBasedPositions(t *testing.T) {
+func TestSpectralReportKeepsNativeProjectionUnlessOptedIn(t *testing.T) {
 	result := RuleFunctionResult{
 		Rule:      &Rule{Id: "r", Severity: SeverityWarn},
 		Path:      `$.paths['/v1/file.json#stream'].responses['200']`,
@@ -61,15 +61,28 @@ func TestSpectralReportPreservesQuotedPathAndUsesZeroBasedPositions(t *testing.T
 	result.Range.Start.Line = 2
 	result.Range.Start.Char = 3
 	report := NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
-	assert.Equal(t, []string{"paths", "/v1/file.json#stream", "responses", "200"}, report[0].Path)
-	assert.Equal(t, 1, report[0].Range.Start.Line)
-	assert.Equal(t, 2, report[0].Range.Start.Char)
+	assert.Equal(t, []string{"paths['/v1/file", "json#stream']", "responses", "200"}, report[0].Path)
+	assert.Equal(t, 2, report[0].Range.Start.Line)
+	assert.Equal(t, 3, report[0].Range.Start.Char)
 	result.RangeIsZeroBased = true
 	result.Range.Start.Line = 0
 	result.Range.Start.Char = 0
 	result.Range.End.Line = 0
 	result.Range.End.Char = 4
 	report = NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
+	assert.Equal(t, []string{"paths", "/v1/file.json#stream", "responses", "200"}, report[0].Path)
 	assert.Equal(t, 0, report[0].Range.Start.Char)
 	assert.Equal(t, 4, report[0].Range.End.Char)
+}
+
+func TestSpectralNativeRootPathRemainsNil(t *testing.T) {
+	result := RuleFunctionResult{Rule: &Rule{Id: "r", Severity: SeverityWarn}, Path: "$", StartNode: &yaml.Node{Line: 1, Column: 1}}
+	report := NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
+	assert.Nil(t, report[0].Path)
+	assert.Equal(t, 1, report[0].Range.Start.Line)
+	result.RangeIsZeroBased = true
+	report = NewRuleResultSet([]RuleFunctionResult{result}).GenerateSpectralReport("api.yaml")
+	assert.NotNil(t, report[0].Path)
+	assert.Empty(t, report[0].Path)
+	assert.Zero(t, report[0].Range.Start.Line)
 }

@@ -28,7 +28,12 @@ func openLintDiagnostic(code, severity, message, path string, node *yaml.Node) m
 		node = &yaml.Node{Line: 1, Column: 1}
 	}
 	rule := &model.Rule{Id: code, Severity: severity, RuleCategory: model.RuleCategories[model.CategoryValidation]}
-	return model.RuleFunctionResult{Rule: rule, RuleId: code, RuleSeverity: severity, Message: message, Path: path, StartNode: node, EndNode: vacuumUtils.BuildEndNode(node)}
+	end := vacuumUtils.BuildEndNode(node)
+	return model.RuleFunctionResult{Rule: rule, RuleId: code, RuleSeverity: severity, Message: message, Path: path, StartNode: node, EndNode: end,
+		RangeIsZeroBased: true, Range: reports.Range{
+			Start: reports.RangeItem{Line: max(0, node.Line-1), Char: max(0, node.Column-1)},
+			End:   reports.RangeItem{Line: max(0, end.Line-1), Char: max(0, end.Column-1)},
+		}}
 }
 
 func parseOpenLintDocument(spec []byte) (*datamodel.SpecInfo, []model.RuleFunctionResult, bool) {

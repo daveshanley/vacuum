@@ -40,7 +40,7 @@ func TestOpenLintJavaScriptDocumentAndMissingFields(t *testing.T) {
 			}
 			path := filepath.Join(dir, "rules.yaml")
 			require.NoError(t, os.WriteFile(path, []byte(rules), 0600))
-			raw, err := rulesets.LoadLocalRuleSet(context.Background(), path, model.OpenLintV1Draft)
+			raw, err := rulesets.LoadLocalRuleSetWithContract(context.Background(), path, model.OpenLintV1Draft)
 			require.NoError(t, err)
 			rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 			require.NoError(t, rs.LoadError())
@@ -82,7 +82,7 @@ func TestOpenLintJavaScriptResolvedExplicitSourcePath(t *testing.T) {
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "functions", "check.js"), []byte(`export default () => [{message: "check",path:`+tc.path+`}];`), 0600))
 			path := filepath.Join(dir, "rules.yaml")
 			require.NoError(t, os.WriteFile(path, []byte("functions: [check]\nrules:\n  check: {given: $.Use, then: {function: check}}\n"), 0600))
-			raw, err := rulesets.LoadLocalRuleSet(context.Background(), path, model.OpenLintV1Draft)
+			raw, err := rulesets.LoadLocalRuleSetWithContract(context.Background(), path, model.OpenLintV1Draft)
 			require.NoError(t, err)
 			rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 			result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte("Target: {description: target}\nUse: {$ref: '#/Target'}\nOther: {description: other}\n"), SpecFileName: filepath.Join(dir, "api.yaml"), SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft})

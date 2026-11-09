@@ -976,8 +976,13 @@ func (rs *RuleSet) GetExtendsValue() map[string]string {
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
-func CreateRuleSetUsingJSON(jsonData []byte, contracts ...model.Contract) (*RuleSet, error) {
-	if len(contracts) > 0 && contracts[0] == model.OpenLintV1Draft {
+func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
+	return CreateRuleSetUsingJSONWithContract(jsonData, model.NativeContract)
+}
+
+// CreateRuleSetUsingJSONWithContract creates a ruleset for the selected lint contract.
+func CreateRuleSetUsingJSONWithContract(jsonData []byte, contract model.Contract) (*RuleSet, error) {
+	if contract == model.OpenLintV1Draft {
 		return createOpenLintRuleSet(jsonData)
 	}
 	jsonString := string(jsonData)
@@ -1097,8 +1102,13 @@ func FilterRulesForTurbo(rs *RuleSet) int {
 }
 
 // CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
-func CreateRuleSetFromData(data []byte, contracts ...model.Contract) (*RuleSet, error) {
-	if len(contracts) > 0 && contracts[0] == model.OpenLintV1Draft {
+func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
+	return CreateRuleSetFromDataWithContract(data, model.NativeContract)
+}
+
+// CreateRuleSetFromDataWithContract parses YAML or JSON for the selected lint contract.
+func CreateRuleSetFromDataWithContract(data []byte, contract model.Contract) (*RuleSet, error) {
+	if contract == model.OpenLintV1Draft {
 		if err := validateOpenLintDocument(data); err != nil {
 			return nil, err
 		}
@@ -1111,5 +1121,5 @@ func CreateRuleSetFromData(data []byte, contracts ...model.Contract) (*RuleSet, 
 		}
 		d = j
 	}
-	return CreateRuleSetUsingJSON(d, contracts...)
+	return CreateRuleSetUsingJSONWithContract(d, contract)
 }

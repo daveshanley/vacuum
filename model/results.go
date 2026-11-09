@@ -5,6 +5,7 @@ import (
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	"github.com/pb33f/libopenapi/datamodel"
 	"math"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,6 +88,9 @@ func NewRuleResultSetPointer(results []*RuleFunctionResult) *RuleResultSet {
 	}
 }
 
+var paramRegex = regexp.MustCompile(`(\w+)\['([\w{}/:_-]+)'`)
+var indexRegex = regexp.MustCompile(`(\w+)\[(\d+)]`)
+
 // GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
 func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.SpectralReport {
 
@@ -124,33 +128,60 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 
 		resultRange := reports.Range{
 			Start: reports.RangeItem{
-				Line: max(0, sLine-1),
-				Char: max(0, sChar-1),
+				Line: sLine,
+				Char: sChar,
 			},
 			End: reports.RangeItem{
-				Line: max(0, eLine-1),
-				Char: max(0, eChar-1),
+				Line: eLine,
+				Char: eChar,
 			},
 		}
+		var path []string
 		if result.RangeIsZeroBased {
 			resultRange = result.Range
-		}
-		path := make([]string, 0)
-		parsed, pathErr := jsonpath.NewPath(result.Path)
-		if pathErr == nil && parsed.IsSingular() {
-			segments, err := parsed.GetSegmentInfo()
-			if err == nil {
-				for _, segment := range segments {
-					switch segment.Kind {
-					case jsonpath.SegmentKindMemberName:
-						path = append(path, segment.Key)
-					case jsonpath.SegmentKindArrayIndex:
-						path = append(path, strconv.FormatInt(segment.Index, 10))
+			path = make([]string, 0)
+			parsed, pathErr := jsonpath.NewPath(result.Path)
+			if pathErr == nil && parsed.IsSingular() {
+				segments, err := parsed.GetSegmentInfo()
+				if err == nil {
+					for _, segment := range segments {
+						switch segment.Kind {
+						case jsonpath.SegmentKindMemberName:
+							path = append(path, segment.Key)
+						case jsonpath.SegmentKindArrayIndex:
+							path = append(path, strconv.FormatInt(segment.Index, 10))
+						}
 					}
 				}
+			} else if result.Path != "" && result.Path != "$" {
+				path = append(path, result.Path)
 			}
-		} else if result.Path != "" && result.Path != "$" {
-			path = append(path, result.Path)
+
+		} else {
+			// check for double dots in the path, and collapse them.
+			// https://github.com/daveshanley/vacuum/issues/583
+			if strings.Contains(result.Path, "..") {
+				result.Path = strings.ReplaceAll(result.Path, "..", ".")
+			}
+			pathArr := strings.Split(result.Path, ".")
+			for _, pItem := range pathArr {
+				if pItem != "$" {
+
+					p := paramRegex.FindStringSubmatch(pItem)
+					i := indexRegex.FindStringSubmatch(pItem)
+					if len(p) == 3 {
+						path = append(path, p[1], p[2])
+						continue
+					}
+					if len(i) == 3 {
+						path = append(path, i[1], i[2])
+						continue
+					}
+
+					path = append(path, pItem)
+				}
+			}
+
 		}
 
 		resultSource := source

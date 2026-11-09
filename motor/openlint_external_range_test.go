@@ -44,7 +44,7 @@ func TestOpenLintExternalSourceLocations(t *testing.T) {
 				require.NoError(t, os.WriteFile(source, []byte(external), 0600))
 			}
 			document := []byte(fmt.Sprintf("item:\n  $ref: %s#/defs/X\n", reference))
-			raw, err := rulesets.CreateRuleSetFromData([]byte(`rules:
+			raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(`rules:
   r: {given: $.item.title, then: {function: undefined}}
   s: {given: $.item.title, then: {function: undefined}}
 `), model.OpenLintV1Draft)
@@ -138,7 +138,7 @@ func TestOpenLintResolvedLocalSourcePaths(t *testing.T) {
 				if !targetFirst {
 					document = uses + target
 				}
-				raw, err := rulesets.CreateRuleSetFromData([]byte(fmt.Sprintf("rules:\n  r: {given: '%s', then: %s}\n", tc.given, tc.action)), model.OpenLintV1Draft)
+				raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(fmt.Sprintf("rules:\n  r: {given: '%s', then: %s}\n", tc.given, tc.action)), model.OpenLintV1Draft)
 				require.NoError(t, err)
 				rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 				result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte(document), SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft})
@@ -168,7 +168,7 @@ func TestOpenLintResolvedLocalSourcePaths(t *testing.T) {
 func TestOpenLintSourcePointerOverride(t *testing.T) {
 	for _, scope := range []string{"Target", "Use"} {
 		t.Run(scope, func(t *testing.T) {
-			raw, err := rulesets.CreateRuleSetFromData([]byte(fmt.Sprintf(`rules:
+			raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(fmt.Sprintf(`rules:
   r: {given: $.Use, then: {field: description, function: length, functionOptions: {max: 1}}}
 overrides:
   - files: ['**/api.yaml#/%s']
@@ -190,7 +190,7 @@ overrides:
 }
 
 func TestOpenLintUnresolvedSiblingRetainsSource(t *testing.T) {
-	raw, err := rulesets.CreateRuleSetFromData([]byte(`rules:
+	raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(`rules:
   r: {resolved: false, given: $.Use.description, then: {function: falsy}}
 `), model.OpenLintV1Draft)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestOpenLintResolvedContainersKeepSourceOwnership(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "external.yaml")
 	require.NoError(t, os.WriteFile(source, []byte("X: {description: external}\n"), 0600))
-	raw, err := rulesets.CreateRuleSetFromData([]byte("rules:\n  r: {given: '$.*', then: {function: falsy}}\n"), model.OpenLintV1Draft)
+	raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte("rules:\n  r: {given: '$.*', then: {function: falsy}}\n"), model.OpenLintV1Draft)
 	require.NoError(t, err)
 	rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 	root := filepath.Join(dir, "root.yaml")
@@ -240,7 +240,7 @@ func TestOpenLintContainerResolutionOptions(t *testing.T) {
 		{"skipped", true, false, true, "$.Use"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			raw, err := rulesets.CreateRuleSetFromData([]byte(fmt.Sprintf("rules:\n  r: {resolved: %t, given: $.Use, then: {function: falsy}}\n", tc.resolved)), model.OpenLintV1Draft)
+			raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte(fmt.Sprintf("rules:\n  r: {resolved: %t, given: $.Use, then: {function: falsy}}\n", tc.resolved)), model.OpenLintV1Draft)
 			require.NoError(t, err)
 			rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 			result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte("Target: {}\nUse: {$ref: '#/Target'}\n"), SkipResolve: tc.skip, SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft, ResolveAllRefs: tc.force})
@@ -257,7 +257,7 @@ func TestOpenLintDirectAndReferencedContainersCollapse(t *testing.T) {
 		for _, external := range []bool{false, true} {
 			t.Run(fmt.Sprintf("external=%t/relative=%t", external, relative), func(t *testing.T) {
 				dir := t.TempDir()
-				raw, err := rulesets.CreateRuleSetFromData([]byte("rules:\n  r: {given: '$.*', then: {function: falsy}}\n"), model.OpenLintV1Draft)
+				raw, err := rulesets.CreateRuleSetFromDataWithContract([]byte("rules:\n  r: {given: '$.*', then: {function: falsy}}\n"), model.OpenLintV1Draft)
 				require.NoError(t, err)
 				rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 				document := "Target: {}\nUse: {$ref: '#/Target'}\nUseAgain: {$ref: '#/Target'}\nChain: {$ref: '#/Use'}\n"
