@@ -1588,6 +1588,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	pathRolodex := rolodexResolved
 	if opts.Contract == model.OpenLintV1Draft {
+		if !execution.SkipResolve {
+			relocateOpenLintResolvedContainers(ruleResults, rolodexResolved, execution.SpecFileName, opts.ResolveAllRefs)
+		}
 		// OpenLint findings keep their selected path. Native reference-alias
 		// expansion adds use-site paths and can replace the authored location.
 		// Reference validation above and external source mapping below still run.
@@ -1614,7 +1617,12 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if opts.Contract == model.OpenLintV1Draft {
 		kept := ruleResults[:0]
 		locations := newOpenLintSourceLocations(openLintSource, execution.SpecFileName, rolodexUnresolved, rolodexResolved)
+		locations.setRootResultPaths(openLintSource.RootNode, ruleResults, opts.ResolveAllRefs)
 		for _, finding := range ruleResults {
+			if err := locations.setResultLocation(&finding); err != nil {
+				errs = append(errs, &RuleExecutionError{Kind: RuleErrorFunction, RuleID: finding.RuleId, Err: err})
+				continue
+			}
 			path := openLintPathSegments(finding.Path)
 			severity := execution.RuleSet.OpenLintSeverity(finding.RuleId, path, finding.Rule.Severity)
 			if severity == "off" {
@@ -1625,10 +1633,6 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				rule.Severity = severity
 				finding.Rule = &rule
 				finding.RuleSeverity = severity
-			}
-			if err := locations.setResultLocation(&finding); err != nil {
-				errs = append(errs, &RuleExecutionError{Kind: RuleErrorFunction, RuleID: finding.RuleId, Err: err})
-				continue
 			}
 			finding.RangeIsZeroBased = true
 			kept = append(kept, finding)
