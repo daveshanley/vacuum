@@ -576,6 +576,145 @@ func newOpenLintSourceLocations(root *datamodel.SpecInfo, rootPath string, rolod
 	return locations
 }
 
+// relocateOpenLintResolvedContainers follows the resolver's own target mappings.
+// Resolution replaces container contents but retains use-site coordinates.
+func relocateOpenLintResolvedContainers(results []model.RuleFunctionResult, rolodex *index.Rolodex, rootPath string, resolveAll bool) {
+	if rolodex == nil {
+		return
+	}
+	eligible := func(result *model.RuleFunctionResult) bool {
+		return result.StartNode != nil && result.StartNode.Kind == yaml.MappingNode &&
+			(resolveAll || result.Rule != nil && result.Rule.Resolved)
+	}
+	needed := false
+	for i := range results {
+		if eligible(&results[i]) {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return
+	}
+	targets := make(map[*yaml.Node]*index.Reference)
+	indexes := append([]*index.SpecIndex{rolodex.GetRootIndex()}, rolodex.GetIndexes()...)
+	for _, idx := range indexes {
+		if idx == nil {
+			continue
+		}
+		mapped := idx.GetMappedReferences()
+		for _, ref := range idx.GetAllSequencedReferences() {
+			if target := mapped[ref.FullDefinition]; target != nil && !target.Circular && target.Node != nil {
+				targets[ref.Node] = target
+			}
+		}
+	}
+	for i := range results {
+		result := &results[i]
+		if !eligible(result) || targets[result.StartNode] == nil {
+			continue
+		}
+		node := result.StartNode
+		seen := make(map[*yaml.Node]bool)
+		var last *index.Reference
+		for !seen[node] {
+			seen[node] = true
+			target := targets[node]
+			if target == nil {
+				break
+			}
+			last = target
+			node = target.Node
+		}
+		if last == nil || targets[node] != nil {
+			continue
+		}
+		// Reuse the terminal target when other findings share this chain.
+		for sourceNode := range seen {
+			if sourceNode != node {
+				targets[sourceNode] = last
+			}
+		}
+		result.StartNode, result.EndNode = node, node
+		if last.Index != nil {
+			rootTarget := last.Index == rolodex.GetRootIndex()
+			// Match direct root findings: they can have no Origin until external
+			// documents require ownership tracking. Keep their deduplication key.
+			if rootTarget && result.Origin == nil {
+				continue
+			}
+			source := last.Index.GetSpecAbsolutePath()
+			if rootTarget {
+				source = rootPath
+			}
+			result.Origin = &index.NodeOrigin{Node: node, Line: node.Line, Column: node.Column,
+				AbsoluteLocation: source, Index: last.Index}
+		}
+	}
+}
+
+// setRootResultPaths recovers authored paths for resolved findings. Keep only
+// finding positions, and skip the tree walk entirely for unresolved rules.
+func (locations *openLintSourceLocations) setRootResultPaths(root *yaml.Node, results []model.RuleFunctionResult, resolveAll bool) {
+	eligible := func(result *model.RuleFunctionResult) bool {
+		return result.StartNode != nil && (resolveAll || result.Rule != nil && result.Rule.Resolved) &&
+			(result.Origin == nil || locations.roots[result.Origin.AbsoluteLocation])
+	}
+	wanted := make(map[openLintSourceNode]string)
+	for i := range results {
+		if eligible(&results[i]) {
+			node := results[i].StartNode
+			wanted[openLintSourceNode{offset: locations.root.offset(node), kind: node.Kind}] = ""
+		}
+	}
+	if len(wanted) == 0 {
+		return
+	}
+	var visit func(*yaml.Node, string)
+	visit = func(node *yaml.Node, path string) {
+		key := openLintSourceNode{offset: locations.root.offset(node), kind: node.Kind}
+		if _, ok := wanted[key]; ok {
+			wanted[key] = path
+		}
+		switch node.Kind {
+		case yaml.DocumentNode:
+			for _, child := range node.Content {
+				visit(child, path)
+			}
+		case yaml.MappingNode:
+			for i := 0; i+1 < len(node.Content); i += 2 {
+				childPath := vacuumUtils.AppendResultPathSegment(path, node.Content[i].Value)
+				visit(node.Content[i], childPath)
+				visit(node.Content[i+1], childPath)
+			}
+		case yaml.SequenceNode:
+			for i, child := range node.Content {
+				visit(child, vacuumUtils.AppendResultPathIndex(path, i))
+			}
+		}
+	}
+	visit(root, "$")
+	for i := range results {
+		result := &results[i]
+		if !eligible(result) {
+			continue
+		}
+		node := result.StartNode
+		path := wanted[openLintSourceNode{offset: locations.root.offset(node), kind: node.Kind}]
+		if path != "" {
+			setOpenLintResultPath(result, path)
+		}
+	}
+}
+
+func setOpenLintResultPath(result *model.RuleFunctionResult, path string) {
+	result.Path = path
+	if len(result.Paths) > 0 {
+		result.Paths = []string{path}
+	}
+	result.PathFromRuleGiven = false
+}
+
 func (locations *openLintSourceLocations) setResultLocation(result *model.RuleFunctionResult) error {
 	if result.Origin == nil || locations.roots[result.Origin.AbsoluteLocation] {
 		locations.root.setResultRange(result)
@@ -622,11 +761,7 @@ func (locations *openLintSourceLocations) setResultLocation(result *model.RuleFu
 	authoredResult := model.RuleFunctionResult{StartNode: location.node}
 	external.ranges.setResultRange(&authoredResult)
 	result.Range = authoredResult.Range
-	result.Path = location.path
-	if len(result.Paths) > 0 {
-		result.Paths = []string{location.path}
-	}
-	result.PathFromRuleGiven = false
+	setOpenLintResultPath(result, location.path)
 	return nil
 }
 
