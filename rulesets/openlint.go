@@ -128,16 +128,16 @@ func (rsm ruleSetsModel) generateOpenLintRuleSetWithContext(parent context.Conte
 			var parent *RuleSet
 			var err error
 			if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
-				parent, err = DownloadRemoteRuleSet(ctx, name, client, model.OpenLintV1Draft)
+				parent, err = DownloadRemoteRuleSetWithContract(ctx, name, client, model.OpenLintV1Draft)
 			} else if rs.sourceLocation.remoteURL != nil {
 				ref, e := rs.sourceLocation.remoteURL.Parse(name)
 				if e != nil {
 					return e
 				}
-				parent, err = DownloadRemoteRuleSet(ctx, ref.String(), client, model.OpenLintV1Draft)
+				parent, err = DownloadRemoteRuleSetWithContract(ctx, ref.String(), client, model.OpenLintV1Draft)
 			} else {
 				name = filepath.Join(filepath.Dir(location), name)
-				parent, err = LoadLocalRuleSetWithReader(ctx, name, rs.readLocalFile, model.OpenLintV1Draft)
+				parent, err = LoadLocalRuleSetWithReaderAndContract(ctx, name, rs.readLocalFile, model.OpenLintV1Draft)
 			}
 			if err != nil {
 				return err

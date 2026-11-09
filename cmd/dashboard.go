@@ -205,7 +205,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 
 					var rsErr error
-					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocationWithContract(rulesetFlag, defaultRuleSets, remoteFlag, httpClient, ruleContract(cmd))
 					if rsErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())

@@ -25,7 +25,7 @@ func loadOpenLintTestSet(t *testing.T, files map[string]string) (*RuleSet, strin
 		require.NoError(t, os.MkdirAll(filepath.Dir(target), 0700))
 		require.NoError(t, os.WriteFile(target, []byte(text), 0600))
 	}
-	rs, err := LoadLocalRuleSet(context.Background(), filepath.Join(dir, "rules.yaml"), model.OpenLintV1Draft)
+	rs, err := LoadLocalRuleSetWithContract(context.Background(), filepath.Join(dir, "rules.yaml"), model.OpenLintV1Draft)
 	require.NoError(t, err)
 	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
 	require.NoError(t, rs.LoadError())
@@ -34,14 +34,14 @@ func loadOpenLintTestSet(t *testing.T, files map[string]string) (*RuleSet, strin
 
 func TestOpenLintSchemaAndNativeRemainSeparate(t *testing.T) {
 	data := []byte("rules: {}\ndocumentationUrl: https://example.com/docs\nx-tool: true\n")
-	rs, err := CreateRuleSetFromData(data, model.OpenLintV1Draft)
+	rs, err := CreateRuleSetFromDataWithContract(data, model.OpenLintV1Draft)
 	require.NoError(t, err)
 	require.Equal(t, model.OpenLintV1Draft, rs.Contract)
-	_, err = CreateRuleSetFromData([]byte("rules: {}\ndocumentationUrl: http://127.0.0.1/docs\n"), model.OpenLintV1Draft)
+	_, err = CreateRuleSetFromDataWithContract([]byte("rules: {}\ndocumentationUrl: http://127.0.0.1/docs\n"), model.OpenLintV1Draft)
 	require.Error(t, err)
-	_, err = CreateRuleSetFromData([]byte("description: metadata only\n"), model.OpenLintV1Draft)
+	_, err = CreateRuleSetFromDataWithContract([]byte("description: metadata only\n"), model.OpenLintV1Draft)
 	require.Error(t, err)
-	_, err = CreateRuleSetFromData([]byte("rules: {}\n---\nrules: {}\n"), model.OpenLintV1Draft)
+	_, err = CreateRuleSetFromDataWithContract([]byte("rules: {}\n---\nrules: {}\n"), model.OpenLintV1Draft)
 	require.Error(t, err)
 	_, err = CreateRuleSetFromData([]byte("description: metadata only\n"))
 	require.NoError(t, err)
@@ -217,9 +217,9 @@ func TestOpenLintRemoteFunctionsNeverReadLocalModules(t *testing.T) {
 			var rs *RuleSet
 			var err error
 			if route == "ancestor" {
-				rs, err = CreateRuleSetFromData([]byte(fmt.Sprintf("extends: '%s/rules.yaml'\nrules: {}\n", server.URL)), model.OpenLintV1Draft)
+				rs, err = CreateRuleSetFromDataWithContract([]byte(fmt.Sprintf("extends: '%s/rules.yaml'\nrules: {}\n", server.URL)), model.OpenLintV1Draft)
 			} else {
-				rs, err = DownloadRemoteRuleSet(context.Background(), server.URL+"/rules.yaml", server.Client(), model.OpenLintV1Draft)
+				rs, err = DownloadRemoteRuleSetWithContract(context.Background(), server.URL+"/rules.yaml", server.Client(), model.OpenLintV1Draft)
 			}
 			require.NoError(t, err)
 			reads := 0

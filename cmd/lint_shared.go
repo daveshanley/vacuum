@@ -427,7 +427,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		}
 
 		var rsErr error
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocationWithContract(
 			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient, flags.Contract)
 		if rsErr != nil {
 			if flags.GitHubAnnotations {
