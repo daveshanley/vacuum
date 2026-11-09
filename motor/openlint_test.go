@@ -6,6 +6,7 @@ package motor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/go-yaml"
 	"strings"
@@ -16,6 +17,72 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/testify/require"
 )
+
+func TestOpenLintUnresolvedFindingKeepsAuthoredReferencePath(t *testing.T) {
+	raw, err := rulesets.CreateRuleSetFromData([]byte(`rules:
+  description:
+    resolved: false
+    given: $..description
+    then: {function: length, functionOptions: {max: 1}}
+`), model.OpenLintV1Draft)
+	require.NoError(t, err)
+	rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
+	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet: rs, Spec: []byte(`components:
+  schemas:
+    Response:
+      properties:
+        accounts:
+          items:
+            $ref: '#/components/schemas/Identity'
+    Identity:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - properties:
+            owners:
+              description: long
+    Base: {type: object}
+`), SilenceLogs: true,
+	}, &ExecutionOptions{Contract: model.OpenLintV1Draft})
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "$.components.schemas['Identity'].allOf[1].properties['owners'].description", result.Results[0].Path)
+	for _, path := range result.Results[0].Paths {
+		require.Equal(t, "$.components.schemas['Identity'].allOf[1].properties['owners'].description", path)
+	}
+}
+
+func TestOpenLintParserDiagnosticPaths(t *testing.T) {
+	info, _, valid := parseOpenLintDocument([]byte("items:\n  - 'a.b':\n      name: first\n      name: second\n      1: value\n"))
+	require.True(t, valid)
+	rs := &rulesets.RuleSet{}
+	results := openLintParserDiagnostics(info.RootNode, rs)
+	require.Len(t, results, 2)
+	require.Equal(t, "$.items[0]['a.b'].name", results[0].Path)
+	require.Equal(t, "$.items[0]['a.b']['1']", results[1].Path)
+	require.Equal(t, 4, results[0].StartNode.Line)
+	require.Equal(t, 5, results[1].StartNode.Line)
+}
+
+func BenchmarkOpenLintParserDiagnostics(b *testing.B) {
+	var source strings.Builder
+	for i := 0; i < 2048; i++ {
+		fmt.Fprintf(&source, "property%d: {type: string, description: text}\n", i)
+	}
+	info, _, valid := parseOpenLintDocument([]byte(source.String()))
+	if !valid {
+		b.Fatal("invalid benchmark document")
+	}
+	rs := &rulesets.RuleSet{}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if results := openLintParserDiagnostics(info.RootNode, rs); len(results) != 0 {
+			b.Fatal("unexpected parser diagnostic")
+		}
+	}
+}
 
 func TestOpenLintDocumentExecution(t *testing.T) {
 	cases := []struct {
