@@ -638,6 +638,9 @@ func relocateOpenLintResolvedContainers(results []model.RuleFunctionResult, rolo
 		result.StartNode, result.EndNode = node, node
 		if last.Index != nil {
 			rootTarget := last.Index == rolodex.GetRootIndex()
+			if rootIndex := rolodex.GetRootIndex(); rootIndex != nil {
+				rootTarget = rootTarget || sameResultPathLocation(last.Index.GetSpecAbsolutePath(), rootIndex.GetSpecAbsolutePath())
+			}
 			// Match direct root findings: they can have no Origin until external
 			// documents require ownership tracking. Keep their deduplication key.
 			if rootTarget && result.Origin == nil {

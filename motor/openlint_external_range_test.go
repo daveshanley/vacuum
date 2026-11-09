@@ -262,11 +262,13 @@ func TestOpenLintDirectAndReferencedContainersCollapse(t *testing.T) {
 				rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw)
 				document := "Target: {}\nUse: {$ref: '#/Target'}\nUseAgain: {$ref: '#/Target'}\nChain: {$ref: '#/Use'}\n"
 				if external {
-					require.NoError(t, os.WriteFile(filepath.Join(dir, "external.yaml"), []byte("X: {}\n"), 0600))
-					document += "External: {$ref: './external.yaml#/X'}\n"
+					require.NoError(t, os.WriteFile(filepath.Join(dir, "external.yaml"), []byte("X: {}\nBack: {$ref: './api.yaml#/Target'}\n"), 0600))
+					document += "External: {$ref: './external.yaml#/X'}\nReturn: {$ref: './external.yaml#/Back'}\n"
 				}
 				filename := filepath.Join(dir, "api.yaml")
+				require.NoError(t, os.WriteFile(filename, []byte(document), 0600))
 				if relative {
+					t.Chdir(dir)
 					filename = "api.yaml"
 				}
 				result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{RuleSet: rs, Spec: []byte(document), SpecFileName: filename, Base: dir, AllowLookup: true, SilenceLogs: true}, &ExecutionOptions{Contract: model.OpenLintV1Draft})
