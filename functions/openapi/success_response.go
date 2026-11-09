@@ -76,6 +76,11 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								if responseCode >= 200 && responseCode < 400 {
 									responseSeen = true
 								}
+								// OpenAPI 3 allows the range codes 2XX and 3XX, which cover every success code.
+								if context.SpecInfo.SpecType == utils.OpenApi3 &&
+									(response.Value == "2XX" || response.Value == "3XX") {
+									responseSeen = true
+								}
 							}
 
 							// check for an integer instead of a string, and check if this is an OpenAPI 3+ doc,

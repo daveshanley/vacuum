@@ -159,3 +159,63 @@ func TestSuccessResponse_RunRule_NoNodes(t *testing.T) {
 
 	assert.Len(t, res, 0)
 }
+
+func TestSuccessResponse_RangeCodes(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /melody:
+    get:
+      operationId: listMelodies
+      responses:
+        "2XX":
+          description: hello
+    post:
+      operationId: makeMelody
+      responses:
+        "3XX":
+          description: hello
+    put:
+      operationId: changeMelody
+      responses:
+        "4XX":
+          description: hello
+        "5XX":
+          description: hello`
+
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction("$", "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, index.CreateOpenAPIIndexConfig())
+	ctx.SpecInfo = info
+
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "operation `changeMelody` must define at least a single `2xx` or `3xx` response", res[0].Message)
+}
+
+func TestSuccessResponse_RangeCodes_Swagger(t *testing.T) {
+
+	// Swagger 2.0 has no range codes, so 2XX is not a success response there.
+	yml := `swagger: "2.0"
+paths:
+  /melody:
+    get:
+      operationId: listMelodies
+      responses:
+        "2XX":
+          description: hello`
+
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction("$", "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, index.CreateOpenAPIIndexConfig())
+	ctx.SpecInfo = info
+
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+}
