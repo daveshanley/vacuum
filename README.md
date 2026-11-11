@@ -153,7 +153,15 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.36` 🔥: **12 report output formats**
+🔥 **New in** `v0.40` 🔥: **OpenLint rulesets**
+
+Got an OpenLint ruleset? Run it with `vacuum lint api.yaml --openlint -r rules.yaml`.
+
+- [Using OpenLint rules with vacuum](https://quobix.com/vacuum/openlint/)
+
+---
+
+`v0.36`: **12 report output formats**
 
 Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
 Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
