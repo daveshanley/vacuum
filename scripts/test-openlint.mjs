@@ -13,14 +13,14 @@ import { runInNewContext } from 'node:vm';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cache = join(root, '.cache', 'openlint');
 const conformanceRevision = '0714e478a99b271486c93e10a327db4564170f61';
-const specRevision = '4e95c96e4a7ecb17320cd11fc2fcd2571e8d0291';
-const matcherCorrection = 'range-endpoints-v1';
+const specRevision = '066003d95e23656a0525d8da96d925d1d6c86ea4';
+const matcherCorrection = 'range-endpoints-v2';
 mkdirSync(cache, { recursive: true });
 function command(executable, args, cwd = root) {
   return execFileSync(executable, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
 }
 function checkout(name, revision) {
-  const path = join(cache, name);
+  const path = join(cache, name + '-' + revision.slice(0, 12));
   if (!existsSync(path)) {
     command('git', ['clone', '--quiet', '--no-checkout', `https://github.com/openlint/${name}.git`, path]);
     command('git', ['checkout', '--quiet', '--detach', revision], path);
@@ -52,8 +52,13 @@ function replace(before, after) {
 // Compare every stated endpoint; do not discard correct ends to satisfy the test.
 // Remove this correction when the pinned upstream runner includes the fix.
 replace('    } else if (JSON.stringify(v) !== JSON.stringify(act[k])) {', `    } else if (k === "range") {
-      if (!act.range || Object.entries(v).some(([endpoint, position]) =>
-        JSON.stringify(position) !== JSON.stringify(act.range[endpoint]))) return false;
+      // The draft requires both endpoints. Fixtures may assert only one.
+      for (const end of ["start", "end"]) {
+        const pos = act.range?.[end];
+        if (!Number.isInteger(pos?.line) || pos.line < 0 ||
+            !Number.isInteger(pos?.character) || pos.character < 0) return false;
+        if (v[end] && (v[end].line !== pos.line || v[end].character !== pos.character)) return false;
+      }
     } else if (JSON.stringify(v) !== JSON.stringify(act[k])) {`);
 
 // Exercise the corrected runner function itself before running the suite.
@@ -70,12 +75,15 @@ assert.equal(matches({ range: { start } }, { range: { end } }, {}), false, 'reje
 assert.equal(matches({ range: { start } }, {}, {}), false, 'reject a missing range');
 assert.equal(matches({ range: { start, end } }, { range: { start } }, {}), false, 'reject a missing asserted end');
 assert.equal(matches({ range: { start, end: start } }, actual, {}), false, 'reject a wrong asserted end');
+assert.equal(matches({ range: { start } }, { range: { start } }, {}), false, 'require the unasserted end');
+assert.equal(matches({ range: { start } }, { range: { start, end: { line: 1, character: -1 } } }, {}), false, 'reject an invalid end');
 assert.equal(matches({ code: 'wrong', range: { start } }, actual, {}), false, 'retain other result checks');
 console.log(`Local matcher correction: ${matcherCorrection}. Original fixtures unchanged; endpoint regression checks passed.`);
 
 // Adapt the selected tool, invocation flag, worker count and output destination.
 replace('const tools = Object.keys(adapters);', 'const tools = ["vacuum"];');
 replace('["spectral-report", "-r", ruleset, document, file]', '["spectral-report", "--openlint", "-r", ruleset, document, file]');
+replace('    if (/failed to parse specification/.test(err)) throw new Unsupported("only lints OpenAPI documents");\n', '');
 replace('Math.max(2, cpus().length)', '4');
 runner = runner.replaceAll('results/matrix.', 'results/vacuum-openlint.');
 const temporary = join(suite, `.vacuum-runner-${process.pid}.mjs`);
@@ -88,10 +96,10 @@ try {
   if (existsSync(temporary)) unlinkSync(temporary);
 }
 const result = JSON.parse(readFileSync(join(suite, 'results/vacuum-openlint.json'), 'utf8'));
-if (result.suites.spec.length !== 238 || result.suites.interop.length !== 14) throw new Error('Pinned case count changed');
+if (result.suites.spec.length !== 240 || result.suites.interop.length !== 14) throw new Error('Pinned case count changed');
 const failures = Object.entries(result.suites).flatMap(([name, cases]) => cases
   .filter(c => c.results.vacuum?.status !== 'exact')
   .map(c => `${name}/${c.id}: ${c.results.vacuum?.status ?? 'missing'}`));
-if (failures.length) throw new Error(`${failures.length}/252 cases are not exact:\n${failures.join('\n')}`);
-console.log(`252/252 exact. Spec ${specRevision}; runner ${conformanceRevision}; local matcher correction ${matcherCorrection}.`);
+if (failures.length) throw new Error(`${failures.length}/254 cases are not exact:\n${failures.join('\n')}`);
+console.log(`254/254 exact. Spec ${specRevision}; runner ${conformanceRevision}; local matcher correction ${matcherCorrection}.`);
 console.log(`Results: ${join(suite, 'results/vacuum-openlint.json')}`);
