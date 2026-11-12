@@ -1729,7 +1729,7 @@ func runRule(ctx ruleContext) {
 			// bounded lookup behavior required for untrusted custom rulesets.
 			// A failed lookup must not change the rule's reference-resolution semantics.
 			nodes, err = findRuleGivenNodes(
-				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
+				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache, ctx.contract)
 
 		} else {
 			// if we're looking for the root, don't bother looking, we already have it.

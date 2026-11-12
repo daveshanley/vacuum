@@ -218,7 +218,7 @@ func openLintTargets(ctx ruleContext, action model.RuleAction, node *yaml.Node) 
 	if expression != "$" && !strings.HasPrefix(expression, "$.") && !strings.HasPrefix(expression, "$[") {
 		expression = "$." + expression
 	}
-	targets, err := findRuleGivenNodes(node, expression, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
+	targets, err := findRuleGivenNodes(node, expression, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache, ctx.contract)
 	if err != nil {
 		return nil, fmt.Errorf("field %q: %w", action.Field, err)
 	}
@@ -239,6 +239,7 @@ type openLintRangeIndex struct {
 	bounds       []int
 	flows        map[int]bool
 	blockIndents map[int]int
+	blockKeys    map[int]*yaml.Node
 }
 
 type openLintSourceNode struct {
@@ -302,7 +303,14 @@ func newOpenLintRangeIndex(source []byte, root *yaml.Node) *openLintRangeIndex {
 		if node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode {
 			parentIndent = max(0, node.Column-1)
 		}
-		for _, child := range node.Content {
+		for i, child := range node.Content {
+			if !flow && node.Kind == yaml.MappingNode && i%2 == 1 &&
+				(child.Kind == yaml.MappingNode || child.Kind == yaml.SequenceNode) && child.Style&yaml.FlowStyle == 0 {
+				if index.blockKeys == nil {
+					index.blockKeys = make(map[int]*yaml.Node)
+				}
+				index.blockKeys[index.offset(child)] = node.Content[i-1]
+			}
 			visit(child, flow, parentIndent)
 		}
 	}
@@ -542,7 +550,18 @@ func (index *openLintRangeIndex) setResultRange(result *model.RuleFunctionResult
 	if node == nil {
 		return
 	}
-	result.Range.Start = index.position(index.valueStart(node))
+	start := index.valueStart(node)
+	// A block collection used as a mapping value starts at its key separator.
+	// Use authored coordinates so resolved copies get the same range.
+	if node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode {
+		if key := index.blockKeys[index.offset(node)]; key != nil {
+			colon := index.skipTriviaTo(index.end(key), start, false)
+			if colon < start && index.text[colon] == ':' {
+				start = colon + 1
+			}
+		}
+	}
+	result.Range.Start = index.position(start)
 	result.Range.End = index.position(index.end(node))
 }
 
