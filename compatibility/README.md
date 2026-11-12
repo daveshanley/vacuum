@@ -6,15 +6,15 @@ Run the complete pinned OpenLint suite against the current source build:
 GOWORK=off node scripts/test-openlint.mjs
 ```
 
-This requires Go, Node and Git. The first run downloads the pinned specification
-and conformance runner into `.cache/openlint`. It runs the original 238 specification
-fixtures and 14 interop fixtures through `spectral-report --openlint`. The upstream
-matcher and expectations are unchanged. Every case must be exact; detected,
-unsupported, failed and missing cases fail the command. The JSON report is kept
-under `.cache/openlint/conformance/results`.
+This requires Go, Node and Git. The first run downloads the pinned sources into
+`.cache/openlint`. It runs all 240 specification cases and 14 interop cases
+through `spectral-report --openlint`. The fixtures are unchanged. The local
+matcher requires both range endpoints and checks each position the fixture
+specifies. All 254 cases must match exactly. The command prints the path to the
+JSON report.
 
-The contract is the OpenLint v1 draft at
-`4e95c96e4a7ecb17320cd11fc2fcd2571e8d0291`. The runner is pinned at
+The suite tests the OpenLint v1 draft at
+`066003d95e23656a0525d8da96d925d1d6c86ea4`. The runner is pinned at
 `0714e478a99b271486c93e10a327db4564170f61`. This is a draft, not a final standard.
 
 ## Native behavior
