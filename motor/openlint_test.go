@@ -179,7 +179,11 @@ func TestOpenLintContainerRanges(t *testing.T) {
 		{"x: {}", 0, 3, 0, 5},
 		{"x: []", 0, 3, 0, 5},
 		{`{"x":{"a":[1,2]}}`, 0, 5, 0, 16},
-		{"x:\n  a: one\n  b: two\ny: end", 1, 2, 2, 8},
+		{"x:\n  a: one\n  b: two\ny: end", 0, 2, 2, 8},
+		{"x: # note: ignore\r\n  - one\r\n  - two", 0, 2, 2, 7},
+		{"'😀:key' : # note\n  value: yes", 0, 10, 1, 12},
+		{"x: &name\n  value: yes", 0, 2, 1, 12},
+		{"? \"''\"\n:  # explicit key\n  value: yes", 1, 1, 2, 12},
 		{`{"x":["😀", "a\\\"b"]}`, 0, 5, 0, 21},
 	} {
 		t.Run(tc.source, func(t *testing.T) {

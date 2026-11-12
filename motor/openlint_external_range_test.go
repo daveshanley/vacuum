@@ -152,7 +152,7 @@ func TestOpenLintResolvedLocalSourcePaths(t *testing.T) {
 				}
 				offset := strings.Index(document, "long")
 				if tc.name == "container" || tc.name == "missing" || tc.name == "repeated-container" || tc.name == "chain-container" {
-					offset = strings.Index(document, "type:")
+					offset = strings.Index(document, "Target:\n") + len("Target:")
 				}
 				if tc.name == "empty" {
 					offset = strings.Index(document, "{}")

@@ -19,7 +19,7 @@ func TestRuleJSONPathQuotedProperties(t *testing.T) {
 		{"$.`$ref", "target"}, {"$.`application/json", "1"}, {"$[`$ref]", "target"},
 	} {
 		for range 2 {
-			nodes, err := findRuleGivenNodes(&node, tc.path, 0, &cache)
+			nodes, err := findRuleGivenNodes(&node, tc.path, 0, &cache, model.NativeContract)
 			require.NoError(t, err)
 			require.Len(t, nodes, 1)
 			require.Equal(t, tc.value, nodes[0].Value)
@@ -30,7 +30,7 @@ func TestRuleJSONPathQuotedProperties(t *testing.T) {
 func TestRuleJSONPathInvalidBacktickContext(t *testing.T) {
 	var cache sync.Map
 	for range 2 {
-		_, err := compileRuleGivenPath("$`$ref", &cache)
+		_, err := compileRuleGivenPath("$`$ref", &cache, model.NativeContract)
 		require.ErrorContains(t, err, "unexpected token when parsing segment")
 	}
 }
@@ -74,5 +74,29 @@ components:
 			}
 			result.ReleaseOwnedResources()
 		}
+	}
+}
+
+func TestOpenLintSlashMemberSelection(t *testing.T) {
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`paths:
+  /pets/{id}:
+    /v2: found
+  './literal': quoted
+`), &node))
+	for _, tc := range []struct{ path, want string }{
+		{"$.paths./pets/{id}./v2", "found"},
+		{"$../pets/{id}./v2", "found"},
+		{"$.paths['./literal']", "quoted"},
+	} {
+		nodes, err := findRuleGivenNodes(&node, tc.path, 0, nil, model.OpenLintV1Draft)
+		require.NoError(t, err)
+		require.Len(t, nodes, 1)
+		require.Equal(t, tc.want, nodes[0].Value)
+	}
+	_, err := compileRuleGivenPath("$.paths./pets", nil, model.NativeContract)
+	require.Error(t, err)
+	for _, selector := range []string{`$[?(@.name == './literal')]`, `$[?(@.name.match(/x./))]`, `$[?(@./invalid)]`} {
+		require.Equal(t, selector, openLintSlashMembers(selector))
 	}
 }
