@@ -28,12 +28,13 @@ The console lists available fixes with numbers. Enter numbers separated by
 spaces, or press Enter to review all available fixes. Esc cancels.
 Vacuum verifies the selection, then shows contextual diff snippets and the
 contract impact, including any breaking changes or unknown impact.
+Press **d** for the full diff when the excerpt is cut short.
 
 Press Enter to apply the reviewed changes. Press Esc to cancel without writing.
-Use the dashboard to edit values or
-inspect individual proposals. The CLI splits failed batches, keeps verified
-fixes, and lists each declined fix before acceptance. Dashboard selections
-remain all-or-nothing.
+Use the dashboard to edit values or inspect individual proposals. The CLI splits
+failed batches, keeps verified fixes, and lists each decline. It stops after 16
+verification passes. Select a smaller batch to retry the remaining fixes.
+Dashboard selections remain all-or-nothing.
 
 Noninteractive `--fix` cannot write. It returns the baseline lint report and
 a warning without building an unseen preview. Use `--fix --dry-run` in automation to
