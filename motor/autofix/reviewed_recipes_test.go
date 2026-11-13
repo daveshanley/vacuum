@@ -79,7 +79,6 @@ func TestReviewedRecipesThroughRealDetectors(t *testing.T) {
 		{"owasp-auth-urls-https", reviewedRecipeDocument(`,"components":{"securitySchemes":{"oauth":{"type":"oauth2","flows":{"authorizationCode":{"authorizationUrl":"http://api.test/auth","tokenUrl":"https://api.test/token","scopes":{}}}}}}`)},
 		{"owasp-security-hosts-https-oas3", reviewedRecipeDocument(`,"servers":[{"url":"http://api.test"}]`)},
 		{"owasp-no-additionalProperties", `{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/pets":{"post":{"requestBody":{"content":{"application/json":{"schema":{"type":"object","additionalProperties":true}}}},"responses":{"200":{"description":"ok"}}}}}}`},
-		{"description-duplication", reviewedRecipeDocument(`,"components":{"schemas":{"A":{"type":"string","description":"An item."},"B":{"type":"string","description":"An item."}}}`)},
 		{"owasp-jwt-best-practices", reviewedRecipeDocument(`,"components":{"securitySchemes":{"bearer":{"type":"http","scheme":"bearer","bearerFormat":"JWT"}}}`)},
 		{"no-script-tags-in-markdown", reviewedRecipeSchema(`{"type":"string","description":"<script>alert(1)</script>"}`)},
 		{"arazzo-no-script-tags-in-markdown", `{"arazzo":"1.1.0","info":{"title":"Review","version":"1","description":"<script>alert(1)</script>"},"sourceDescriptions":[],"workflows":[{"workflowId":"run","steps":[{"stepId":"read","operationId":"read"}]}]}`},
@@ -214,7 +213,7 @@ func TestReviewedCombinedGeneratedTagsShareGlobalCollection(t *testing.T) {
 	}
 }
 
-func TestReviewedDuplicateDescriptionUsesPublicOperationContext(t *testing.T) {
+func TestReviewedDuplicateDescriptionRequiresAuthoredText(t *testing.T) {
 	source := `{"openapi":"3.1.0","info":{"title":"Review","version":"1"},"paths":{"/pets":{"get":{"description":"Manage pets.","responses":{"200":{"description":"ok"}}},"post":{"description":"Manage pets.","responses":{"201":{"description":"created"}}}}}}`
 	rule := rulesets.GetAllBuiltInRules()["description-duplication"]
 	review, err := NewFixReview(&motor.RuleSetExecution{SpecFileName: "/tmp/description.json", Spec: []byte(source), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}}, nil)
@@ -222,12 +221,7 @@ func TestReviewedDuplicateDescriptionUsesPublicOperationContext(t *testing.T) {
 	defer review.Close()
 	require.NotEmpty(t, review.Options())
 	for _, option := range review.Options() {
-		if !option.Available {
-			continue
-		}
-		draft, err := review.Draft(FixChoice{Index: option.Index})
-		require.NoError(t, err)
-		require.NotContains(t, draft.After, "paths / ")
-		require.True(t, strings.Contains(draft.After, "(POST /pets)") || strings.Contains(draft.After, "(GET /pets)"), draft.After)
+		require.False(t, option.Available)
+		require.Empty(t, option.Value)
 	}
 }

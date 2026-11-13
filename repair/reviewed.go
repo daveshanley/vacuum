@@ -446,20 +446,28 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding,
 		if !schema || nodes[f.Pointer] == nil {
 			return nil, "unused removal currently requires a root-local schema"
 		}
+		scoped, external := false, false
 		for path, node := range nodes {
 			if strings.HasSuffix(path, "/discriminator") || strings.HasSuffix(path, "/$id") || strings.HasSuffix(path, "/$dynamicRef") || strings.HasSuffix(path, "/$recursiveRef") {
-				return nil, "schema has scoped or implicit reference semantics"
+				scoped = true
 			}
 			if strings.HasSuffix(path, "/$ref") {
 				ref, err := url.PathUnescape(node.Value)
 				if err != nil || !strings.HasPrefix(ref, "#/") {
-					return nil, "unused removal requires a closed local pointer-reference graph"
+					external = true
+					continue
 				}
 				target := strings.TrimPrefix(ref, "#")
 				if target == f.Pointer || strings.HasPrefix(target, f.Pointer+"/") {
 					return nil, "schema has an incoming reference"
 				}
 			}
+		}
+		if scoped {
+			return nil, "schema has scoped or implicit reference semantics"
+		}
+		if external {
+			return nil, "unused removal requires a closed local pointer-reference graph"
 		}
 		if !uncommented(nodes[f.Pointer]) {
 			return nil, "unused schema carries comments"
@@ -961,18 +969,6 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding,
 			return nil, "authored additional-property schema requires a separate decision"
 		}
 		return reviewedSet(n, p, "additionalProperties", false), ""
-	case "description-duplication":
-		v := nodes[f.Pointer]
-		if v == nil || v.Tag != "!!str" || (f.Code != "description-duplicate" && f.Code != "summary-duplicate") {
-			return nil, "exact duplicate text diagnostic required"
-		}
-		parts, err := tokens(p)
-		if err != nil || len(parts) == 0 {
-			return nil, "description has no named owner"
-		}
-		label := reviewedDescriptionLabel(parts, n)
-		b, _ := json.Marshal(v.Value + " (" + label + ")")
-		return []Operation{{Op: "replace", Path: f.Pointer, Value: b}}, ""
 	}
 	return nil, ""
 }
@@ -980,7 +976,7 @@ func reviewedOperations(root *yaml.Node, nodes map[string]*yaml.Node, f Finding,
 // ReviewedRuleIDs lists rules with additional review-only recipes. Availability
 // still depends on the diagnostic, source shape and guards in ReviewedPlan.
 func ReviewedRuleIDs() []string {
-	return []string{"oas3-missing-example", "oas3-valid-schema-example", "json-schema-examples-valid", "asyncapi-message-examples", "arazzo-source-type", "arazzo-step-operationPath", "oas3-example-external-check", "arazzo-advisory", "arazzo-duplicate-id", "paths-specificity-order", "no-$ref-siblings", "path-item-refs", "migrate-zally-ignore", "license-url", "asyncapi-info-license-url", "info-license-spdx", "oas2-schema", "oas3-schema", "json-schema-valid", "arazzo-structure", "json-schema-type-constraint-compatible", "no-eval-in-markdown", "oas2-unused-definition", "oas3-unused-component", "asyncapi-unused-components", "asyncapi-channel-parameters", "required-fields-defined", "camel-case-properties", "operation-operationId-valid-in-url", "operation-operationId-unique", "paths-kebab-case", "path-keys-no-trailing-slash", "no-http-verbs-in-path", "path-not-include-query", "asyncapi-3-channel-no-query-nor-fragment", "json-schema-title-description-type", "json-schema-composition-sanity", "oas2-discriminator", "oas2-operation-formData-consume-check", "owasp-jwt-best-practices", "no-script-tags-in-markdown", "arazzo-no-script-tags-in-markdown", "oas3-server-trailing-slash", "asyncapi-3-server-no-trailing-slash", "asyncapi-3-channel-no-trailing-slash", "asyncapi-3-headers-schema-type-object", "asyncapi-3-tags", "operation-tags", "operation-tag-defined", "nullable-enum-contains-null", "json-schema-required-properties-defined", "operation-singular-tag", "oas2-anyOf", "oas2-oneOf", "oas2-host-trailing-slash", "oas-missing-type", "typed-enum", "owasp-integer-format", "owasp-integer-limit", "owasp-auth-urls-https", "owasp-security-hosts-https-oas3", "owasp-no-additionalProperties", "description-duplication"}
+	return []string{"oas3-missing-example", "oas3-valid-schema-example", "json-schema-examples-valid", "asyncapi-message-examples", "arazzo-source-type", "arazzo-step-operationPath", "oas3-example-external-check", "arazzo-advisory", "arazzo-duplicate-id", "paths-specificity-order", "no-$ref-siblings", "path-item-refs", "migrate-zally-ignore", "license-url", "asyncapi-info-license-url", "info-license-spdx", "oas2-schema", "oas3-schema", "json-schema-valid", "arazzo-structure", "json-schema-type-constraint-compatible", "no-eval-in-markdown", "oas2-unused-definition", "oas3-unused-component", "asyncapi-unused-components", "asyncapi-channel-parameters", "required-fields-defined", "camel-case-properties", "operation-operationId-valid-in-url", "operation-operationId-unique", "paths-kebab-case", "path-keys-no-trailing-slash", "no-http-verbs-in-path", "path-not-include-query", "asyncapi-3-channel-no-query-nor-fragment", "json-schema-title-description-type", "json-schema-composition-sanity", "oas2-discriminator", "oas2-operation-formData-consume-check", "owasp-jwt-best-practices", "no-script-tags-in-markdown", "arazzo-no-script-tags-in-markdown", "oas3-server-trailing-slash", "asyncapi-3-server-no-trailing-slash", "asyncapi-3-channel-no-trailing-slash", "asyncapi-3-headers-schema-type-object", "asyncapi-3-tags", "operation-tags", "operation-tag-defined", "nullable-enum-contains-null", "json-schema-required-properties-defined", "operation-singular-tag", "oas2-anyOf", "oas2-oneOf", "oas2-host-trailing-slash", "oas-missing-type", "typed-enum", "owasp-integer-format", "owasp-integer-limit", "owasp-auth-urls-https", "owasp-security-hosts-https-oas3", "owasp-no-additionalProperties"}
 }
 
 func reviewedIdentifier(value string) string {
@@ -1377,6 +1373,7 @@ func reviewedArazzoIdentifier(nodes map[string]*yaml.Node, f Finding) ([]Operati
 		return nil, "only local workflow and step identifiers have a naming proposal"
 	}
 	ids := map[string]bool{}
+	hasExpression := false
 	for path, node := range nodes {
 		if strings.Contains(path, "/dependsOn") {
 			return nil, "workflow dependencies require a coordinated naming migration"
@@ -1391,8 +1388,11 @@ func reviewedArazzoIdentifier(nodes map[string]*yaml.Node, f Finding) ([]Operati
 			continue
 		}
 		if strings.Contains(node.Value, "$") || strings.HasSuffix(path, "/workflowId") || strings.HasSuffix(path, "/stepId") {
-			return nil, "workflow expressions or references require a coordinated naming migration"
+			hasExpression = true
 		}
+	}
+	if hasExpression {
+		return nil, "workflow expressions or references require a coordinated naming migration"
 	}
 	replacement := reviewedIdentifier(value.Value)
 	if replacement == "" {
@@ -1556,46 +1556,6 @@ func reviewedArazzoSource(root *yaml.Node, nodes map[string]*yaml.Node, f Findin
 }
 
 var reviewedPortableName = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
-
-func reviewedDescriptionLabel(parts []string, owner *yaml.Node) string {
-	if len(parts) >= 3 && (parts[0] == "paths" || parts[0] == "webhooks") && reviewedHTTPMethod(parts[2]) {
-		label := strings.ToUpper(parts[2]) + " " + parts[1]
-		if name := field(owner, "name"); name != nil && name.Tag == "!!str" {
-			return name.Value + " parameter for " + label
-		}
-		for _, part := range parts[3:] {
-			if part == "schema" {
-				return label + " schema"
-			}
-		}
-		for _, part := range parts[3:] {
-			if part == "requestBody" {
-				return label + " request body"
-			}
-			if part == "responses" {
-				return label + " response"
-			}
-		}
-		return label
-	}
-	if len(parts) >= 3 && parts[0] == "components" {
-		if len(parts) >= 5 && parts[len(parts)-2] == "properties" {
-			return parts[len(parts)-1] + " property of " + parts[2]
-		}
-		kind := map[string]string{"schemas": "schema", "responses": "response", "parameters": "parameter", "headers": "header", "securitySchemes": "security scheme", "requestBodies": "request body", "links": "link", "examples": "example", "callbacks": "callback"}[parts[1]]
-		if kind != "" {
-			return parts[2] + " " + kind
-		}
-		return parts[2]
-	}
-	if len(parts) >= 2 && parts[0] == "definitions" {
-		return parts[1] + " schema"
-	}
-	if len(parts) == 1 && parts[0] == "info" {
-		return "API information"
-	}
-	return parts[len(parts)-1]
-}
 
 // reviewedNameWords preserves acronym boundaries: userID is user/id, and
 // HTTPServer is http/server. Separators and repeated separators share one form.
