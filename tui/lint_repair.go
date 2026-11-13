@@ -181,8 +181,8 @@ func fixIdentity(r *model.RuleFunctionResult) string {
 	if r == nil {
 		return ""
 	}
-	id := ""
-	if r.Rule != nil {
+	id := r.RuleId
+	if id == "" && r.Rule != nil {
 		id = r.Rule.Id
 	}
 	line, column := 0, 0
