@@ -143,6 +143,8 @@ come say hi!
 
 Found problems? Can't be bothered to fix them? vacuum can auto-fix your linting issues for you.
 
+Native JSON and YAML reports now include `diagnosticCode` when available. A security requirement can also name a scheme by URI in an external document that vacuum has already loaded.
+
 - [Get started with autofix](https://quobix.com/vacuum/autofix/)
 - [Save fixes as an overlay](https://quobix.com/vacuum/autofix/#save-as-an-overlay)
 - [Supply your own values](https://quobix.com/vacuum/autofix-policy/)
