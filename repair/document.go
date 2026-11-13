@@ -17,6 +17,11 @@ func ParseDocument(data []byte) (*yaml.Node, error) {
 	if len(data) > 64<<20 {
 		return nil, fmt.Errorf("repair source exceeds 64 MiB")
 	}
+	// The YAML scanner treats CRLF as two breaks when it assigns comments.
+	// Decode logical lines for node positions and keep the original bytes for splicing.
+	if bytes.Contains(data, []byte("\r\n")) {
+		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+	}
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	var doc yaml.Node
 	if err := decoder.Decode(&doc); err != nil {

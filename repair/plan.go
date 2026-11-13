@@ -7,6 +7,7 @@
 package repair
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -99,7 +100,8 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 	if len(plan.KeyRemovals) > 0 && (len(plan.KeyTags) > 0 || len(plan.Operations) > 0 || len(plan.Absent) > 0) {
 		return nil, fmt.Errorf("duplicate-key removals require a separate repair batch")
 	}
-	parsed, parseErr := ParseDocument(data)
+	sourceBytes := bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
+	parsed, parseErr := ParseDocument(sourceBytes)
 	if parseErr != nil {
 		return nil, parseErr
 	}
@@ -224,7 +226,14 @@ func Apply(source string, data []byte, plan Plan) ([]byte, error) {
 	if len(plan.Operations) == 0 && len(plan.KeyTags) == 0 && len(plan.KeyRemovals) == 0 {
 		return append([]byte(nil), data...), nil
 	}
-	return renderSource(originalRoot, root, data, json.Valid(data), format)
+	out, err := renderSource(originalRoot, &doc, sourceBytes, json.Valid(sourceBytes), format)
+	if err != nil {
+		return nil, err
+	}
+	if len(sourceBytes) != len(data) {
+		out = append([]byte("\xef\xbb\xbf"), out...)
+	}
+	return out, nil
 }
 
 func validateTree(n *yaml.Node, seen map[*yaml.Node]bool) error {

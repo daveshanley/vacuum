@@ -5,6 +5,7 @@ package repair
 
 import (
 	"encoding/json"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
 	"strings"
@@ -116,13 +117,13 @@ func TestPolicyCatalogIgnoresLinkOperationIDs(t *testing.T) {
 	require.Len(t, plan.Targets, 1)
 }
 
-func TestApplyPreservesFlowCommentBeforeSurvivingItem(t *testing.T) {
-	source := []byte("values: [a,  a, # Keep b comment\n  b]\n")
+func TestApplyDropsLineCommentOnRemovedFlowItem(t *testing.T) {
+	source := []byte("values: [a,  a, # about second a\n  b]\n")
 	plan := NewPlan("source", source)
 	plan.Operations = []Operation{{Op: "remove", Path: "/values/1"}}
 	got, err := Apply("source", source, plan)
 	require.NoError(t, err)
-	require.Equal(t, "values: [a, # Keep b comment\n  b]\n", string(got))
+	require.Equal(t, "values: [a,\n  b]\n", string(got))
 }
 
 func TestSourcePreservesTaggedScalarsAndDocumentMarkers(t *testing.T) {
@@ -164,5 +165,61 @@ func TestSourcePreservesCommentedDocumentEndMarker(t *testing.T) {
 		got, err := Apply("source", source, plan)
 		require.NoError(t, err)
 		require.Equal(t, strings.Replace(string(source), "old", "new", 1), string(got))
+	}
+}
+
+func TestBlockEntryCommentOwnership(t *testing.T) {
+	for _, test := range []struct {
+		name, source, want string
+		op                 Operation
+	}{
+		{"middle", "a: 1\nb: 2 # about b\nc: 3\n", "a: 1\nc: 3\n", Operation{Op: "remove", Path: "/b"}},
+		{"last", "a: 1 # about a\nb: 2 # about b\n", "a: 1 # about a\n", Operation{Op: "remove", Path: "/b"}},
+		{"first", "# about a\na: 1\n# about b\nb: 2\n", "# about b\nb: 2\n", Operation{Op: "remove", Path: "/a"}},
+		{"foot", "a: 1\n# foot a\n\nb: 2\n", "b: 2\n", Operation{Op: "remove", Path: "/a"}},
+		{"sequence", "- name: b # bee\n# about a\n- name: a # ay\n", "# about a\n- name: a # ay\n- name: b # bee\n", Operation{Op: "move", From: "/1", Path: "/0"}},
+		{"nested", "outer:\n  a: 1 # about a\n  # about b\n  b: 2\n", "outer:\n  # about b\n  b: 2\n", Operation{Op: "remove", Path: "/outer/a"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for _, newline := range []string{"\n", "\r\n"} {
+				source := []byte(strings.ReplaceAll(test.source, "\n", newline))
+				plan := NewPlan("source", source)
+				plan.Operations = []Operation{test.op}
+				out, err := Apply("source", source, plan)
+				require.NoError(t, err)
+				require.Equal(t, strings.ReplaceAll(test.want, "\n", newline), string(out))
+			}
+		})
+	}
+}
+
+func TestSourceChecksCommentOwnershipAfterRendering(t *testing.T) {
+	for _, comment := range []func(*yaml.Node){func(n *yaml.Node) { n.HeadComment = "# head" }, func(n *yaml.Node) { n.LineComment = "# line" }, func(n *yaml.Node) { n.FootComment = "# foot" }} {
+		data := []byte("key: value\n")
+		doc, err := ParseDocument(data)
+		require.NoError(t, err)
+		root := doc.Content[0]
+		after := clone(doc)
+		comment(after.Content[0].Content[0])
+		out, err := renderSource(root, after, data, false, utils.CaptureRepairYAMLFormat(root))
+		require.ErrorContains(t, err, "differs from the requested edits")
+		require.Nil(t, out)
+	}
+}
+
+func TestApplyPreservesBOMAndOriginalFormat(t *testing.T) {
+	for _, test := range []struct {
+		source, want string
+		op           Operation
+	}{
+		{"title: Pets\n", "title: Dogs\n", Operation{Op: "replace", Path: "/title", Value: json.RawMessage(`"Dogs"`)}},
+		{`{"title":"Pets"}`, `{"title":"Pets","tags":["pets"]}`, Operation{Op: "add", Path: "/tags", Value: json.RawMessage(`["pets"]`)}},
+	} {
+		source := []byte("\ufeff" + test.source)
+		plan := NewPlan("source", source)
+		plan.Operations = []Operation{test.op}
+		out, err := Apply("source", source, plan)
+		require.NoError(t, err)
+		require.Equal(t, "\ufeff"+test.want, string(out))
 	}
 }

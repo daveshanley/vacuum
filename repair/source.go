@@ -5,6 +5,7 @@ package repair
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -29,7 +30,8 @@ type sourceRenderer struct {
 
 // renderSource reuses source tokens for unchanged nodes and renders only edited
 // values. The resulting tree is checked against the applied plan before return.
-func renderSource(before, after *yaml.Node, data []byte, jsonDocument bool, format utils.RepairYAMLFormat) ([]byte, error) {
+func renderSource(before, document *yaml.Node, data []byte, jsonDocument bool, format utils.RepairYAMLFormat) ([]byte, error) {
+	after := document.Content[0]
 	r := &sourceRenderer{data: data, json: jsonDocument, spans: make(map[*yaml.Node]sourceSpan), format: format, lines: []int{0}}
 	r.columns = make(map[int][]sourceColumnCorrection)
 	r.entries = make(map[*yaml.Node]map[string]int)
@@ -61,11 +63,14 @@ func renderSource(before, after *yaml.Node, data []byte, jsonDocument bool, form
 		}
 		out = append(out, '\n')
 	}
+	if jsonDocument && !json.Valid(out) {
+		return nil, fmt.Errorf("source-preserving repair produced invalid JSON")
+	}
 	parsed, err := ParseDocument(out)
 	if err != nil {
 		return nil, fmt.Errorf("cannot preserve source syntax: %w", err)
 	}
-	if !sameNodeValues(parsed.Content[0], after) {
+	if !sameNodeValues(parsed, document) {
 		return nil, fmt.Errorf("source-preserving repair differs from the requested edits")
 	}
 	return out, nil
@@ -103,7 +108,12 @@ func (r *sourceRenderer) index(n *yaml.Node, bound int, inFlow bool) {
 		if n.Style&yaml.FlowStyle != 0 {
 			end = r.flowEnd(start, bound)
 		} else if len(n.Content) > 0 {
-			end = r.spans[n.Content[len(n.Content)-1]].end
+			step := 1
+			if n.Kind == yaml.MappingNode {
+				step = 2
+			}
+			start, _ = r.blockEntryStart(n, 0)
+			end = r.blockEntryEnd(n, len(n.Content)-step, step)
 		}
 	} else {
 		end = r.scalarEnd(n, start, bound, inFlow)
@@ -224,7 +234,7 @@ func (r *sourceRenderer) scalarEnd(n *yaml.Node, start, bound int, inFlow bool) 
 // Compare parsed node values directly: authored YAML may contain timestamp or
 // other tagged scalars that cannot be represented through JSON normalization.
 func sameNodeValues(a, b *yaml.Node) bool {
-	if a.Kind != b.Kind || a.Tag != b.Tag || a.Value != b.Value || len(a.Content) != len(b.Content) {
+	if a.Kind != b.Kind || a.Tag != b.Tag || a.Value != b.Value || a.HeadComment != b.HeadComment || a.LineComment != b.LineComment || a.FootComment != b.FootComment || len(a.Content) != len(b.Content) {
 		return false
 	}
 	for i := range a.Content {
@@ -347,7 +357,14 @@ func (r *sourceRenderer) flow(before, after *yaml.Node) ([]byte, error) {
 		if i > 0 {
 			gap := separator
 			if j >= step {
-				gap = r.data[r.spans[before.Content[j-1]].end:r.spans[before.Content[j]].start]
+				previous := before.Content[j-1]
+				gap = r.data[r.spans[previous].end:r.spans[before.Content[j]].start]
+				if r.oldEntry(before, after, i-step) != j-step && previous.LineComment != "" {
+					// In flow syntax a comment after the comma belongs to the preceding item.
+					if k := bytes.Index(gap, []byte(previous.LineComment)); k >= 0 {
+						gap = append(bytes.Clone(bytes.TrimRight(gap[:k], " \t")), gap[k+len(previous.LineComment):]...)
+					}
+				}
 			}
 			out.Write(gap)
 		}
@@ -375,6 +392,71 @@ func (r *sourceRenderer) flow(before, after *yaml.Node) ([]byte, error) {
 	out.Write(suffix)
 	return out.Bytes(), nil
 }
+
+// A block entry owns its dash, leading comments and trailing comments. Keep
+// separating whitespace outside the entry so moves carry the author's comments.
+func (r *sourceRenderer) blockEntryStart(block *yaml.Node, i int) (start, token int) {
+	entry := block.Content[i]
+	token = r.spans[entry].start
+	if block.Kind == yaml.SequenceNode {
+		pos := token
+		for pos > 0 && strings.IndexByte(" \t\r\n", r.data[pos-1]) >= 0 {
+			pos--
+		}
+		if pos > 0 && r.data[pos-1] == '-' {
+			token = pos - 1
+		}
+	}
+	start = token
+	if entry.HeadComment == "" {
+		return
+	}
+	head := strings.Split(entry.HeadComment, "\n")
+	row := bytes.LastIndexByte(r.data[:token], '\n') + 1
+	for j := len(head) - 1; j >= 0 && row > 0; j-- {
+		prev := bytes.LastIndexByte(r.data[:row-1], '\n') + 1
+		line := bytes.TrimSpace(r.data[prev:row])
+		if string(line) != strings.TrimSpace(head[j]) {
+			return token, token
+		}
+		start = prev + len(r.data[prev:row]) - len(bytes.TrimLeft(r.data[prev:row], " \t"))
+		row = prev
+	}
+	return
+}
+
+func (r *sourceRenderer) blockEntryEnd(block *yaml.Node, i, step int) int {
+	first, last := block.Content[i], block.Content[i+step-1]
+	end := r.spans[last].end
+	if last.LineComment != "" || first.LineComment != "" {
+		lineEnd := bytes.IndexAny(r.data[end:], "\r\n")
+		if lineEnd < 0 {
+			lineEnd = len(r.data) - end
+		}
+		comment := string(bytes.TrimSpace(r.data[end : end+lineEnd]))
+		if comment != "" && (comment == last.LineComment || comment == first.LineComment) {
+			end += lineEnd
+		}
+	}
+	if first.FootComment != "" {
+		for _, line := range strings.Split(first.FootComment, "\n") {
+			next := bytes.IndexByte(r.data[end:], '\n')
+			if next < 0 {
+				break
+			}
+			row := end + next + 1
+			stop := bytes.IndexAny(r.data[row:], "\r\n")
+			if stop < 0 {
+				stop = len(r.data) - row
+			}
+			if string(bytes.TrimSpace(r.data[row:row+stop])) != strings.TrimSpace(line) {
+				break
+			}
+			end = row + stop
+		}
+	}
+	return end
+}
 func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 	step := 1
 	if before.Kind == yaml.MappingNode {
@@ -387,15 +469,12 @@ func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 	}
 	separator := newline + strings.Repeat(" ", indent)
 	var out bytes.Buffer
-	if step == 1 {
-		out.Write(r.data[r.spans[before].start:r.spans[before.Content[0]].start])
-		separator += "- "
-	}
 	for i := 0; i < len(after.Content); i += step {
 		j := r.oldEntry(before, after, i)
 		if i > 0 {
 			if j >= step {
-				out.Write(r.data[r.spans[before.Content[j-1]].end:r.spans[before.Content[j]].start])
+				start, _ := r.blockEntryStart(before, j)
+				out.Write(r.data[r.blockEntryEnd(before, j-step, step):start])
 			} else {
 				if bytes.HasSuffix(out.Bytes(), []byte(newline)) {
 					out.WriteString(strings.TrimPrefix(separator, newline))
@@ -405,6 +484,8 @@ func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 			}
 		}
 		if j >= 0 {
+			start, _ := r.blockEntryStart(before, j)
+			out.Write(r.data[start:r.spans[before.Content[j]].start])
 			if step == 2 {
 				if !isBlock(before.Content[j+1]) && isBlock(after.Content[i+1]) {
 					pair := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: after.Content[i : i+2]}
@@ -413,6 +494,7 @@ func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 						return nil, err
 					}
 					out.Write(value)
+					out.Write(r.data[r.spans[before.Content[j+1]].end:r.blockEntryEnd(before, j, step)])
 					continue
 				}
 				key, err := r.render(before.Content[j], after.Content[i])
@@ -435,7 +517,11 @@ func (r *sourceRenderer) block(before, after *yaml.Node) ([]byte, error) {
 				}
 				out.Write(value)
 			}
+			out.Write(r.data[r.spans[before.Content[j+step-1]].end:r.blockEntryEnd(before, j, step)])
 		} else {
+			if step == 1 {
+				out.WriteString("- ")
+			}
 			var n *yaml.Node
 			if step == 2 {
 				n = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: after.Content[i : i+2]}
