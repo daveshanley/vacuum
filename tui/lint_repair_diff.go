@@ -58,15 +58,8 @@ func (m *ViolationResultTableModel) repairChangeSource(ch *change.Change) diffvi
 		return diffview.Source{}
 	}
 	ctx := ch.Context
-	if ctx.DocumentLocation != "" {
-		path := m.fileName
-		if m.repair.config != nil && m.repair.config.SourcePath != "" {
-			path = m.repair.config.SourcePath
-		}
-		root, err := filepath.Abs(path)
-		if err != nil || filepath.Clean(ctx.DocumentLocation) != root {
-			return diffview.Source{}
-		}
+	if !m.rootRepairLocation(ctx.DocumentLocation) {
+		return diffview.Source{}
 	}
 	v := &m.repair.changes
 	removed := ch.ChangeType == change.PropertyRemoved || ch.ChangeType == change.ObjectRemoved
@@ -77,6 +70,18 @@ func (m *ViolationResultTableModel) repairChangeSource(ch *change.Change) diffvi
 		return diffview.Source{Lines: v.original, Line: *ctx.OriginalLine, Side: diffview.Original}
 	}
 	return diffview.Source{}
+}
+
+func (m *ViolationResultTableModel) rootRepairLocation(location string) bool {
+	if location == "" {
+		return true
+	}
+	path := m.fileName
+	if m.repair.config != nil && m.repair.config.SourcePath != "" {
+		path = m.repair.config.SourcePath
+	}
+	root, err := filepath.Abs(path)
+	return err == nil && filepath.Clean(location) == root
 }
 
 func (m *ViolationResultTableModel) hasRepairPreview() bool {

@@ -16,6 +16,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
+	change "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
 )
 
@@ -357,12 +358,70 @@ func TestRepairSaveSelectedOverlay(t *testing.T) {
 	require.NotNil(t, cmd)
 	m.Update(cmd())
 	require.Equal(t, repairSavePreview, m.repair.save.step, m.repair.save.err)
+	preview := m.repair.preview
+	split := m.repair.save.split
+	require.NotNil(t, split)
+	require.Equal(t, string(preview.Overlay), split.panes[0].GetContent())
+	require.Equal(t, string(preview.Candidate), split.panes[1].GetContent())
+	for _, size := range []tea.WindowSizeMsg{{Width: 200, Height: 55}, {Width: 86, Height: 24}} {
+		m.Update(size)
+		modal := ansi.Strip(m.renderActiveModal())
+		require.Equal(t, size.Width-4, lipgloss.Width(modal))
+		require.Equal(t, size.Height-2, lipgloss.Height(modal))
+		require.Contains(t, modal, "› Overlay file")
+		require.Contains(t, modal, "Resulting specification")
+		require.Contains(t, modal, "overlay: 1.1.0")
+		require.Contains(t, modal, "actions:")
+		require.Contains(t, modal, `"openapi"`)
+		require.Contains(t, modal, "esc: cancel")
+	}
+	repairKey(m, tea.KeyTab, "")
+	require.Contains(t, ansi.Strip(m.renderActiveModal()), "› Resulting specification")
 	require.Empty(t, saved)
 	m.repair.save.acceptAfter = time.Time{}
 	repairKey(m, tea.KeyEnter, "")
 	require.Equal(t, repairSaveDone, m.repair.save.step)
-	require.Contains(t, string(saved), "overlay: 1.1.0")
+	require.Equal(t, preview.Overlay, saved)
 	require.Contains(t, string(saved), "Review API.")
 	require.Equal(t, original, string(*disk))
 	require.Equal(t, original, string(m.specContent))
+}
+
+func TestOverlayReviewIndependentPanesAndChangedLines(t *testing.T) {
+	m, _ := repairTestModel(t)
+	const originalLine = "\t\t\t\t\t\t\"description\": \"after界\","
+	// Both documents have enough rows to scroll beyond the initial viewport.
+	p := &autofix.FixPreview{
+		Overlay:   []byte("overlay: 1.1.0\n" + strings.Repeat("  # action\n", 45)),
+		Candidate: []byte("{\n" + strings.Repeat("\n", 18) + originalLine + "\n" + strings.Repeat("\n", 18) + "\"paths\": {}\n}"),
+	}
+	for _, l := range []int{39, 20} {
+		p.Impact.Changes = append(p.Impact.Changes, &change.Change{Context: &change.ChangeContext{NewLine: &l}})
+	}
+	split := m.newOverlayReview(p)
+	m.repair.preview = p
+	m.openRepairSave()
+	m.repair.save.step, m.repair.save.split = repairSavePreview, split
+	read := func() string { return ansi.Strip(split.render(49, 9)) }
+	before := read()
+	require.Contains(t, before, "› Overlay file")
+	require.NotContains(t, before, "description", "tab indentation extends beyond the pane")
+	right := split.panes[1].YOffset()
+	repairKey(m, tea.KeyDown, "")
+	require.Positive(t, split.panes[0].YOffset())
+	require.Equal(t, right, split.panes[1].YOffset())
+	repairKey(m, tea.KeyTab, "")
+	for range 12 {
+		repairKey(m, tea.KeyRight, "")
+	}
+	after := read()
+	require.Contains(t, after, "after界")
+	require.NotContains(t, after, "\t")
+	require.Len(t, strings.Split(after, "\n"), 9)
+	require.Contains(t, string(p.Candidate), originalLine)
+	repairKey(m, ']', "]")
+	require.Contains(t, read(), "\"paths\": {}")
+	require.Zero(t, split.panes[1].XOffset())
+	repairKey(m, '[', "[")
+	require.Equal(t, right, split.panes[1].YOffset())
 }

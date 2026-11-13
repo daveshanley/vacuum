@@ -239,19 +239,26 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 			return true, nil
 		}
 		r.preview = preview
-		var diff strings.Builder
-		// strings.Builder cannot fail. Keep the complete byte diff available
-		// alongside the bounded semantic change cards.
-		_ = utils.WriteRepairDiff(&diff, r.source, preview.Candidate)
-		r.diff = repairImpactDetails(preview.Impact) + "\n" + diff.String()
-		r.initChangeView()
+		overlay := r.save != nil && r.save.step == repairSaveVerifying && r.save.options.Overlay
+		if !overlay {
+			var diff strings.Builder
+			// strings.Builder cannot fail. Keep the complete byte diff available
+			// alongside the bounded semantic change cards.
+			_ = utils.WriteRepairDiff(&diff, r.source, preview.Candidate)
+			r.diff = repairImpactDetails(preview.Impact) + "\n" + diff.String()
+			r.initChangeView()
+		}
 		r.status = fmt.Sprintf("PREVIEW: %d fixes · E %d→%d W %d→%d I %d→%d · score %d→%d · no writes", preview.Fixed, preview.Before.Errors, preview.After.Errors, preview.Before.Warnings, preview.After.Warnings, preview.Before.Info, preview.After.Info, preview.Before.Score, preview.After.Score) + " | " + repairImpactLabel(preview.Impact)
 		if r.save != nil && r.save.step == repairSaveVerifying {
 			r.save.step = repairSavePreview
 			r.save.view.SoftWrap = false
 			width, _ := m.repairModalSize()
 			r.save.view.SetWidth(max(1, width-4))
-			r.save.view.SetContent(m.repairReviewContent(r.save.view.Width()))
+			if overlay {
+				r.save.split = m.newOverlayReview(preview)
+			} else {
+				r.save.view.SetContent(m.repairReviewContent(r.save.view.Width()))
+			}
 			r.save.view.SetXOffset(0)
 			r.save.view.GotoTop()
 			r.save.acceptAfter = time.Now().Add(repairSaveAcceptDelay)
