@@ -53,8 +53,19 @@ type repairSaveState struct {
 	input               textinput.Model
 	options             RepairSaveOptions
 	view                viewport.Model
+	split               *overlayReview
 	err                 string
 	summary             string
+}
+
+func (s *repairSaveState) updateViewport(msg tea.Msg) tea.Cmd {
+	view := &s.view
+	if s.step == repairSavePreview && s.split != nil {
+		view = &s.split.panes[s.split.focus]
+	}
+	var cmd tea.Cmd
+	*view, cmd = view.Update(msg)
+	return cmd
 }
 
 func (s *repairSaveState) fail(message string, retry repairSaveStep) {
@@ -119,7 +130,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			s.input, cmd = s.input.Update(msg)
 		}
 		if s.step == repairSavePreview || s.step == repairSaveError {
-			s.view, cmd = s.view.Update(msg)
+			cmd = s.updateViewport(msg)
 		}
 		return true, cmd
 	}
@@ -214,12 +225,25 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			return m.verifyRepairSaveOutput()
 		}
 	case repairSavePreview:
-		if m.changeRepairView(key.String()) {
+		if s.split != nil {
+			switch key.String() {
+			case "tab", "shift+tab":
+				s.split.focus = 1 - s.split.focus
+				return true, nil
+			case "[":
+				s.split.jump(-1)
+				return true, nil
+			case "]":
+				s.split.jump(1)
+				return true, nil
+			}
+		} else if m.changeRepairView(key.String()) {
 			return true, nil
 		}
 		switch strings.ToLower(key.String()) {
 		case "e":
 			r.invalidate()
+			s.split = nil
 			s.view.SetContent("")
 			s.step = repairSaveDestination
 			s.err = ""
@@ -269,12 +293,11 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 				s.summary += "\nOriginal specification and findings unchanged."
 				r.invalidate()
 			}
+			s.split = nil
 			s.step, s.err = repairSaveDone, ""
 			s.view.SetContent("")
 		default:
-			var cmd tea.Cmd
-			s.view, cmd = s.view.Update(msg)
-			return true, cmd
+			return true, s.updateViewport(msg)
 		}
 	case repairSaveError:
 		if key.String() == "enter" {
@@ -286,13 +309,13 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 				s.acceptAfter = time.Now().Add(repairSaveAcceptDelay)
 			}
 			s.view.SoftWrap = s.step != repairSavePreview
-			s.view.SetContent(m.repairReviewContent(s.view.Width()))
+			if s.split == nil {
+				s.view.SetContent(m.repairReviewContent(s.view.Width()))
+			}
 			s.view.GotoTop()
 			return true, nil
 		}
-		var cmd tea.Cmd
-		s.view, cmd = s.view.Update(msg)
-		return true, cmd
+		return true, s.updateViewport(msg)
 	case repairSaveDone:
 		if key.String() == "enter" {
 			m.closeRepairSave()
@@ -362,6 +385,9 @@ func (m *ViolationResultTableModel) repairSavePath() string {
 // error views need the full scrollable area. Blink state never affects sizing.
 func (m *ViolationResultTableModel) repairSaveModalSize(width, height int) (int, int) {
 	s := m.repair.save
+	if s.step == repairSavePreview && s.options.Overlay {
+		return max(1, m.width-4), max(1, m.height-2)
+	}
 	if s.step == repairSavePreview || s.step == repairSaveError {
 		return width, height
 	}
@@ -422,16 +448,41 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 		if p != nil {
 			body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n" + fmt.Sprintf("%d fixes · findings %d → %d · score %d → %d", p.Fixed, p.Before.Errors+p.Before.Warnings+p.Before.Info, p.After.Errors+p.After.Warnings+p.After.Info, p.Before.Score, p.After.Score) + "\n"
 			prefix := lipgloss.NewStyle().Width(inner).Render(body)
-			if s.view.Width() != inner {
-				s.view.SetWidth(inner)
-				s.view.SetContent(m.repairReviewContent(inner))
+			if s.split != nil {
+				impact := repairImpactLabel(p.Impact)
+				if p.Impact.Status == autofix.RepairImpactUnknown && p.Impact.Reason != "" {
+					impact += ": " + p.Impact.Reason
+				}
+				prefix = lipgloss.NewStyle().Width(inner).Render(strings.TrimSuffix(body, "\n") + " · " + impact)
+				rows := height - 6 - lipgloss.Height(prefix)
+				if s.err != "" {
+					rows -= 1 + lipgloss.Height(lipgloss.NewStyle().Width(inner).Render(s.err))
+				}
+				body = prefix + "\n" + s.split.render(inner, rows)
+			} else {
+				if s.view.Width() != inner {
+					s.view.SetWidth(inner)
+					s.view.SetContent(m.repairReviewContent(inner))
+				}
+				s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
+				body = prefix + "\n" + repairDiffViewport(s.view)
 			}
-			s.view.SetHeight(max(1, height-9-lipgloss.Height(prefix)))
-			body = prefix + "\n" + repairDiffViewport(s.view)
 		}
 		footer = "enter: save | e: options | []: changes | t: file diff | ↑↓: scroll | ←→: pan | esc: cancel"
 		if ansi.StringWidth(footer) > inner {
 			footer = "enter: save | e: options | []: changes | t: diff | esc: cancel"
+		}
+		if s.split != nil {
+			footer = "enter: save overlay | tab: switch pane | ↑↓: scroll | ←→: pan | e: options | esc: cancel"
+			if len(s.split.lines) > 1 {
+				footer = "enter: save overlay | tab: switch pane | []: changes | ↑↓: scroll | ←→: pan | e: options | esc: cancel"
+			}
+			if ansi.StringWidth(footer) > inner {
+				footer = "enter: save | tab: pane | []: changes | e: options | esc: cancel"
+				if ansi.StringWidth(footer) > inner {
+					footer = "enter: save | tab: pane | esc: cancel"
+				}
+			}
 		}
 		if r.confirmImpact {
 			footer = "enter: accept impact and save | esc: cancel"

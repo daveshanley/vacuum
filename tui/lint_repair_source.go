@@ -4,11 +4,18 @@
 package tui
 
 import (
+	"bytes"
+	"slices"
+	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
+	"charm.land/bubbles/v2/viewport"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/motor/autofix"
 )
 
 // repairSourceRows aligns the bounded draft excerpts by unchanged lines. Only
@@ -144,4 +151,111 @@ func repairSourceSlice(line string, offset, width int) string {
 		}
 	}
 	return ansi.Cut(line, offset, offset+width)
+}
+
+// Each document keeps its own scroll position. Only visible rows are highlighted.
+type overlayReview struct {
+	panes  [2]viewport.Model
+	yaml   [2]bool
+	focus  int
+	lines  []int // One-based candidate lines from the verified impact.
+	change int
+}
+
+func (m *ViolationResultTableModel) newOverlayReview(p *autofix.FixPreview) *overlayReview {
+	v := &overlayReview{}
+	for i, data := range [][]byte{p.Overlay, p.Candidate} {
+		v.panes[i] = viewport.New()
+		v.panes[i].SetContent(overlayDisplayText(data))
+		v.yaml[i] = !bytes.HasPrefix(bytes.TrimSpace(data), []byte("{"))
+	}
+	for _, ch := range p.Impact.Changes {
+		if ch == nil || ch.Context == nil || ch.Context.NewLine == nil || !m.rootRepairLocation(ch.Context.DocumentLocation) {
+			continue
+		}
+		line := *ch.Context.NewLine
+		if line > 0 && line <= v.panes[1].TotalLineCount() {
+			v.lines = append(v.lines, line)
+		}
+	}
+	slices.Sort(v.lines)
+	v.lines = slices.Compact(v.lines)
+	v.jump(0)
+	return v
+}
+
+// Expand tabs before measuring terminal cells. Escape control characters in
+// the display copy so source text cannot issue commands to the terminal.
+func overlayDisplayText(data []byte) string {
+	text := strings.ReplaceAll(string(data), "\r\n", "\n")
+	special := func(r rune) bool { return r != '\n' && unicode.IsControl(r) }
+	if strings.IndexFunc(text, special) < 0 {
+		return text
+	}
+	var b strings.Builder
+	b.Grow(len(text))
+	for _, r := range text {
+		switch {
+		case r == '\t':
+			b.WriteString("    ")
+		case special(r):
+			b.WriteString(strings.Trim(strconv.QuoteRuneToASCII(r), "'"))
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// Unstyled ASCII maps one byte to one cell. Inspect only the visible prefix
+// of minified JSON; defer to the grapheme-aware crop for Unicode.
+func overlaySourceSlice(line string, offset, width int) string {
+	end := min(len(line), offset+width)
+	if strings.IndexFunc(line[:min(len(line), end+1)], func(r rune) bool { return r >= utf8.RuneSelf }) < 0 {
+		return line[min(offset, end):end]
+	}
+	return repairSourceSlice(line, offset, width)
+}
+
+func (v *overlayReview) jump(step int) {
+	if n := len(v.lines); n > 0 {
+		v.change = (v.change + step + n) % n
+		pane := &v.panes[1]
+		pane.SetXOffset(0)
+		pane.SetYOffset(max(0, v.lines[v.change]-4))
+	}
+}
+
+func (v *overlayReview) render(width, height int) string {
+	labels := [2]string{"Overlay file", "Resulting specification"}
+	labels[v.focus] = lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true).Render("› " + labels[v.focus])
+	left, right := repairColumns(width)
+	widths := [2]int{left, right}
+	var columns [2]string
+	for i := range v.panes {
+		pane := &v.panes[i]
+		pane.SetWidth(widths[i])
+		pane.SetHeight(max(1, height-2))
+		pane.SetXOffset(pane.XOffset())
+		pane.SetYOffset(pane.YOffset())
+		view := *pane
+		offset := view.XOffset()
+		view.SetXOffset(0)
+		view.StyleLineFunc = func(index int) lipgloss.Style {
+			return lipgloss.NewStyle().Transform(func(line string) string {
+				line = overlaySourceSlice(line, offset, widths[i])
+				if i == 1 {
+					if _, changed := slices.BinarySearch(v.lines, index+1); changed {
+						return lipgloss.NewStyle().Foreground(color.RGBYellow).Render(line)
+					}
+				}
+				return ApplySyntaxHighlightingToLine(line, v.yaml[i])
+			})
+		}
+		columns[i] = lipgloss.NewStyle().Width(widths[i]).Render(ansi.Truncate(labels[i], widths[i], "…")) + "\n" +
+			lipgloss.NewStyle().Foreground(color.RGBPink).Render(strings.Repeat("─", widths[i])) + "\n" + view.View()
+	}
+	pink := lipgloss.NewStyle().Foreground(color.RGBPink)
+	divider := " │ \n─┼─" + strings.Repeat("\n │ ", max(1, height-2))
+	return lipgloss.JoinHorizontal(lipgloss.Top, columns[0], pink.Render(divider), columns[1])
 }

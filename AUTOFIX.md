@@ -69,6 +69,8 @@ indicator calls attention to supported repairs after discovery finishes:
 Choose **Save as an overlay** to write the selected fixes beside the OpenAPI
 source as `<name>.overlay.yaml`. Use a `.json` filename for JSON. Vacuum applies
 the overlay in memory and checks the result against the reviewed specification.
+Review the overlay on the left and the resulting specification on the right.
+Press **Tab** to switch panes. **Enter** saves the overlay.
 To apply it later, run `vacuum apply-overlay api.yaml api.overlay.yaml fixed.yaml`.
 Duplicate YAML keys and changes to a key’s YAML type require saving a specification.
 
