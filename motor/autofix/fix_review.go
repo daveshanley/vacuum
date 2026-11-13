@@ -68,6 +68,7 @@ type FixStats struct {
 // FixPreview holds a verified candidate and its final findings. Close releases
 // their parser resources. It never writes files and grants no write authority.
 type FixPreview struct {
+	Overlay   []byte // Verified overlay file when requested. Candidate remains the repaired specification.
 	Impact    RepairImpact
 	Candidate []byte
 	Results   []*model.RuleFunctionResult
@@ -289,7 +290,17 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 	defer cancel()
 	// This exact proposal was derived from the user's selected providers and
 	// supplied values; no arbitrary patch operations are accepted by this API.
-	verification, err := validatePreparedPlanOutput(r.execution, plan, options, r.baseline, output, &r.cache)
+	candidateOutput := output
+	if output.Overlay {
+		if output.BundleMode != "" && output.BundleMode != "keep" {
+			return nil, fmt.Errorf("overlay export preserves references")
+		}
+		if len(plan.KeyTags)+len(plan.KeyRemovals) > 0 {
+			return nil, fmt.Errorf("an overlay cannot edit YAML key types or duplicate keys; save the specification instead")
+		}
+		candidateOutput = FixOutputOptions{}
+	}
+	verification, err := validatePreparedPlanOutput(r.execution, plan, options, r.baseline, candidateOutput, &r.cache)
 	if err != nil {
 		var remaining *remainingRepairTargets
 		if errors.As(err, &remaining) {
@@ -310,6 +321,14 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 		}
 		return nil, err
 	}
+	var overlayBytes []byte
+	if output.Overlay {
+		overlayBytes, err = repair.RenderOverlay(r.execution.Spec, verification.Candidate, output.Format)
+		if err != nil {
+			verification.Final.ReleaseOwnedResources()
+			return nil, err
+		}
+	}
 	results := make([]*model.RuleFunctionResult, len(verification.Final.Results))
 	for i := range results {
 		results[i] = &verification.Final.Results[i]
@@ -326,7 +345,7 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 			fixed = append(fixed, result)
 		}
 	}
-	return &FixPreview{original: append([]byte(nil), r.execution.Spec...), fixed: fixed, Impact: assessRepairImpact(r.baseline, verification.Final, options), Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(r.baseline.Results), After: fixStats(verification.Final.Results), final: verification.Final}, nil
+	return &FixPreview{Overlay: overlayBytes, original: append([]byte(nil), r.execution.Spec...), fixed: fixed, Impact: assessRepairImpact(r.baseline, verification.Final, options), Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(r.baseline.Results), After: fixStats(verification.Final.Results), final: verification.Final}, nil
 }
 
 // planChoices derives providers and policy values from the current selection.

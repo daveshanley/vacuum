@@ -34,17 +34,27 @@ const (
 // A second Enter from the bundle step must not accept an unseen preview.
 const repairSaveAcceptDelay = 250 * time.Millisecond
 
+const (
+	saveCurrent = iota
+	saveCopy
+	saveOverlay
+)
+
+var saveDestinations = []string{"Update the current specification", "Create a new specification", "Save as an overlay"}
+
 type repairSaveState struct {
-	acceptAfter time.Time
-	retry       repairSaveStep
-	step        repairSaveStep
-	destination int
-	bundle      int
-	input       textinput.Model
-	options     RepairSaveOptions
-	view        viewport.Model
-	err         string
-	summary     string
+	acceptAfter         time.Time
+	retry               repairSaveStep
+	step                repairSaveStep
+	destination         int
+	filenameDestination int
+	sourcePath          string
+	bundle              int
+	input               textinput.Model
+	options             RepairSaveOptions
+	view                viewport.Model
+	err                 string
+	summary             string
 }
 
 func (s *repairSaveState) fail(message string, retry repairSaveStep) {
@@ -76,7 +86,7 @@ func (m *ViolationResultTableModel) openRepairSave() {
 	styles.Blurred.Text = styles.Blurred.Text.Foreground(color.RGBYellow)
 	styles.Cursor.Color = color.RGBYellow
 	input.SetStyles(styles)
-	r.save = &repairSaveState{input: input, view: viewport.New()}
+	r.save = &repairSaveState{input: input, sourcePath: path, filenameDestination: saveCopy, view: viewport.New()}
 	r.save.view.SoftWrap = false
 	m.OpenModal(ModalRepairSave)
 	m.resizeRepairModal()
@@ -136,7 +146,15 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 	case repairSaveDestination:
 		switch key.String() {
 		case "up", "k", "down", "j":
-			s.destination = 1 - s.destination
+			count := len(saveDestinations)
+			if !r.config.OverlayAvailable {
+				count--
+			}
+			if key.String() == "up" || key.String() == "k" {
+				s.destination = (s.destination + count - 1) % count
+			} else {
+				s.destination = (s.destination + 1) % count
+			}
 		case "enter":
 			if r.discovery != nil || r.pending != nil {
 				s.err = "Verification is running. Please wait."
@@ -147,7 +165,16 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 				return true, nil
 			}
 			s.err = ""
-			if s.destination == 1 {
+			if s.destination != saveCurrent {
+				if s.filenameDestination != s.destination {
+					ext := filepath.Ext(s.sourcePath)
+					suffix := ".fixed" + ext
+					if s.destination == saveOverlay {
+						suffix = ".overlay.yaml"
+					}
+					s.input.SetValue(strings.TrimSuffix(s.sourcePath, ext) + suffix)
+					s.filenameDestination = s.destination
+				}
 				s.step = repairSaveFilename
 				return true, s.input.Focus()
 			}
@@ -158,6 +185,16 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			if strings.TrimSpace(s.input.Value()) == "" {
 				s.err = "Enter a filename."
 				return true, nil
+			}
+			if s.destination == saveOverlay {
+				switch strings.ToLower(filepath.Ext(strings.TrimSpace(s.input.Value()))) {
+				case ".yaml", ".yml", ".json":
+				default:
+					s.err = "Use .yaml or .json for the overlay."
+					return true, nil
+				}
+				s.input.Blur()
+				return m.verifyRepairSaveOutput()
 			}
 			s.input.Blur()
 			s.step = repairSaveBundle
@@ -174,35 +211,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 		case "down", "j":
 			s.bundle = (s.bundle + 1) % 3
 		case "enter":
-			if r.pending != nil {
-				s.err = "Verification is running. Please wait."
-				return true, nil
-			}
-			options := RepairSaveOptions{BundleMode: []string{"keep", "inline", "composed"}[s.bundle]}
-			if s.destination == 1 {
-				options.OutputPath = strings.TrimSpace(s.input.Value())
-			}
-			choices := r.selectedChoices()
-			if r.review == nil || len(choices) == 0 {
-				s.err = "Select at least one fix first."
-				return true, nil
-			}
-			r.invalidate()
-			s.options, s.step, s.err = options, repairSaveVerifying, ""
-			job := &repairPreviewJob{}
-			r.pending = job
-			review, previewOutput := r.review, r.config.PreviewOutput
-			return true, func() tea.Msg {
-				var p *autofix.FixPreview
-				var err error
-				if previewOutput != nil {
-					p, err = previewOutput(review, choices, options)
-				} else {
-					p, err = review.PreviewOutput(choices, autofix.FixOutputOptions{BundleMode: options.BundleMode, OutputPath: options.OutputPath})
-				}
-				job.finish(p, err)
-				return repairPreviewMsg{job}
-			}
+			return m.verifyRepairSaveOutput()
 		}
 	case repairSavePreview:
 		if m.changeRepairView(key.String()) {
@@ -230,7 +239,15 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			}
 			var err error
 			if r.config.Save != nil {
-				err = r.config.Save(r.source, p.Candidate, s.options)
+				data := p.Candidate
+				if s.options.Overlay {
+					data = p.Overlay
+				}
+				if len(data) == 0 {
+					err = fmt.Errorf("verified output is empty")
+				} else {
+					err = r.config.Save(r.source, data, s.options)
+				}
 			} else if s.options.OutputPath == "" && r.config.Write != nil {
 				err = r.config.Write(r.source, p.Candidate)
 			} else {
@@ -245,6 +262,9 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			if s.options.OutputPath == "" {
 				m.adoptSavedRepair()
 			} else {
+				if s.options.Overlay {
+					s.summary = fmt.Sprintf("Exported %d fixes.", p.Fixed)
+				}
 				r.status = s.summary + " · original unchanged"
 				s.summary += "\nOriginal specification and findings unchanged."
 				r.invalidate()
@@ -259,6 +279,9 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 	case repairSaveError:
 		if key.String() == "enter" {
 			s.step, s.err = s.retry, ""
+			if s.step == repairSaveFilename {
+				return true, s.input.Focus()
+			}
 			if s.step == repairSavePreview {
 				s.acceptAfter = time.Now().Add(repairSaveAcceptDelay)
 			}
@@ -276,6 +299,48 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 		}
 	}
 	return true, nil
+}
+
+func (m *ViolationResultTableModel) verifyRepairSaveOutput() (bool, tea.Cmd) {
+	r := m.repair
+	s := r.save
+	if r.pending != nil {
+		s.err = "Verification is running. Please wait."
+		return true, nil
+	}
+	options := RepairSaveOptions{BundleMode: []string{"keep", "inline", "composed"}[s.bundle]}
+	if s.destination != saveCurrent {
+		options.OutputPath = strings.TrimSpace(s.input.Value())
+	}
+	if s.destination == saveOverlay {
+		options.Overlay = true
+		options.BundleMode = "keep"
+	}
+	choices := r.selectedChoices()
+	if r.review == nil || len(choices) == 0 {
+		s.err = "Select at least one fix first."
+		return true, nil
+	}
+	r.invalidate()
+	s.options, s.step, s.err = options, repairSaveVerifying, ""
+	job := &repairPreviewJob{}
+	r.pending = job
+	review, previewOutput := r.review, r.config.PreviewOutput
+	return true, func() tea.Msg {
+		var p *autofix.FixPreview
+		var err error
+		if previewOutput != nil {
+			p, err = previewOutput(review, choices, options)
+		} else {
+			output := autofix.FixOutputOptions{BundleMode: options.BundleMode, OutputPath: options.OutputPath, Overlay: options.Overlay}
+			if options.Overlay && strings.EqualFold(filepath.Ext(options.OutputPath), ".json") {
+				output.Format = "json"
+			}
+			p, err = review.PreviewOutput(choices, output)
+		}
+		job.finish(p, err)
+		return repairPreviewMsg{job}
+	}
 }
 
 func (m *ViolationResultTableModel) repairSavePath() string {
@@ -332,9 +397,13 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 	}
 	switch s.step {
 	case repairSaveDestination:
-		body = fmt.Sprintf("%d fixes selected. Where do you want to save them?\n\n", len(r.selectedChoices())) + choices([]string{"Update the current specification", "Create a new specification"}, s.destination)
+		labels := saveDestinations
+		if !r.config.OverlayAvailable {
+			labels = labels[:saveOverlay]
+		}
+		body = fmt.Sprintf("%d fixes selected. Where do you want to save them?\n\n", len(r.selectedChoices())) + choices(labels, s.destination)
 	case repairSaveFilename:
-		title = "Create a new specification"
+		title = saveDestinations[s.destination]
 		body = "Filename\n\n" + s.input.View() + "\n\nDefault: the source spec directory. Use .yaml or .json.\nExisting files will not be replaced."
 		footer = "enter: continue | esc: back"
 	case repairSaveBundle:
@@ -346,6 +415,9 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 		footer = "esc: cancel"
 	case repairSavePreview:
 		title = "Review and save"
+		if s.options.Overlay {
+			title = "Review and save overlay"
+		}
 		p := r.preview
 		if p != nil {
 			body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n" + fmt.Sprintf("%d fixes · findings %d → %d · score %d → %d", p.Fixed, p.Before.Errors+p.Before.Warnings+p.Before.Info, p.After.Errors+p.After.Warnings+p.After.Info, p.Before.Score, p.After.Score) + "\n"
@@ -366,12 +438,18 @@ func (m *ViolationResultTableModel) repairSaveContent(width, height int) (string
 		}
 	case repairSaveError:
 		title = "Cannot save specification"
+		if s.destination == saveOverlay {
+			title = "Cannot save overlay"
+		}
 		s.view.SetWidth(inner)
 		s.view.SetHeight(max(1, height-6))
 		body = s.view.View()
 		footer = "enter: back | ↑↓/pgup/pgdn: scroll | esc: cancel"
 	case repairSaveDone:
 		title = "Specification saved"
+		if s.options.Overlay {
+			title = "Overlay saved"
+		}
 		body = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(m.repairSavePath()) + "\n\n" + s.summary
 		footer = "enter/esc: close"
 	}

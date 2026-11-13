@@ -246,3 +246,21 @@ func TestOpenLintDashboardDoesNotOfferNativeRepairs(t *testing.T) {
 	_, err := cfg.Open([]byte("paths: {}"))
 	require.ErrorContains(t, err, "native mode")
 }
+
+func TestDashboardRepairExportsReviewedJSONOverlay(t *testing.T) {
+	config, review, choices, source := dashboardRepairSaveFixture(t)
+	save := tui.RepairSaveOptions{OutputPath: "review.overlay.json", Overlay: true}
+	preview, err := config.PreviewOutput(review, choices, save)
+	require.NoError(t, err)
+	defer preview.Close()
+	require.True(t, json.Valid(preview.Overlay))
+	require.NotEqual(t, preview.Candidate, preview.Overlay)
+	require.NoError(t, config.Save(source, preview.Overlay, save))
+	written, err := os.ReadFile(filepath.Join(filepath.Dir(config.SourcePath), save.OutputPath))
+	require.NoError(t, err)
+	require.Equal(t, preview.Overlay, written)
+	require.Error(t, config.Save(source, preview.Overlay, save))
+	original, err := os.ReadFile(config.SourcePath)
+	require.NoError(t, err)
+	require.Equal(t, source, original)
+}

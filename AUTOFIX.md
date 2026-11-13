@@ -63,8 +63,14 @@ indicator calls attention to supported repairs after discovery finishes:
 | `x` | Open the code view or expand the verified preview |
 | `[` / `]` | Move between changes in a verified preview |
 | `t` | Switch between the change view and complete file diff |
-| `a` | Open the save modal: choose the destination and bundling, review the checked output, then save |
+| `a` | Open the save modal: update the source, save a new specification, or export an OpenAPI Overlay |
 | Escape | Cancel an edit, close a modal, or cancel review |
+
+Choose **Save as an overlay** to write the selected fixes beside the OpenAPI
+source as `<name>.overlay.yaml`. Use a `.json` filename for JSON. Vacuum applies
+the overlay in memory and checks the result against the reviewed specification.
+To apply it later, run `vacuum apply-overlay api.yaml api.overlay.yaml fixed.yaml`.
+Duplicate YAML keys and changes to a key’s YAML type require saving a specification.
 
 Descriptions, summaries and operation IDs accept plain text. Contact and
 license values accept JSON objects with supported string fields. Mechanical

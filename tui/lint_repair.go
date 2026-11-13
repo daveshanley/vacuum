@@ -26,10 +26,11 @@ import (
 // source-checked writer. Write must reject a changed original source.
 type RepairConfig struct {
 	// DisabledReason keeps repair keys available to normal table navigation.
-	DisabledReason string
-	SourcePath     string
-	Open           func(source []byte) (*autofix.FixReview, error)
-	Write          func(original, candidate []byte) error
+	DisabledReason   string
+	SourcePath       string
+	OverlayAvailable bool // The local document supports OpenAPI Overlay export.
+	Open             func(source []byte) (*autofix.FixReview, error)
+	Write            func(original, candidate []byte) error
 	// PreviewOutput verifies the selected fixes and the requested output options.
 	PreviewOutput func(review *autofix.FixReview, choices []autofix.FixChoice, save RepairSaveOptions) (*autofix.FixPreview, error)
 	// Save publishes the exact preview bytes. A nonempty OutputPath creates a new
@@ -42,6 +43,7 @@ type RepairConfig struct {
 // RepairSaveOptions describes where and how a reviewed specification is saved.
 // An empty OutputPath updates the source; a nonempty path creates a new file.
 type RepairSaveOptions struct {
+	Overlay    bool // Write verified overlay actions to OutputPath.
 	OutputPath string
 	BundleMode string
 }
@@ -225,7 +227,11 @@ func (m *ViolationResultTableModel) handleRepairMessage(msg tea.Msg) (bool, tea.
 		if err != nil {
 			r.status = "Preview failed: " + err.Error()
 			if r.save != nil && r.save.step == repairSaveVerifying {
-				r.save.fail(r.status, repairSaveBundle)
+				retry := repairSaveBundle
+				if r.save.options.Overlay {
+					retry = repairSaveFilename
+				}
+				r.save.fail(r.status, retry)
 			}
 			return true, nil
 		}

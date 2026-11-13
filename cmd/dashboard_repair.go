@@ -34,8 +34,9 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 	template := execution.CopyConfig()
 	var configMu sync.RWMutex
 	return &tui.RepairConfig{
-		SourcePath:     source,
-		DisabledReason: disabled,
+		SourcePath:       source,
+		OverlayAvailable: execution != nil && execution.SpecFormat == "",
+		DisabledReason:   disabled,
 		Reload: func(rules *rulesets.RuleSet, currentIgnores model.IgnoredItems) {
 			next := rules.CopyForExecution()
 			configMu.Lock()
@@ -95,7 +96,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 					format = "json"
 				}
 			}
-			return review.PreviewOutput(choices, autofix.FixOutputOptions{OutputPath: output, Format: format, BundleMode: save.BundleMode})
+			return review.PreviewOutput(choices, autofix.FixOutputOptions{OutputPath: output, Format: format, BundleMode: save.BundleMode, Overlay: save.Overlay})
 		},
 		Save: func(original, candidate []byte, save tui.RepairSaveOptions) error {
 			if disabled != "" {
@@ -104,6 +105,9 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			output, err := dashboardRepairOutputPath(source, save.OutputPath)
 			if err != nil {
 				return err
+			}
+			if save.Overlay && output == "" {
+				return fmt.Errorf("enter a filename for the overlay")
 			}
 			if output != "" {
 				return writeNewRepairFile(source, output, original, candidate)
