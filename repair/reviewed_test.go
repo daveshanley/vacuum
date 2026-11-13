@@ -35,7 +35,6 @@ func TestReviewedRecipes(t *testing.T) {
 		{"https", "owasp-auth-urls-https", "", `{"authorizationUrl":"http://api.test/oauth"}`, "/authorizationUrl", `{"authorizationUrl":"https://api.test/oauth"}`},
 		{"server", "owasp-security-hosts-https-oas3", "", `{"url":"http://api.test/v1"}`, "", `{"url":"https://api.test/v1"}`},
 		{"closed", "owasp-no-additionalProperties", "", `{"type":"object","additionalProperties":true}`, "/additionalProperties", `{"type":"object","additionalProperties":false}`},
-		{"description", "description-duplication", "description-duplicate", `{"User":{"description":"A resource."}}`, "/User/description", `{"User":{"description":"A resource. (User)"}}`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -272,6 +271,23 @@ func TestReviewedNativeAndMigrationGuards(t *testing.T) {
 			}
 			if len(p.Targets) > 0 {
 				t.Fatalf("ambiguous change was proposed: %+v", p)
+			}
+		})
+	}
+}
+
+func TestReviewedDeclinesHaveStablePrecedence(t *testing.T) {
+	for _, tc := range []struct{ rule, pointer, source, reason string }{
+		{"oas3-unused-component", "/components/schemas/X", `{"components":{"schemas":{"X":{"type":"string"}}},"local":{"$ref":"#/components/schemas/X"},"external":{"$ref":"other.yaml"},"scoped":{"$id":"x"}}`, "schema has an incoming reference"},
+		{"oas3-unused-component", "/components/schemas/X", `{"components":{"schemas":{"X":{"type":"string"}}},"external":{"$ref":"other.yaml"},"scoped":{"$id":"x"}}`, "schema has scoped or implicit reference semantics"},
+		{"arazzo-advisory", "/workflows/0/workflowId", `{"workflows":[{"workflowId":"bad id","dependsOn":["read"],"outputs":{"id":"$request.body"}}]}`, "workflow dependencies require a coordinated naming migration"},
+	} {
+		t.Run(tc.rule, func(t *testing.T) {
+			for range 64 {
+				plan, err := ReviewedPlan("source.json", []byte(tc.source), []Finding{{RuleID: tc.rule, Pointer: tc.pointer}})
+				if err != nil || len(plan.Declined) != 1 || plan.Declined[0].Reason != tc.reason {
+					t.Fatalf("got %+v and %v, want %q", plan.Declined, err, tc.reason)
+				}
 			}
 		})
 	}

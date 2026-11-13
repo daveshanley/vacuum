@@ -16,9 +16,9 @@ import (
 )
 
 func TestFixSelectionErrorCollectsRemainingTargets(t *testing.T) {
-	source := []byte(`{"openapi":"3.0.3","info":{"title":"Test","version":"1"},"paths":{"/a":{"get":{"responses":{"200":{"description":"same"}}}},"/b":{"get":{"responses":{"200":{"description":"same"}}}},"/c":{"get":{"responses":{"200":{"description":"same"}}}}}}`)
+	source := []byte(`{"openapi":"3.0.3","info":{"title":"Test","version":"1"},"paths":{"/a":{"get":{"responses":{"200":{"description":"<script>"}}}},"/b":{"get":{"responses":{"200":{"description":"<script>"}}}},"/c":{"get":{"responses":{"200":{"description":"<script>"}}}}}}`)
 	builtins := rulesets.GetAllBuiltInRules()
-	execution := &motor.RuleSetExecution{Spec: source, SpecFileName: "remaining.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"description-duplication": builtins["description-duplication"], "info-description": builtins["info-description"]}}}
+	execution := &motor.RuleSetExecution{Spec: source, SpecFileName: "remaining.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"no-script-tags-in-markdown": builtins["no-script-tags-in-markdown"], "info-description": builtins["info-description"]}}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	review, err := NewFixReview(execution, &motor.ExecutionOptions{Context: ctx})
@@ -26,11 +26,11 @@ func TestFixSelectionErrorCollectsRemainingTargets(t *testing.T) {
 	defer review.Close()
 	var choices, survivors []FixChoice
 	var failedIndexes []int
-	unchanged := "same"
+	unchanged := "<script>"
 	for _, option := range review.Options() {
 		require.True(t, option.Available, option.Reason)
 		choice := FixChoice{Index: option.Index}
-		if option.Result.RuleId == "description-duplication" {
+		if option.Result.RuleId == "no-script-tags-in-markdown" {
 			require.True(t, option.Editable)
 			choice.Value = &unchanged
 			failedIndexes = append(failedIndexes, option.Index)
@@ -39,7 +39,7 @@ func TestFixSelectionErrorCollectsRemainingTargets(t *testing.T) {
 		}
 		choices = append(choices, choice)
 	}
-	require.Len(t, failedIndexes, 2)
+	require.Len(t, failedIndexes, 3)
 	require.Len(t, survivors, 1)
 	preview, err := review.Preview(choices)
 	require.Nil(t, preview)
@@ -48,7 +48,7 @@ func TestFixSelectionErrorCollectsRemainingTargets(t *testing.T) {
 	require.Equal(t, failedIndexes, selected.Indexes)
 	var remaining *remainingRepairTargets
 	require.ErrorAs(t, err, &remaining)
-	require.Len(t, remaining.targets, 2)
+	require.Len(t, remaining.targets, 3)
 	require.ErrorContains(t, err, "target remains")
 	// A rejected candidate releases its resources but retains the baseline review.
 	preview, err = review.Preview(survivors)
