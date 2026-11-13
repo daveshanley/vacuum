@@ -23,6 +23,7 @@ import (
 // FixOutputOptions selects the representation and destination of a fix preview.
 // The destination is checked for reference portability; no files are written.
 type FixOutputOptions struct {
+	Overlay    bool   // Export the selected repairs as an OpenAPI Overlay.
 	BundleMode string // Empty or keep preserves references; inline or composed bundles OpenAPI 3.
 	Format     string // Empty preserves the input format; otherwise yaml or json.
 	OutputPath string // Empty preserves the input location.

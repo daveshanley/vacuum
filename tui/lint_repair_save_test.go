@@ -332,3 +332,37 @@ func TestRepairSaveRequiresFreshEnterAfterPreview(t *testing.T) {
 	require.Equal(t, repairSaveDone, m.repair.save.step)
 	require.NotEqual(t, original, string(*disk))
 }
+
+func TestRepairSaveSelectedOverlay(t *testing.T) {
+	m, disk := repairTestModel(t)
+	original := string(*disk)
+	m.repair.config.OverlayAvailable = true
+	m.repair.config.SourcePath = filepath.Join(t.TempDir(), "input.json")
+	var saved []byte
+	m.repair.config.Save = func(before, data []byte, options RepairSaveOptions) error {
+		require.True(t, options.Overlay)
+		require.Equal(t, original, string(before))
+		saved = append([]byte(nil), data...)
+		return nil
+	}
+	selectRepairRule(t, m, "info-description")
+	repairKey(m, ' ', " ")
+	repairKey(m, 'a', "a")
+	require.Contains(t, ansi.Strip(m.renderActiveModal()), "Save as an overlay")
+	repairKey(m, tea.KeyUp, "")
+	repairKey(m, tea.KeyEnter, "")
+	require.Equal(t, filepath.Join(filepath.Dir(m.repair.config.SourcePath), "input.overlay.yaml"), m.repair.save.input.Value())
+	cmd := repairKey(m, tea.KeyEnter, "")
+	require.Equal(t, repairSaveVerifying, m.repair.save.step)
+	require.NotNil(t, cmd)
+	m.Update(cmd())
+	require.Equal(t, repairSavePreview, m.repair.save.step, m.repair.save.err)
+	require.Empty(t, saved)
+	m.repair.save.acceptAfter = time.Time{}
+	repairKey(m, tea.KeyEnter, "")
+	require.Equal(t, repairSaveDone, m.repair.save.step)
+	require.Contains(t, string(saved), "overlay: 1.1.0")
+	require.Contains(t, string(saved), "Review API.")
+	require.Equal(t, original, string(*disk))
+	require.Equal(t, original, string(m.specContent))
+}
