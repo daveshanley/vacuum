@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/language-server/protocol"
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 )
 
@@ -74,7 +75,7 @@ func quickFixRequested(only []protocol.CodeActionKind) bool {
 // before applying it; the server never writes files for a code action. Repeated
 // requests for the same buffer and configuration reuse the verified result.
 func (s *ServerState) repairCodeAction(ctx context.Context, uri protocol.DocumentUri) *protocol.CodeAction {
-	if s.lintRequest.MainSpecPath != "" {
+	if s.lintRequest.MainSpecPath != "" || (s.executionOptions != nil && s.executionOptions.Contract == model.OpenLintV1Draft) {
 		return nil
 	}
 	doc, ok := s.documentStore.Get(uri)

@@ -239,3 +239,10 @@ func TestDashboardRepairOpenDuringConfigurationReload(t *testing.T) {
 	defer review.Close()
 	require.Empty(t, review.Options())
 }
+
+func TestOpenLintDashboardDoesNotOfferNativeRepairs(t *testing.T) {
+	cfg := dashboardRepairConfig("api.yaml", &motor.RuleSetExecution{}, &motor.ExecutionOptions{Contract: model.OpenLintV1Draft}, nil, "")
+	require.Contains(t, cfg.DisabledReason, "native mode")
+	_, err := cfg.Open([]byte("paths: {}"))
+	require.ErrorContains(t, err, "native mode")
+}

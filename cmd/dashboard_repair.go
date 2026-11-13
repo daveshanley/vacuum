@@ -22,6 +22,9 @@ import (
 // dashboardRepairConfig binds review to the same lint settings and the shared
 // source-checked writer. A persisted report never grants access to its source.
 func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, options *motor.ExecutionOptions, ignored model.IgnoredItems, disabled string) *tui.RepairConfig {
+	if options != nil && options.Contract == model.OpenLintV1Draft {
+		disabled = "Open the specification in native mode to review built-in fixes."
+	}
 	if execution == nil && disabled == "" {
 		disabled = "Open a local specification to review fixes; saved reports are read-only."
 	}
