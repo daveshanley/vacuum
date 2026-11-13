@@ -35,10 +35,21 @@ func WriteRepairDiff(output io.Writer, original, candidate []byte) error {
 }
 
 func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool) error {
+	_, err := renderRepairDiff(output, original, candidate, bounded, 4096)
+	return err
+}
+
+// WriteRepairDiffExcerpt writes up to 120 diff rows and reports whether more remain.
+// Lines over 16 KiB are marked; WriteRepairDiff provides the complete patch.
+func WriteRepairDiffExcerpt(output io.Writer, original, candidate []byte) (bool, error) {
+	return renderRepairDiff(output, original, candidate, true, 16384)
+}
+
+func renderRepairDiff(output io.Writer, original, candidate []byte, limitRows bool, width int) (bool, error) {
 	out := bufio.NewWriterSize(repairDiffWriter{output}, 16384)
 	if bytes.Equal(original, candidate) {
 		_, _ = out.WriteString("No changes.\n")
-		return out.Flush()
+		return false, out.Flush()
 	}
 	next := func(data []byte, offset int) int {
 		if n := bytes.IndexByte(data[offset:], '\n'); n >= 0 {
@@ -87,22 +98,24 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 	before, after := string(original[start:endA]), string(candidate[start:endB])
 	edits, err := repairLineEdits(before, after)
 	if err != nil {
-		return err
+		return false, err
 	}
 	diff, err := udiff.ToUnifiedDiff("original", "candidate", before, edits, 3)
 	if err != nil {
-		return err
+		return false, err
 	}
 	fmt.Fprint(out, "--- original\n+++ candidate\n")
+	clipped := false
 	write := func(prefix, segment string) {
 		hasNewline := strings.HasSuffix(segment, "\n")
 		segment = strings.TrimSuffix(segment, "\n")
 		if hasNewline {
 			segment = strings.TrimSuffix(segment, "\r")
 		}
-		truncated := bounded && len(segment) > 4096
+		truncated := limitRows && len(segment) > width
 		if truncated {
-			end := 4096
+			clipped = true
+			end := width
 			for end > 0 && !utf8.RuneStart(segment[end]) {
 				end--
 			}
@@ -128,6 +141,8 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 		}
 	}
 
+	rows := 0
+	delta := 0
 	for _, hunk := range diff.Hunks {
 		fromCount, toCount := 0, 0
 		for _, row := range hunk.Lines {
@@ -138,7 +153,10 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 				toCount++
 			}
 		}
-		from, to := hunk.FromLine+line-1, hunk.ToLine+line-1
+		// Joined context in go-udiff can undercount the candidate start.
+		from := hunk.FromLine + line - 1
+		to := from + delta
+		delta += toCount - fromCount
 		if fromCount == 0 {
 			from--
 		}
@@ -146,10 +164,10 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 			to--
 		}
 		fmt.Fprintf(out, "@@ -%d,%d +%d,%d @@\n", from, fromCount, to, toCount)
-		for index, row := range hunk.Lines {
-			if bounded && index == 200 {
-				fmt.Fprintf(out, "... %d more lines omitted from this view ...\n", len(hunk.Lines)-index)
-				break
+		for _, row := range hunk.Lines {
+			if limitRows && rows == 120 {
+				out.WriteString("... more diff lines omitted from this view ...\n")
+				return true, out.Flush()
 			}
 			prefix := " "
 			if row.Kind == udiff.Delete {
@@ -158,14 +176,15 @@ func writeRepairDiff(output io.Writer, original, candidate []byte, bounded bool)
 			if row.Kind == udiff.Insert {
 				prefix = "+"
 			}
+			rows++
 			write(prefix, row.Content)
 		}
 		if err := out.Flush(); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return out.Flush()
+	return clipped, out.Flush()
 }
 
 // repairDiffWriter also checks large writes that bypass bufio's own buffer.

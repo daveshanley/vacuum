@@ -189,3 +189,17 @@ func TestRepairDiffCRLFAndUTF8Boundary(t *testing.T) {
 		t.Fatal("preview splits a UTF-8 rune")
 	}
 }
+
+func TestRepairDiffJoinedContextDoesNotShiftLaterHunk(t *testing.T) {
+	var old, next strings.Builder
+	for i := 1; i <= 40; i++ {
+		fmt.Fprintln(&old, i)
+		fmt.Fprintln(&next, i)
+		if i == 5 || i == 9 || i == 30 {
+			fmt.Fprintln(&next, "insert")
+		}
+	}
+	diff := RepairDiff([]byte(old.String()), []byte(next.String()))
+	require.Contains(t, diff, "@@ -3,10 +3,12 @@")
+	require.Contains(t, diff, "@@ -28,6 +30,7 @@")
+}

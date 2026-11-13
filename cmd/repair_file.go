@@ -50,18 +50,8 @@ func writeRepairFileMode(source, output string, expected, repaired []byte, creat
 	if expected != nil && !bytes.Equal(original, expected) {
 		return fmt.Errorf("repair source changed since lint: %s", source)
 	}
-	if target, e := os.Lstat(output); e == nil {
-		if createOnly {
-			return fmt.Errorf("new file already exists: %s", output)
-		}
-		if !target.Mode().IsRegular() {
-			return fmt.Errorf("repair output must be a regular file: %s", output)
-		}
-		if output != source && os.SameFile(info, target) {
-			return fmt.Errorf("repair output aliases source: %s", output)
-		}
-	} else if !os.IsNotExist(e) {
-		return e
+	if err := validateRepairOutput(source, output, info, createOnly); err != nil {
+		return err
 	}
 	staged, err := os.CreateTemp(filepath.Dir(output), ".vacuum-repair-*")
 	if err != nil {
@@ -112,16 +102,42 @@ func publishRepairFile(staged, output string, createOnly bool) error {
 }
 
 // validateRepairSource rejects unsupported write sources before review starts.
-func validateRepairSource(source string) error {
+func validateRepairSource(source string) (os.FileInfo, error) {
 	if strings.Contains(source, "://") {
-		return fmt.Errorf("download the specification to a local file before applying fixes")
+		return nil, fmt.Errorf("download the specification to a local file before applying fixes")
 	}
 	info, err := os.Lstat(source)
 	if err != nil {
-		return fmt.Errorf("inspect repair source: %w", err)
+		return nil, fmt.Errorf("inspect repair source: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("repair source must be a regular local file: %s", source)
+		return nil, fmt.Errorf("repair source must be a regular local file: %s", source)
+	}
+	return info, nil
+}
+
+// validateRepairOutput checks the requested path both before review and before staging.
+func validateRepairOutput(source, output string, info os.FileInfo, createOnly bool) error {
+	parent := filepath.Dir(output)
+	dir, err := os.Stat(parent)
+	if err != nil {
+		return fmt.Errorf("repair output directory: %w", err)
+	}
+	if !dir.IsDir() {
+		return fmt.Errorf("repair output parent is not a directory: %s", parent)
+	}
+	if target, e := os.Lstat(output); e == nil {
+		if createOnly {
+			return fmt.Errorf("new file already exists: %s", output)
+		}
+		if !target.Mode().IsRegular() {
+			return fmt.Errorf("repair output must be a regular file: %s", output)
+		}
+		if output != source && os.SameFile(info, target) {
+			return fmt.Errorf("repair output aliases source: %s", output)
+		}
+	} else if !os.IsNotExist(e) {
+		return e
 	}
 	return nil
 }

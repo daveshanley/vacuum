@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,8 +54,22 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 		if !interactive || quiet {
 			return baselineWarning("fixes require visible terminal review; no files written; use --fix --dry-run to preview")
 		}
-		if err := validateRepairSource(execution.SpecFileName); err != nil {
+		info, err := validateRepairSource(execution.SpecFileName)
+		if err != nil {
 			return baselineWarning(err.Error() + "; no files written")
+		}
+		if flags.FixFileFlag != "" {
+			source, err := filepath.Abs(execution.SpecFileName)
+			if err != nil {
+				return fail(err)
+			}
+			output, err := filepath.Abs(flags.FixFileFlag)
+			if err != nil {
+				return fail(err)
+			}
+			if err := validateRepairOutput(source, output, info, false); err != nil {
+				return fail(err)
+			}
 		}
 	}
 	review, err := autofix.NewFixReviewWithPolicy(execution, options, policy)
@@ -65,7 +80,7 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 	available := review.Options()
 	var choices []autofix.FixChoice
 	for _, option := range available {
-		if option.Available {
+		if option.Available && !option.NeedsValue {
 			choices = append(choices, autofix.FixChoice{Index: option.Index})
 		}
 	}
@@ -90,7 +105,7 @@ func runReviewedCLIRepairWithIO(execution *motor.RuleSetExecution, options *moto
 			return review.TakeBaselineResult()
 		}
 	}
-	preview, declined, err := previewCLIRepairs(review, choices, options)
+	preview, declined, err := previewCLIRepairs(review, choices, options, writer)
 	if err != nil {
 		baseline := review.TakeBaselineResult()
 		baseline.RepairWarnings = append(baseline.RepairWarnings, fmt.Sprintf("repairs declined: %v", err))
@@ -134,12 +149,17 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 	display.Reset()
 	diffBuffer := bufio.NewWriter(repairConsoleCheckedWriter{output})
 	diffOutput := &repairConsoleDiffWriter{output: diffBuffer, console: console}
+	clipped := false
 	if dryRun {
 		if err := writeRepairReview(diffOutput, utils.RepairDiff(original, preview.Candidate)); err != nil {
 			return false, fmt.Errorf("cannot display fix review: %w", err)
 		}
-	} else if err := utils.WriteRepairDiff(diffOutput, original, preview.Candidate); err != nil {
-		return false, fmt.Errorf("cannot display fix review: %w", err)
+	} else {
+		var err error
+		clipped, err = utils.WriteRepairDiffExcerpt(diffOutput, original, preview.Candidate)
+		if err != nil {
+			return false, fmt.Errorf("cannot display fix review: %w", err)
+		}
 	}
 	if err := diffBuffer.Flush(); err != nil {
 		return false, fmt.Errorf("cannot display fix review: %w", err)
@@ -176,7 +196,20 @@ func reviewCLIRepair(input io.Reader, output io.Writer, interactive, dryRun bool
 	if !interactive {
 		return false, fmt.Errorf("fixes require terminal review; use --fix --dry-run to preview or dashboard to review and apply; no files written")
 	}
-	_, canceled, err := repairinput.ReadKeys(input, output, false, newRepairConsole(output).paint)
+	mode := repairinput.Apply
+	if clipped {
+		mode = repairinput.ApplyOrExpand
+	}
+	answer, canceled, err := repairinput.ReadKeys(input, output, mode, console.paint)
+	if err == nil && answer == "d" {
+		if err := utils.WriteRepairDiff(diffOutput, original, preview.Candidate); err != nil {
+			return false, fmt.Errorf("cannot display full diff: %w", err)
+		}
+		if err := diffBuffer.Flush(); err != nil {
+			return false, fmt.Errorf("cannot display full diff: %w", err)
+		}
+		_, canceled, err = repairinput.ReadKeys(input, output, repairinput.Apply, console.paint)
+	}
 	if err != nil {
 		return false, fmt.Errorf("fix review was not accepted: %w; no files written", err)
 	}
@@ -194,7 +227,7 @@ func selectCLIRepairs(input io.Reader, output io.Writer, options []autofix.FixOp
 	available := make(map[int]bool)
 	var all []autofix.FixChoice
 	for _, option := range options {
-		if !option.Available {
+		if !option.Available || option.NeedsValue {
 			continue
 		}
 		available[option.Index+1] = true
@@ -203,7 +236,7 @@ func selectCLIRepairs(input io.Reader, output io.Writer, options []autofix.FixOp
 	if err := writeRepairReview(output, console.options(options)); err != nil {
 		return nil, err
 	}
-	answer, canceled, err := repairinput.ReadKeys(input, output, true, newRepairConsole(output).paint)
+	answer, canceled, err := repairinput.ReadKeys(input, output, repairinput.Select, newRepairConsole(output).paint)
 	if err != nil {
 		return nil, fmt.Errorf("fix selection was not submitted: %w", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/daveshanley/vacuum/motor/autofix"
 
@@ -18,18 +19,32 @@ type repairBatchReviewer interface {
 	Preview([]autofix.FixChoice) (*autofix.FixPreview, error)
 }
 
+const maxRepairPreviewAttempts = 16
+
 // previewCLIRepairs excludes unresolved targets and splits other failed batches.
 // Each accepted batch is checked together with all earlier survivors.
 // Dashboard selections continue to use the strict all-or-nothing Preview API.
-func previewCLIRepairs(review repairBatchReviewer, choices []autofix.FixChoice, options *motor.ExecutionOptions) (*autofix.FixPreview, []string, error) {
+func previewCLIRepairs(review repairBatchReviewer, choices []autofix.FixChoice, options *motor.ExecutionOptions, progress io.Writer) (*autofix.FixPreview, []string, error) {
 	var accepted []autofix.FixChoice
 	var warnings []string
 	var preview *autofix.FixPreview
 	records := review.Options()
+	attempts := 0
 	var visit func([]autofix.FixChoice) error
 	visit = func(batch []autofix.FixChoice) error {
 		if options != nil && options.Context != nil && options.Context.Err() != nil {
 			return options.Context.Err()
+		}
+		if attempts >= maxRepairPreviewAttempts {
+			for _, choice := range batch {
+				o := records[choice.Index]
+				warnings = append(warnings, fmt.Sprintf("fix declined: %s at %s: verification budget reached; select fewer fixes", o.Result.RuleId, o.Result.Path))
+			}
+			return nil
+		}
+		attempts++
+		if _, err := fmt.Fprintf(progress, " Verifying %d fixes (pass %d/%d)…\n", len(accepted)+len(batch), attempts, maxRepairPreviewAttempts); err != nil {
+			return err
 		}
 		combined := append(append([]autofix.FixChoice(nil), accepted...), batch...)
 		next, err := review.Preview(combined)
