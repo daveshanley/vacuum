@@ -4,10 +4,13 @@
 package repair
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"strconv"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	high "github.com/pb33f/libopenapi/datamodel/high/overlay"
@@ -46,7 +49,11 @@ func RenderOverlay(source, candidate []byte, format string) ([]byte, error) {
 	}
 	data, err := doc.Render()
 	if err == nil && format == "json" {
-		data, err = RenderJSON(data)
+		var document *yaml.Node
+		document, err = ParseDocument(data)
+		if err == nil {
+			data, err = utils.RenderRepairJSON(document)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -77,38 +84,45 @@ func RenderOverlay(source, candidate []byte, format string) ([]byte, error) {
 func diffOverlay(doc *high.Overlay, path string, before, after *yaml.Node) error {
 	switch before.Kind {
 	case yaml.MappingNode:
-		members := make(map[string]*yaml.Node, len(before.Content)/2)
+		// Overlay updates append new properties. Keep the longest candidate
+		// prefix already in source order, then append the remaining members.
+		members := make(map[string]int, len(before.Content)/2)
 		for i := 0; i < len(before.Content); i += 2 {
 			key := before.Content[i].Value
-			if members[key] != nil {
+			if _, exists := members[key]; exists {
 				return fmt.Errorf("an overlay cannot target a duplicate key %q; save the specification instead", key)
 			}
-			members[key] = before.Content[i+1]
+			members[key] = i
 		}
-		add := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		for i := 0; i < len(after.Content); i += 2 {
-			key, value := after.Content[i], after.Content[i+1]
-			old := members[key.Value]
-			delete(members, key.Value)
-			target := overlayMember(path, key.Value)
-			if old != nil && old.Kind == value.Kind {
-				if err := diffOverlay(doc, target, old, value); err != nil {
+		tail, last := 0, -1
+		for ; tail < len(after.Content); tail += 2 {
+			key, value := after.Content[tail], after.Content[tail+1]
+			i, exists := members[key.Value]
+			if !exists || i <= last || before.Content[i].Tag != key.Tag || before.Content[i+1].Kind != value.Kind {
+				break
+			}
+			old := before.Content[i+1]
+			if value.Kind == yaml.ScalarNode && !sameOverlayValue(old, value) {
+				// A parent update also works for property names with control
+				// characters that the overlay engine cannot select directly.
+				change := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: after.Content[tail : tail+2]}
+				doc.Actions = append(doc.Actions, &high.Action{Target: path, Update: change})
+			} else if value.Kind != yaml.ScalarNode {
+				if err := diffOverlay(doc, overlayMember(path, key.Value), old, value); err != nil {
 					return err
 				}
-				continue
 			}
-			if old != nil {
-				doc.Actions = append(doc.Actions, &high.Action{Target: target, Remove: true})
-			}
-			add.Content = append(add.Content, key, value)
+			delete(members, key.Value)
+			last = i
 		}
 		for i := 0; i < len(before.Content); i += 2 {
 			key := before.Content[i].Value
-			if members[key] != nil {
+			if _, remove := members[key]; remove {
 				doc.Actions = append(doc.Actions, &high.Action{Target: overlayMember(path, key), Remove: true})
 			}
 		}
-		if len(add.Content) > 0 {
+		if tail < len(after.Content) {
+			add := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: after.Content[tail:]}
 			doc.Actions = append(doc.Actions, &high.Action{Target: path, Update: add})
 		}
 	case yaml.SequenceNode:
@@ -157,28 +171,13 @@ func diffOverlay(doc *high.Overlay, path string, before, after *yaml.Node) error
 	return nil
 }
 
-// Overlay application may reorder object members and change YAML presentation.
-// Scalar tags and values, key types, and array order must survive replay.
+// Compare content in order, including mapping keys and their YAML types.
+// Reordered paths can produce different lint results.
 func sameOverlayValue(a, b *yaml.Node) bool {
 	if a.Kind != b.Kind || a.Tag != b.Tag || a.Value != b.Value || len(a.Content) != len(b.Content) {
 		return false
 	}
 	for i, child := range a.Content {
-		if a.Kind == yaml.MappingNode && i%2 == 0 && (child.Value != b.Content[i].Value || child.Tag != b.Content[i].Tag) {
-			// Only reordered mappings need an index. Most source keys stay in place.
-			members := make(map[string]int, (len(b.Content)-i)/2)
-			for j := i; j < len(b.Content); j += 2 {
-				members[b.Content[j].Value] = j
-			}
-			for j := i; j < len(a.Content); j += 2 {
-				k, ok := members[a.Content[j].Value]
-				if !ok || a.Content[j].Tag != b.Content[k].Tag || !sameOverlayValue(a.Content[j+1], b.Content[k+1]) {
-					return false
-				}
-				delete(members, a.Content[j].Value)
-			}
-			return true
-		}
 		if !sameOverlayValue(child, b.Content[i]) {
 			return false
 		}
@@ -189,5 +188,9 @@ func sameOverlayValue(a, b *yaml.Node) bool {
 // Quoted member selectors also handle names such as "null" that the JSONPath
 // parser treats as reserved tokens in dot notation.
 func overlayMember(path, key string) string {
-	return path + "[" + strconv.Quote(key) + "]"
+	var quoted bytes.Buffer
+	encoder := json.NewEncoder(&quoted)
+	encoder.SetEscapeHTML(false)
+	_ = encoder.Encode(key)
+	return path + "[" + strings.TrimSuffix(quoted.String(), "\n") + "]"
 }
