@@ -6,7 +6,7 @@ package repair
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
 	"strings"
 
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
@@ -30,7 +30,7 @@ func reviewedExample(root *yaml.Node, f Finding, nodes map[string]*yaml.Node) ([
 	var target string
 	for {
 		n := nodes[path]
-		if n != nil && n.Kind == yaml.MappingNode && (field(n, "type") != nil || field(n, "properties") != nil || field(n, "items") != nil || field(n, "enum") != nil || field(n, "allOf") != nil || field(n, "oneOf") != nil || field(n, "anyOf") != nil) {
+		if n != nil && n.Kind == yaml.MappingNode && (field(n, "type") != nil || field(n, "properties") != nil || field(n, "items") != nil || field(n, "enum") != nil || field(n, "const") != nil || field(n, "allOf") != nil || field(n, "oneOf") != nil || field(n, "anyOf") != nil) {
 			schema = n
 			if f.RuleID == "json-schema-examples-valid" {
 				prefix := path + "/examples/"
@@ -83,50 +83,25 @@ func reviewedExample(root *yaml.Node, f Finding, nodes map[string]*yaml.Node) ([
 	if err != nil || compiled == nil {
 		return nil, "", "example schema cannot be compiled independently"
 	}
-	// Try existing authored data before synthesis. A default may supply a sample,
-	// but this provider never changes the default itself.
-	var sample any
-	valid := false
-	for _, name := range []string{"example", "default", "const"} {
-		if n := field(schema, name); n != nil {
-			v, e := schemautil.NodeToInterface(n)
-			if e == nil && compiled.Validate(v) == nil {
-				sample = v
-				valid = true
-				break
-			}
-		}
-	}
+	sample, valid := exampleFromSchema(root, schema, compiled)
 	if !valid {
-		clean := clone(schema)
-		stripExampleHints(clean)
-		proxy := new(lowbase.SchemaProxy)
-		if err := proxy.Build(context.Background(), nil, clean, nil); err != nil {
-			return nil, "", err.Error()
-		}
-		high := highbase.NewSchemaProxy(&low.NodeReference[*lowbase.SchemaProxy]{Value: proxy, ValueNode: clean}).Schema()
-		if high == nil {
-			return nil, "", "example schema model is unavailable"
-		}
-		generator := renderer.CreateRendererUsingDictionary("")
-		generator.SetSeed(42)
-		sample, err = generator.RenderSchemaWithError(high)
-		if err != nil {
-			return nil, "", fmt.Sprintf("bounded example generation failed: %v", err)
+		// The review UI can supply a value for a scalar string. Other shapes
+		// need authored domain data before a useful example can be proposed.
+		if kind := field(schema, "type"); kind != nil && kind.Value == "string" {
+			if f.ExampleValue == nil {
+				return nil, "", ExampleInputRequired
+			}
+			sample = *f.ExampleValue
+			if compiled.Validate(sample) != nil {
+				return nil, "", "entered example does not satisfy the schema"
+			}
+		} else {
+			return nil, "", "schema has no supported representative example"
 		}
 	}
 	encoded, err := json.Marshal(sample)
 	if err != nil {
 		return nil, "", err.Error()
-	}
-	// Decode through the same numeric representation as the schema validator.
-	node, err := valueNode(encoded)
-	if err != nil {
-		return nil, "", err.Error()
-	}
-	value, err := schemautil.NodeToInterface(node)
-	if err != nil || compiled.Validate(value) != nil {
-		return nil, "", "generated example does not satisfy the schema"
 	}
 	op := "add"
 	if nodes[target] != nil {
@@ -134,36 +109,121 @@ func reviewedExample(root *yaml.Node, f Finding, nodes map[string]*yaml.Node) ([
 	}
 	ops := []Operation{{Op: op, Path: target, Value: encoded}}
 	if f.RuleID == "oas3-missing-example" {
-		ops = append(ops, childExampleOperations(schema, path, value)...)
+		ops = append(ops, childExampleOperations(schema, path, sample)...)
 	}
 	return ops, "example-generated", ""
 }
 
-func stripExampleHints(n *yaml.Node) {
-	if n == nil || n.Kind != yaml.MappingNode {
-		return
+// ExampleInputRequired identifies a string example that needs a value from the author.
+const ExampleInputRequired = "enter a representative string example"
+
+var formatExamples = map[string]string{
+	"email": "user@example.com", "idn-email": "user@example.com",
+	"hostname": "api.example.com", "idn-hostname": "api.example.com",
+	"uri": "https://example.com/resources/1", "uri-reference": "/resources/1",
+	"date": "2026-01-15", "time": "12:00:00Z", "date-time": "2026-01-15T12:00:00Z",
+	"duration": "PT1H", "uuid": "550e8400-e29b-41d4-a716-446655440000",
+	"ipv4": "192.0.2.1", "ipv6": "2001:db8::1",
+}
+
+// exampleFromSchema tries authored values in source order, then builds a sample
+// from known formats and member schemas. Each candidate must satisfy its schema.
+func exampleFromSchema(root, schema *yaml.Node, compiled exampleValidator) (any, bool) {
+	if schema == nil || schema.Kind != yaml.MappingNode {
+		return nil, false
 	}
-	for i := len(n.Content) - 2; i >= 0; i -= 2 {
-		key, value := n.Content[i].Value, n.Content[i+1]
-		switch key {
-		case "example", "examples", "default":
-			n.Content = append(n.Content[:i], n.Content[i+2:]...)
-		case "properties", "patternProperties", "$defs", "definitions", "dependentSchemas":
-			if value.Kind == yaml.MappingNode {
-				for j := 1; j < len(value.Content); j += 2 {
-					stripExampleHints(value.Content[j])
-				}
-			}
-		case "allOf", "anyOf", "oneOf", "prefixItems":
-			if value.Kind == yaml.SequenceNode {
-				for _, child := range value.Content {
-					stripExampleHints(child)
-				}
-			}
-		case "items", "additionalProperties", "unevaluatedProperties", "contains", "not", "if", "then", "else", "propertyNames":
-			stripExampleHints(value)
+	if compiled == nil {
+		var err error
+		compiled, err = compileExampleSchema(root, schema)
+		if err != nil || compiled == nil {
+			return nil, false
 		}
 	}
+	for _, name := range []string{"example", "const", "default", "examples", "enum"} {
+		n := field(schema, name)
+		if n == nil {
+			continue
+		}
+		candidates := []*yaml.Node{n}
+		if name == "examples" || name == "enum" {
+			if n.Kind != yaml.SequenceNode {
+				continue
+			}
+			candidates = n.Content
+		}
+		for _, candidate := range candidates {
+			value, err := schemautil.NodeToInterface(candidate)
+			if err == nil && compiled.Validate(value) == nil {
+				return value, true
+			}
+		}
+	}
+	kind := field(schema, "type")
+	var sample any
+	switch {
+	case field(schema, "properties") != nil:
+		properties := field(schema, "properties")
+		if properties.Kind != yaml.MappingNode {
+			return nil, false
+		}
+		object := make(map[string]any, len(properties.Content)/2)
+		for i := 0; i+1 < len(properties.Content); i += 2 {
+			if v, ok := exampleFromSchema(root, properties.Content[i+1], nil); ok {
+				object[properties.Content[i].Value] = v
+			}
+		}
+		if len(object) == 0 {
+			return nil, false
+		}
+		sample = object
+	case field(schema, "items") != nil:
+		item, ok := exampleFromSchema(root, field(schema, "items"), nil)
+		if !ok {
+			return nil, false
+		}
+		// A single representative item keeps nested arrays bounded. An authored
+		// example can still satisfy schemas that require larger collections.
+		sample = []any{item}
+	case kind != nil && kind.Value == "string":
+		format := field(schema, "format")
+		if format == nil {
+			return nil, false
+		}
+		v, ok := formatExamples[format.Value]
+		if !ok {
+			return nil, false
+		}
+		sample = v
+	case kind != nil && (kind.Value == "integer" || kind.Value == "number" || kind.Value == "boolean"):
+		return numericExample(schema, compiled)
+	default:
+		return nil, false
+	}
+	return sample, compiled.Validate(sample) == nil
+}
+
+// numericExample retains the renderer's numeric range support. Pass only the
+// scalar constraints so rendering cannot expand nested collections or invent text.
+func numericExample(schema *yaml.Node, validator exampleValidator) (any, bool) {
+	numeric := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	for i := 0; i < len(schema.Content); i += 2 {
+		switch schema.Content[i].Value {
+		case "type", "minimum", "exclusiveMinimum", "maximum", "exclusiveMaximum", "multipleOf", "format":
+			numeric.Content = append(numeric.Content, schema.Content[i:i+2]...)
+		}
+	}
+	proxy := new(lowbase.SchemaProxy)
+	if err := proxy.Build(context.Background(), nil, numeric, nil); err != nil {
+		return nil, false
+	}
+	high := highbase.NewSchemaProxy(&low.NodeReference[*lowbase.SchemaProxy]{Value: proxy, ValueNode: numeric}).Schema()
+	if high == nil {
+		return nil, false
+	}
+	generator := renderer.CreateRendererUsingDictionary("")
+	generator.SetSeed(42)
+	sample, err := generator.RenderSchemaWithError(high)
+	return sample, err == nil && validator.Validate(sample) == nil
 }
 
 // Parent examples can expose missing property examples on the next lint pass.
@@ -221,6 +281,9 @@ func reviewedAsyncExample(root *yaml.Node, f Finding, nodes map[string]*yaml.Nod
 		}
 		generated, _, reason := reviewedExample(local, Finding{RuleID: "oas3-valid-schema-example", Pointer: ""}, sourceNodes(local))
 		if len(generated) != 1 {
+			if reason == ExampleInputRequired {
+				reason = "message schema needs an authored string example"
+			}
 			return nil, "", reason
 		}
 		ops = append(ops, Operation{Op: "add", Path: f.Pointer + "/" + name, Value: generated[0].Value})

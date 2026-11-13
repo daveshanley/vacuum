@@ -16,11 +16,13 @@ import (
 // Finding locates a diagnostic in the canonical source document.
 // Pointer must be mapped from the parser's source node, not an English message.
 type Finding struct {
-	Code        string `json:"code,omitempty"`
-	Index       int    `json:"-"`
-	Unavailable string `json:"unavailable,omitempty"`
-	RuleID      string `json:"ruleId"`
-	Pointer     string `json:"pointer"`
+	// ExampleValue holds an explicit replacement for a free-form string example.
+	ExampleValue *string `json:"-"`
+	Code         string  `json:"code,omitempty"`
+	Index        int     `json:"-"`
+	Unavailable  string  `json:"unavailable,omitempty"`
+	RuleID       string  `json:"ruleId"`
+	Pointer      string  `json:"pointer"`
 }
 
 // BuiltinPlan proposes guarded edits for reported built-in findings. Unhandled

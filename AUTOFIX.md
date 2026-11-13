@@ -108,10 +108,11 @@ asserting a license grant. Generated values are labelled. All fixes start unsele
 Press Enter to select the displayed proposal, or `e` to change its prefilled
 value. Review generated wording and metadata before applying. The console uses
 the same proposals. Verification rejects a proposal if it introduces a new integrity defect or lint finding, or leaves its target unresolved.
-An invalid example can be replaced with a validated instance generated from its
-schema. Existing valid data is preferred where supported. Generation is bounded
-and deterministic; unsupported constraints or failed validation cause a decline.
-Example generation does not authorize replacing a schema default.
+Vacuum checks authored examples, constants, defaults, and enum values before
+it generates an example. Known formats supply values such as `user@example.com`.
+For a free-form string, press `e` in the dashboard to enter a value. The console
+skips examples that need input. Vacuum validates each example against its schema.
+Duplicate descriptions and summaries need an author to write new text.
 Repair review lists each missing property example so the baseline includes all
 missing siblings before any edit. Plain lint keeps its grouped property messages.
 
