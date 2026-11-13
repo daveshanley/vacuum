@@ -168,6 +168,19 @@ func isFalsyNode(node *yaml.Node) bool {
 	return false
 }
 
+// truthyFieldOwner follows the same parsed field path and combinator rules as
+// the validation lookup. An absent intermediate owner is not a repair target.
+func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathOptions) *yaml.Node {
+	segments, err := vacuumUtils.ParseFieldPath(field)
+	if err != nil || len(segments) == 0 {
+		return nil
+	}
+	if len(segments) == 1 {
+		return root
+	}
+	return vacuumUtils.FindFieldPathSegments(segments[:len(segments)-1], root.Content, opts).ValueNode
+}
+
 func falsyForContract(node *yaml.Node, contract model.Contract) bool {
 	if contract != model.OpenLintV1Draft {
 		return isFalsyNode(node)
@@ -192,17 +205,4 @@ func falsyForContract(node *yaml.Node, contract model.Contract) bool {
 
 func missingOpenLintValue(context model.RuleFunctionContext) model.RuleFunctionResult {
 	return model.RuleFunctionResult{Rule: context.Rule, Path: givenPathValue(context.Given), Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, "value must be defined")}
-}
-
-// truthyFieldOwner follows the same parsed field path and combinator rules as
-// the validation lookup. An absent intermediate owner is not a repair target.
-func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathOptions) *yaml.Node {
-	segments, err := vacuumUtils.ParseFieldPath(field)
-	if err != nil || len(segments) == 0 {
-		return nil
-	}
-	if len(segments) == 1 {
-		return root
-	}
-	return vacuumUtils.FindFieldPathSegments(segments[:len(segments)-1], root.Content, opts).ValueNode
 }
