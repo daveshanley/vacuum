@@ -696,6 +696,6 @@ func TestExtractLeafValidationErrorsStableAcrossCauseOrder(t *testing.T) {
 	reverse := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{second, first}})
 	assert.Len(t, forward, 2)
 	assert.Equal(t, forward, reverse)
-	assert.Contains(t, forward[0], "/first/")
-	assert.Contains(t, forward[1], "/second/")
+	assert.Contains(t, forward[0].message, "/~1first/")
+	assert.Contains(t, forward[1].message, "/~1second/")
 }
