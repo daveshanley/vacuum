@@ -329,6 +329,10 @@ func TestRepairSaveRequiresFreshEnterAfterPreview(t *testing.T) {
 	require.Equal(t, repairSavePreview, m.repair.save.step)
 	require.Equal(t, original, string(*disk))
 	m.repair.save.acceptAfter = time.Now().Add(-time.Millisecond)
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter, IsRepeat: true})
+	require.Equal(t, repairSavePreview, m.repair.save.step)
+	require.Equal(t, original, string(*disk))
+
 	repairKey(m, tea.KeyEnter, "")
 	require.Equal(t, repairSaveDone, m.repair.save.step)
 	require.NotEqual(t, original, string(*disk))

@@ -61,6 +61,8 @@ func TestRepairUnusedKeysReachTableNavigation(t *testing.T) {
 		require.False(t, handled)
 		require.Nil(t, cmd)
 	}
+	require.NotContains(t, m.buildNavBar(), "f: fixes")
+	require.Equal(t, "Saved report is read-only", m.repairStatus())
 	m.repair.config.DisabledReason = ""
 	m.repair.options = nil
 	m.repair.automatic, m.repair.suggested, m.repair.needsInput = 0, 0, 0

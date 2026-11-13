@@ -248,7 +248,7 @@ func (m *ViolationResultTableModel) handleRepairSave(msg tea.Msg) (bool, tea.Cmd
 			s.step = repairSaveDestination
 			s.err = ""
 		case "enter":
-			if time.Now().Before(s.acceptAfter) {
+			if key.IsRepeat || time.Now().Before(s.acceptAfter) {
 				return true, nil
 			}
 			p := r.preview
