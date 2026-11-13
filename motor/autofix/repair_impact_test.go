@@ -60,6 +60,24 @@ func TestRepairImpactActualDocuments(t *testing.T) {
 	}
 }
 
+func TestRepairImpactOperationIDs(t *testing.T) {
+	withID := strings.Replace(impactSpec, `"responses":`, `"operationId":"getPets","responses":`, 1)
+	for _, tc := range []struct {
+		before, after string
+		breaking      bool
+	}{
+		{impactSpec, withID, false},
+		{withID, impactSpec, true},
+		{withID, strings.Replace(withID, "getPets", "listPets", 1), true},
+	} {
+		impact := assessRepairImpact(impactResult(t, tc.before), impactResult(t, tc.after), nil)
+		require.Len(t, impact.Changes, 1)
+		require.Equal(t, tc.breaking, impact.Changes[0].Breaking)
+		require.Equal(t, tc.breaking, impact.Status == RepairImpactBreaking)
+		require.Equal(t, tc.breaking, impact.BreakingChanges > 0)
+	}
+}
+
 func TestRepairImpactUnknown(t *testing.T) {
 	before, after := impactResult(t, impactSpec), impactResult(t, impactSpec)
 	ctx, cancel := context.WithCancel(context.Background())
