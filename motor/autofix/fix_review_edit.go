@@ -11,8 +11,8 @@ import (
 
 // The provider identifies a single value edit. Compound transforms must retain
 // their linked edits and are never reduced to an independently editable field.
-func editableProposalOperation(plan repair.Plan, rule, pointer, metadataField string, root *yaml.Node) (repair.Operation, bool) {
-	if group := plan.ReviewedProposals[rule+"\x00"+pointer]; len(group) > 0 {
+func editableProposalOperation(plan repair.Plan, finding repair.Finding, metadataField string, root *yaml.Node) (repair.Operation, bool) {
+	if group := plan.ReviewedProposals[finding.Key()]; len(group) > 0 {
 		if len(group) == 1 && group[0].Op == "copy" {
 			node := fixNodeAt(root, group[0].From)
 			if node == nil {
@@ -34,7 +34,7 @@ func editableProposalOperation(plan repair.Plan, rule, pointer, metadataField st
 	if metadataField == "" {
 		return repair.Operation{}, false
 	}
-	path := pointer + "/" + repair.EscapeToken(metadataField)
+	path := finding.Pointer + "/" + repair.EscapeToken(metadataField)
 	for _, op := range plan.Operations {
 		if op.Path == path && (op.Op == "add" || op.Op == "replace") {
 			return op, true

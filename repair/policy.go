@@ -243,7 +243,7 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 			if entry.Rule != f.RuleID || entry.Scope.Source != source || entry.Scope.Pointer != f.Pointer || (f.Code != "" && entry.Diagnostic != f.Code) {
 				continue
 			}
-			target := Target{RuleID: f.RuleID, Code: entry.Diagnostic, Pointer: f.Pointer}
+			target := Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Code: entry.Diagnostic, Pointer: f.Pointer}
 			n := nodes[f.Pointer]
 			if n == nil {
 				continue
@@ -302,7 +302,7 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 			}
 			remaining := plan.Declined[:0]
 			for _, declined := range plan.Declined {
-				if declined.Target.RuleID != f.RuleID || declined.Target.Pointer != f.Pointer {
+				if declined.Target.Key() != f.Key() {
 					remaining = append(remaining, declined)
 				}
 			}

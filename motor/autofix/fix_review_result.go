@@ -3,7 +3,36 @@
 
 package autofix
 
-import "github.com/daveshanley/vacuum/motor"
+import (
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+)
+
+// reportResults preserves the ordinary lint result set while the repair engine
+// can use every sibling diagnostic to check a proposed edit.
+func reportResults(results []model.RuleFunctionResult) []model.RuleFunctionResult {
+	for i, result := range results {
+		if result.RepairOnly {
+			visible := make([]model.RuleFunctionResult, i, len(results)-1)
+			copy(visible, results[:i])
+			for _, next := range results[i+1:] {
+				if !next.RepairOnly {
+					visible = append(visible, next)
+				}
+			}
+			return visible
+		}
+	}
+	return results
+}
+
+func reportResult(result *motor.RuleSetExecutionResult) *motor.RuleSetExecutionResult {
+	if result != nil {
+		result.Results = reportResults(result.Results)
+		result.IgnoredResults = reportResults(result.IgnoredResults)
+	}
+	return result
+}
 
 // TakeResult transfers a verified preview's lint resources to the caller.
 // It grants no write authority; callers must first obtain acceptance and check
@@ -28,5 +57,5 @@ func (r *FixReview) TakeBaselineResult() *motor.RuleSetExecutionResult {
 	defer r.mu.Unlock()
 	result := r.baseline
 	r.baseline = nil
-	return result
+	return reportResult(result)
 }

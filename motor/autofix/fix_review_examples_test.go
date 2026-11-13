@@ -17,7 +17,7 @@ import (
 func TestFixReviewMissingExamplesIncludesSiblingFindings(t *testing.T) {
 	for _, schemaLocation := range []string{"media", "component"} {
 		t.Run(schemaLocation, func(t *testing.T) {
-			schema := `{"type":"object","properties":{"amount":{"type":"integer"},"card":{"type":"string"}}}`
+			schema := `{"type":"object","properties":{"amount":{"type":"integer"},"card":{"type":"string","enum":["debit","credit"]}}}`
 			data := `{"openapi":"3.0.3","info":{"title":"Examples","version":"1"},"paths":{},"components":{"schemas":{"Payment":` + schema + `}}}`
 			if schemaLocation == "media" {
 				data = `{"openapi":"3.0.3","info":{"title":"Examples","version":"1"},"paths":{"/payment":{"post":{"requestBody":{"content":{"application/json":{"schema":` + schema + `}}},"responses":{"200":{"description":"ok"}}}}}}`
@@ -59,6 +59,13 @@ func TestFixReviewMissingExamplesIncludesSiblingFindings(t *testing.T) {
 			require.NoError(t, err)
 			defer preview.Close()
 			require.Equal(t, 1, preview.Fixed)
+			require.Equal(t, fixStats(plain.Results), preview.Before)
+			next := execution.CopyConfig()
+			next.Spec = preview.Candidate
+			linted := motor.ApplyRulesToRuleSet(next)
+			defer linted.ReleaseOwnedResources()
+			require.Equal(t, fixStats(linted.Results), preview.After)
+			require.Len(t, preview.Results, len(linted.Results))
 			remainingCard := false
 			for _, result := range preview.Results {
 				if strings.Contains(result.Message, "schema property `card`") {
@@ -70,6 +77,15 @@ func TestFixReviewMissingExamplesIncludesSiblingFindings(t *testing.T) {
 			require.NoError(t, err)
 			defer both.Close()
 			require.Equal(t, 2, both.Fixed)
+			baseline := review.TakeBaselineResult()
+			defer baseline.ReleaseOwnedResources()
+			require.Len(t, baseline.Results, len(plain.Results))
+			report := preview.TakeResult()
+			defer report.ReleaseOwnedResources()
+			require.Len(t, report.Results, len(linted.Results))
+			_, reportOnly := RunRepairs(execution, nil, nil, false)
+			defer reportOnly.ReleaseOwnedResources()
+			require.Len(t, reportOnly.Results, len(plain.Results))
 		})
 	}
 }

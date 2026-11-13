@@ -80,7 +80,7 @@ func repairWithPlugins(execution *motor.RuleSetExecution, plan repair.Plan, opti
 			if !ok {
 				return nil, fmt.Errorf("plugin repair has no original authored target: %s", fixed.RuleId)
 			}
-			plan.Targets = append(plan.Targets, repair.Target{RuleID: location.RuleID, Code: location.Code, Pointer: location.Pointer})
+			plan.Targets = append(plan.Targets, repair.Target{RuleID: location.RuleID, Code: location.Code, DiagnosticCode: location.Code, Pointer: location.Pointer})
 		}
 		candidate = plugins.ModifiedSpec
 	}

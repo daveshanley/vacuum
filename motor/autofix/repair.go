@@ -54,7 +54,8 @@ func PlanFixes(execution *motor.RuleSetExecution, options *motor.ExecutionOption
 
 // PlanFixesWithPolicy includes exact caller-supplied policy values.
 func PlanFixesWithPolicy(execution *motor.RuleSetExecution, options *motor.ExecutionOptions, policy *repair.Policy) (repair.Plan, *motor.RuleSetExecutionResult, error) {
-	return planFixesWithPolicy(execution, options, policy, nil)
+	plan, baseline, err := planFixesWithPolicy(execution, options, policy, nil)
+	return plan, reportResult(baseline), err
 }
 
 func planFixesWithPolicy(execution *motor.RuleSetExecution, options *motor.ExecutionOptions, policy *repair.Policy, cache *repairBaselineCache) (repair.Plan, *motor.RuleSetExecutionResult, error) {
@@ -85,7 +86,7 @@ func planFixesWithPolicy(execution *motor.RuleSetExecution, options *motor.Execu
 	_, sourceHashes, sourceErr := freezeRepairSources(baseline)
 	if sourceErr != nil {
 		for _, f := range findings {
-			plan.Declined = append(plan.Declined, repair.Declined{Target: repair.Target{RuleID: f.RuleID, Pointer: f.Pointer}, Reason: sourceErr.Error()})
+			plan.Declined = append(plan.Declined, repair.Declined{Target: repair.Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Pointer: f.Pointer}, Reason: sourceErr.Error()})
 		}
 		return plan, baseline, nil
 	}
@@ -211,19 +212,20 @@ func verifyRepairCandidate(execution *motor.RuleSetExecution, plan repair.Plan, 
 	remaining := make(map[string]bool)
 	for _, f := range beforeFindings {
 		if f.Unavailable == "" {
-			original[f.RuleID+"\x00"+f.Pointer] = true
+			original[f.Key()] = true
 		}
 	}
 	for _, f := range afterFindings {
 		if f.Unavailable == "" {
 			if origin, ok := correspondence.OriginalPointer(f.Pointer); ok {
-				remaining[f.RuleID+"\x00"+origin] = true
+				f.Pointer = origin
+				remaining[f.Key()] = true
 			}
 		}
 	}
 	var unresolved []repair.Target
 	for _, target := range plan.Targets {
-		k := target.RuleID + "\x00" + target.Pointer
+		k := target.Key()
 		if !original[k] {
 			return fail(fmt.Errorf("repair target is not an original diagnostic: %s", target.RuleID))
 		}
@@ -398,11 +400,11 @@ func runRepairs(execution *motor.RuleSetExecution, options *motor.ExecutionOptio
 			before.RepairIgnoresApplied = true
 		}
 		before.RepairWarnings = append(before.RepairWarnings, "repairs declined: "+err.Error())
-		return plan, before
+		return plan, reportResult(before)
 	}
 	plugins := apply && execution.ApplyAutoFixes && len(execution.AutoFixFunctions) > 0
 	if !apply || (!plugins && len(plan.Operations) == 0 && len(plan.KeyTags) == 0 && len(plan.KeyRemovals) == 0) {
-		return plan, before
+		return plan, reportResult(before)
 	}
 	var verified *RepairVerification
 	if plugins {
@@ -412,15 +414,15 @@ func runRepairs(execution *motor.RuleSetExecution, options *motor.ExecutionOptio
 	}
 	if err != nil {
 		before.RepairWarnings = append(before.RepairWarnings, "repairs declined: "+err.Error())
-		return plan, before
+		return plan, reportResult(before)
 	}
 	selected := make(map[string]bool)
 	for _, target := range verified.Verified {
-		selected[target.RuleID+"\x00"+target.Pointer] = true
+		selected[target.Key()] = true
 	}
 	locations, _ := baselineRepairFindings(before, cache)
 	for _, location := range locations {
-		if location.Unavailable == "" && selected[location.RuleID+"\x00"+location.Pointer] {
+		if location.Unavailable == "" && selected[location.Key()] {
 			result := before.Results[location.Index]
 			result.AutoFixed = true
 			verified.Final.FixedResults = append(verified.Final.FixedResults, result)
@@ -432,7 +434,7 @@ func runRepairs(execution *motor.RuleSetExecution, options *motor.ExecutionOptio
 	}
 	verified.Final.RuleSetExecution.Spec = execution.Spec
 	before.ReleaseOwnedResources()
-	return plan, verified.Final
+	return plan, reportResult(verified.Final)
 }
 
 func repairRunOptions(options *motor.ExecutionOptions) (*motor.ExecutionOptions, context.CancelFunc) {
