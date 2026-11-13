@@ -301,6 +301,8 @@ func TestRepresentativeExamples(t *testing.T) {
 		{"invalid authored hint", `{"type":"string","default":8,"format":"email"}`, `"user@example.com"`},
 		{"uri", `{"type":"string","format":"uri"}`, `"https://example.com/resources/1"`},
 		{"timestamp", `{"type":"string","format":"date-time"}`, `"2026-01-15T12:00:00Z"`},
+		{"union from authored branch", `{"oneOf":[{"type":"string"},{"type":"integer","const":17}]}`, `17`},
+		{"branch must satisfy full schema", `{"allOf":[{"const":"paid"},{"const":"pending"}]}`, ""},
 		{"member hints", `{"type":"object","properties":{"first":{"type":"string"},"tags":{"type":"array","items":{"type":"string","enum":["public"]}}}}`, `{"tags":["public"]}`},
 		{"unknown string", `{"type":"string"}`, ""},
 		{"object without fields", `{"type":"object","additionalProperties":true}`, ""},
