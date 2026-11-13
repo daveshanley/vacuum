@@ -158,6 +158,19 @@ func exampleFromSchema(root, schema *yaml.Node, compiled exampleValidator) (any,
 			}
 		}
 	}
+	// A value from a branch is usable only if the complete schema accepts it.
+	for _, key := range []string{"oneOf", "anyOf", "allOf"} {
+		branches := field(schema, key)
+		if branches == nil || branches.Kind != yaml.SequenceNode {
+			continue
+		}
+		for _, branch := range branches.Content {
+			value, ok := exampleFromSchema(root, branch, nil)
+			if ok && compiled.Validate(value) == nil {
+				return value, true
+			}
+		}
+	}
 	kind := field(schema, "type")
 	var sample any
 	switch {
