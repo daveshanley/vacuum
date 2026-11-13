@@ -9,16 +9,26 @@ import (
 )
 
 func (m *ViolationResultTableModel) ApplyFilter() {
+	results := m.allResults
+	if m.repair != nil && m.repair.onlyFixes {
+		results = make([]*model.RuleFunctionResult, 0, len(m.repair.options))
+		for _, option := range m.repair.options {
+			if option.Available {
+				results = append(results, option.Result)
+			}
+		}
+	}
+
 	// pre-allocate with estimated capacity to reduce allocations
-	estimatedCapacity := len(m.allResults)
+	estimatedCapacity := len(results)
 	if m.uiState.FilterState != FilterAll {
-		estimatedCapacity = len(m.allResults) / 3 // rough estimate for filtered results
+		estimatedCapacity = len(results) / 3 // rough estimate for filtered results
 	}
 
 	filtered := make([]*model.RuleFunctionResult, 0, estimatedCapacity)
 
 	// single-pass filtering - check all conditions in one loop
-	for _, r := range m.allResults {
+	for _, r := range results {
 		if r.Rule == nil {
 			continue
 		}
@@ -58,11 +68,6 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 		}
 
 		// all filters passed, add to results
-		if m.repair != nil && m.repair.onlyFixes {
-			if o := m.repairOption(r); o == nil || (o.Reason != "" && !o.Editable) {
-				continue
-			}
-		}
 		filtered = append(filtered, r)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor/autofix"
 
 	tea "charm.land/bubbletea/v2"
@@ -74,4 +75,22 @@ func TestRepairUnusedKeysReachTableNavigation(t *testing.T) {
 	handled, cmd = m.handleRepairMessage(tea.KeyPressMsg{Code: ' ', Text: " "})
 	require.False(t, handled)
 	require.Nil(t, cmd)
+}
+
+func TestFixListUsesEveryAvailableFieldOnSharedOwners(t *testing.T) {
+	m, _ := repairTestModel(t)
+	rule := &model.Rule{Id: "metadata", Severity: "warn"}
+	description := &model.RuleFunctionResult{Rule: rule, Path: "$.info", DiagnosticCode: "description-missing"}
+	summary := &model.RuleFunctionResult{Rule: rule, Path: "$.info", DiagnosticCode: "summary-missing"}
+	m.allResults = []*model.RuleFunctionResult{description}
+	m.repair.options = []autofix.FixOption{{Available: true, Index: 0, Result: description}, {Available: true, Index: 1, Result: summary}}
+	m.repair.byIdentity = map[string]int{fixIdentity(description): 0, fixIdentity(summary): 1}
+	m.repair.onlyFixes = true
+	m.ApplyFilter()
+	require.Len(t, m.filteredResults, 2)
+	require.Equal(t, 0, m.repairOption(m.filteredResults[0]).Index)
+	require.Equal(t, 1, m.repairOption(m.filteredResults[1]).Index)
+	m.repair.onlyFixes = false
+	m.ApplyFilter()
+	require.Len(t, m.filteredResults, 1)
 }
