@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/daveshanley/vacuum/language-server/protocol"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/testify/require"
@@ -205,4 +207,13 @@ func TestRepairCodeActionRejectsRepeatedVersionDuringWork(t *testing.T) {
 	require.NoError(t, applyDocumentChanges(doc, []any{protocol.TextDocumentContentChangeEventWhole{Text: repairCacheSpec}}, 1))
 	close(release)
 	require.Nil(t, <-finished)
+}
+
+func TestOpenLintDoesNotOfferNativeRepairEdits(t *testing.T) {
+	sets := rulesets.BuildDefaultRuleSets()
+	state := NewServerWithExecutionOptions("test", &utils.LintFileRequest{DefaultRuleSets: sets, SelectedRS: sets.GenerateOpenAPIRecommendedRuleSet()}, &motor.ExecutionOptions{Contract: model.OpenLintV1Draft})
+	uri := "file:///tmp/openlint.json"
+	doc := state.documentStore.addVersioned(uri, `{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"enum":["a","a"]}}}}`, 1)
+	require.Nil(t, state.repairCodeAction(context.Background(), uri))
+	require.Nil(t, doc.repairCache)
 }
