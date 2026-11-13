@@ -32,6 +32,7 @@ type FixOption struct {
 	Description string
 	Available   bool // Available is independent of the caller's selection.
 	Editable    bool
+	NeedsValue  bool // The author must supply a value before selecting this fix.
 	Value       string
 	Selected    bool
 	Generated   bool // Value is a contextual suggestion that requires explicit selection.
@@ -202,6 +203,11 @@ func NewFixReviewWithPolicy(execution *motor.RuleSetExecution, options *motor.Ex
 				}
 				r.edits[finding.Index] = op
 			}
+		} else if option.Reason == repair.ExampleInputRequired && finding.Unavailable == "" {
+			option.Available = true
+			option.Editable = true
+			option.NeedsValue = true
+			option.Description = "Enter a string example"
 		} else if name := r.fields[finding.Index]; name != "" {
 			option.Available = true
 			option.Editable = true
@@ -382,6 +388,14 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		}
 		targetsSeen[targetKey] = value
 
+		if option.NeedsValue {
+			if choice.Value == nil || strings.TrimSpace(*choice.Value) == "" {
+				return repair.Plan{}, fmt.Errorf("enter a string example at %s", finding.Pointer)
+			}
+			finding.ExampleValue = choice.Value
+			selected = append(selected, finding)
+			continue
+		}
 		if option.Editable {
 			value := option.Value
 			if choice.Value != nil {

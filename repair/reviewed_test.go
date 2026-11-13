@@ -292,3 +292,35 @@ func TestReviewedDeclinesHaveStablePrecedence(t *testing.T) {
 		})
 	}
 }
+
+func TestRepresentativeExamples(t *testing.T) {
+	for _, tc := range []struct{ name, schema, want string }{
+		{"enum", `{"type":"string","enum":["paid","pending"]}`, `"paid"`},
+		{"constant", `{"const":"order-created"}`, `"order-created"`},
+		{"default before format", `{"type":"string","format":"email","default":"support@example.org"}`, `"support@example.org"`},
+		{"invalid authored hint", `{"type":"string","default":8,"format":"email"}`, `"user@example.com"`},
+		{"uri", `{"type":"string","format":"uri"}`, `"https://example.com/resources/1"`},
+		{"timestamp", `{"type":"string","format":"date-time"}`, `"2026-01-15T12:00:00Z"`},
+		{"member hints", `{"type":"object","properties":{"first":{"type":"string"},"tags":{"type":"array","items":{"type":"string","enum":["public"]}}}}`, `{"tags":["public"]}`},
+		{"unknown string", `{"type":"string"}`, ""},
+		{"object without fields", `{"type":"object","additionalProperties":true}`, ""},
+		{"required free-form field", `{"type":"object","required":["title"],"properties":{"title":{"type":"string"}}}`, ""},
+		{"free-form items", `{"type":"array","items":{"type":"string"}}`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc, err := ParseDocument([]byte(tc.schema))
+			if err != nil {
+				t.Fatal(err)
+			}
+			root := doc.Content[0]
+			ops, _, reason := reviewedExample(root, Finding{RuleID: "oas3-valid-schema-example"}, sourceNodes(root))
+			if tc.want == "" {
+				if len(ops) > 0 || reason == "" {
+					t.Fatalf("expected decline: %v, %s", ops, reason)
+				}
+			} else if len(ops) != 1 || string(ops[0].Value) != tc.want {
+				t.Fatalf("expected %s, got %+v, %s", tc.want, ops, reason)
+			}
+		})
+	}
+}

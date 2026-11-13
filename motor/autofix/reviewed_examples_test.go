@@ -112,3 +112,35 @@ func TestReviewedOpenAPI30ExampleUsesNativeDialect(t *testing.T) {
 	defer p.Close()
 	require.Empty(t, p.Results)
 }
+
+func TestFreeFormExampleNeedsExplicitInput(t *testing.T) {
+	rule := "oas3-missing-example"
+	source := reviewedRecipeSchema(`{"type":"object","properties":{"status":{"type":"string","minLength":4}}}`)
+	review, err := NewFixReview(&motor.RuleSetExecution{Spec: []byte(source), SpecFileName: "sample.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule: rulesets.GetAllBuiltInRules()[rule]}}}, nil)
+	require.NoError(t, err)
+	defer review.Close()
+	var o FixOption
+	for _, option := range review.Options() {
+		if option.NeedsValue {
+			o = option
+			break
+		}
+	}
+	require.True(t, o.Available && o.Editable && o.NeedsValue, "%+v", review.Options())
+	require.False(t, o.Generated)
+	require.Empty(t, o.Value)
+	draft, err := review.Draft(FixChoice{Index: o.Index})
+	require.NoError(t, err)
+	require.True(t, draft.NeedsValue)
+	_, err = review.Preview([]FixChoice{{Index: o.Index}})
+	require.ErrorContains(t, err, "enter a string example")
+	invalid := "x"
+	_, err = review.Preview([]FixChoice{{Index: o.Index, Value: &invalid}})
+	require.Error(t, err)
+	authored := "Payment settled"
+	preview, err := review.Preview([]FixChoice{{Index: o.Index, Value: &authored}})
+	require.NoError(t, err)
+	defer preview.Close()
+	require.Contains(t, string(preview.Candidate), authored)
+	require.Empty(t, preview.Results)
+}
