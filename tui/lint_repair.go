@@ -612,6 +612,9 @@ func (m *ViolationResultTableModel) repairStatus() string {
 		return ""
 	}
 	r := m.repair
+	if r.config != nil && r.config.DisabledReason != "" {
+		return r.config.DisabledReason
+	}
 	selected := 0
 	for _, v := range r.selected {
 		if v {
