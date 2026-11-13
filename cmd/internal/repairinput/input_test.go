@@ -16,19 +16,19 @@ func TestRepairConsolePromptUsesBlueKeysAndIgnoresNavigation(t *testing.T) {
 	var output bytes.Buffer
 	keys := []string{"up", "home", "3", "backspace", "8", "enter"}
 	next := func() (string, error) { key := keys[0]; keys = keys[1:]; return key, nil }
-	answer, canceled, err := readRepairPrompt(context.Background(), &output, paint, true, false, next)
+	answer, canceled, err := readRepairPrompt(context.Background(), &output, paint, Select, false, next)
 	require.NoError(t, err)
 	require.False(t, canceled)
 	require.Equal(t, "8", answer)
 	require.Contains(t, output.String(), color.ASCIIBlue+"enter: review")
 	require.Contains(t, output.String(), color.ASCIIBlue+"esc: cancel")
 	output.Reset()
-	_, canceled, err = readRepairPrompt(context.Background(), &output, paint, false, false, func() (string, error) { return "enter", nil })
+	_, canceled, err = readRepairPrompt(context.Background(), &output, paint, Apply, false, func() (string, error) { return "enter", nil })
 	require.NoError(t, err)
 	require.False(t, canceled)
 	require.Contains(t, output.String(), color.ASCIIBlue+"enter: apply")
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, err = readRepairPrompt(ctx, &output, paint, false, false, func() (string, error) { t.Fatal("must not read after interruption"); return "", nil })
+	_, _, err = readRepairPrompt(ctx, &output, paint, Apply, false, func() (string, error) { t.Fatal("must not read after interruption"); return "", nil })
 	require.ErrorIs(t, err, context.Canceled)
 }

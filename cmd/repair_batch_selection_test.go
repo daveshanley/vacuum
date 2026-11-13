@@ -6,6 +6,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/daveshanley/vacuum/motor/autofix"
@@ -16,12 +18,13 @@ import (
 )
 
 type batchReviewProbe struct {
+	size    int
 	calls   [][]autofix.FixChoice
 	preview func([]autofix.FixChoice) (*autofix.FixPreview, error)
 }
 
 func (p *batchReviewProbe) Options() []autofix.FixOption {
-	options := make([]autofix.FixOption, 4)
+	options := make([]autofix.FixOption, max(p.size, 4))
 	for i := range options {
 		options[i] = autofix.FixOption{Index: i, Result: &model.RuleFunctionResult{RuleId: "test", Path: "$.value"}}
 	}
@@ -40,7 +43,7 @@ func TestRepairBatchRetriesOnlySurvivorsOfRemainingTargets(t *testing.T) {
 		}
 		return &autofix.FixPreview{Fixed: len(choices)}, nil
 	}
-	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}, {Index: 3}}, nil)
+	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}, {Index: 3}}, nil, io.Discard)
 	require.NoError(t, err)
 	defer preview.Close()
 	require.Len(t, probe.calls, 2, "all unresolved targets must be removed after one failed lint")
@@ -61,7 +64,7 @@ func TestRepairBatchRetainsAcceptedPrefix(t *testing.T) {
 			return nil, &autofix.FixSelectionError{Indexes: []int{0}, Err: errors.New("accepted target remains")}
 		}
 	}
-	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}, {Index: 3}}, nil)
+	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}, {Index: 3}}, nil, io.Discard)
 	require.NoError(t, err)
 	defer preview.Close()
 	require.Equal(t, 2, preview.Fixed)
@@ -80,7 +83,7 @@ func TestRepairBatchCancellationDoesNotRetryOrDecline(t *testing.T) {
 		cancel()
 		return nil, &autofix.FixSelectionError{Indexes: []int{1}, Err: errors.New("target remains")}
 	}
-	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}}, &motor.ExecutionOptions{Context: ctx})
+	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}}, &motor.ExecutionOptions{Context: ctx}, io.Discard)
 	require.Nil(t, preview)
 	require.ErrorIs(t, err, context.Canceled)
 	require.Empty(t, warnings)
@@ -90,7 +93,7 @@ func TestRepairBatchCancellationDoesNotRetryOrDecline(t *testing.T) {
 func TestRepairBatchStopsOnReviewDeadline(t *testing.T) {
 	probe := &batchReviewProbe{}
 	probe.preview = func([]autofix.FixChoice) (*autofix.FixPreview, error) { return nil, context.DeadlineExceeded }
-	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}}, nil)
+	preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}}, nil, io.Discard)
 	require.Nil(t, preview)
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.Empty(t, warnings)
@@ -110,7 +113,7 @@ func TestRepairBatchRechecksSurvivorsAfterTypedRejection(t *testing.T) {
 				}
 				return nil, remainingError
 			}
-			preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}}, nil)
+			preview, warnings, err := previewCLIRepairs(probe, []autofix.FixChoice{{Index: 0}, {Index: 1}, {Index: 2}}, nil, io.Discard)
 			require.Nil(t, preview, "a failed survivor candidate must never be returned")
 			require.ErrorContains(t, err, "no selected fixes passed verification")
 			require.Len(t, warnings, 3)
@@ -123,4 +126,27 @@ func TestRepairBatchRechecksSurvivorsAfterTypedRejection(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRepairBatchLimitsExpensiveVerificationPasses(t *testing.T) {
+	p := &batchReviewProbe{size: 256}
+	p.preview = func(choices []autofix.FixChoice) (*autofix.FixPreview, error) {
+		if len(choices) == 1 && choices[0].Index == 0 {
+			return &autofix.FixPreview{Fixed: 1}, nil
+		}
+		return nil, errors.New("conflict")
+	}
+	choices := make([]autofix.FixChoice, p.size)
+	for i := range choices {
+		choices[i].Index = i
+	}
+	var progress strings.Builder
+	v, warnings, err := previewCLIRepairs(p, choices, nil, &progress)
+	require.NoError(t, err)
+	defer v.Close()
+	require.Equal(t, 1, v.Fixed)
+	require.Len(t, p.calls, maxRepairPreviewAttempts)
+	require.Len(t, warnings, p.size-1)
+	require.Contains(t, warnings[len(warnings)-1], "verification budget")
+	require.Contains(t, progress.String(), "Verifying 256 fixes (pass 1/")
 }

@@ -60,7 +60,7 @@ func (c repairConsole) options(options []autofix.FixOption) string {
 	out.WriteString(c.heading("Available fixes"))
 	idWidth, ruleWidth := 3, 4
 	for _, option := range options {
-		if option.Available {
+		if option.Available && !option.NeedsValue {
 			idWidth = max(idWidth, len(fmt.Sprint(option.Index+1)))
 			ruleWidth = max(ruleWidth, ansi.StringWidth(repairConsoleText(option.Result.RuleId)))
 		}
@@ -70,7 +70,7 @@ func (c repairConsole) options(options []autofix.FixOption) string {
 	fmt.Fprintf(&out, " %s  %s  %s\n", c.paint(color.ASCIIPink+color.ASCIIBold, fmt.Sprintf("%-*s", idWidth, "Fix")), c.paint(color.ASCIIPink+color.ASCIIBold, fmt.Sprintf("%-*s", ruleWidth, "Rule")), c.paint(color.ASCIIPink+color.ASCIIBold, "Path"))
 	fmt.Fprintf(&out, " %s\n", c.paint(color.ASCIIPink, strings.Repeat("─", max(1, c.width-2))))
 	for _, option := range options {
-		if !option.Available {
+		if !option.Available || option.NeedsValue {
 			continue
 		}
 		rules := strings.Split(ansi.Hardwrap(repairConsoleText(option.Result.RuleId), ruleWidth, true), "\n")

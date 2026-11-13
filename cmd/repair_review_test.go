@@ -261,3 +261,31 @@ func TestConsoleSelectionEnterReviewsAllAndEscapeCancels(t *testing.T) {
 		require.NotContains(t, output.String(), "enter: cancel")
 	}
 }
+
+func TestConsoleExpandsLargeDiffOnlyOnRequest(t *testing.T) {
+	original := []byte(strings.Repeat("old line\n", 500))
+	preview := &autofix.FixPreview{Candidate: []byte("last change\n")}
+	for _, keys := range []string{"\r", "d\x1b", "d\r"} {
+		var output bytes.Buffer
+		accepted, err := reviewCLIRepair(strings.NewReader(keys), &output, true, false, "api.yaml", original, preview)
+		require.NoError(t, err)
+		require.Equal(t, keys != "d\x1b", accepted)
+		require.Contains(t, output.String(), "d: full diff")
+		require.Equal(t, strings.Contains(keys, "d"), strings.Contains(output.String(), "+last change"))
+	}
+}
+
+func TestConsoleSkipsFixesThatNeedAuthorInput(t *testing.T) {
+	opts := []autofix.FixOption{{Index: 0, Available: true, NeedsValue: true, Result: &model.RuleFunctionResult{RuleId: "manual-only"}}, {Index: 1, Available: true, Result: &model.RuleFunctionResult{RuleId: "ready"}}}
+	for _, keys := range []string{"\r", "all\r", "1\r"} {
+		var out bytes.Buffer
+		choices, err := selectCLIRepairs(strings.NewReader(keys), &out, opts)
+		require.NotContains(t, out.String(), "manual-only")
+		if keys == "1\r" {
+			require.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		require.Equal(t, []autofix.FixChoice{{Index: 1}}, choices)
+	}
+}

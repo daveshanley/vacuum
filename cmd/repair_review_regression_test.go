@@ -93,3 +93,16 @@ func TestRepairPlanningFailureKeepsTolerantBaseline(t *testing.T) {
 	require.NotEmpty(t, result.RepairWarnings)
 	require.Empty(t, result.ModifiedSpec)
 }
+
+func TestRepairRejectsInvalidDestinationBeforePrompt(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "api.yaml")
+	require.NoError(t, os.WriteFile(source, []byte("openapi: 3.1.0"), 0600))
+	for _, target := range []string{dir, filepath.Join(dir, "missing", "out.yaml")} {
+		var output bytes.Buffer
+		result := runReviewedCLIRepairWithIO(&motor.RuleSetExecution{SpecFileName: source}, nil, &LintFlags{FixFileFlag: target}, nil, errorReader{}, &output, true)
+		require.Len(t, result.Errors, 1)
+		require.ErrorContains(t, result.Errors[0], "repair output")
+		require.Empty(t, output.String())
+	}
+}

@@ -21,9 +21,18 @@ type ContextReader struct {
 	Context context.Context
 }
 
+// Prompt identifies which keys the review can accept.
+type Prompt uint8
+
+const (
+	Apply Prompt = iota
+	Select
+	ApplyOrExpand
+)
+
 // ReadKeys shares the dashboard's key decoder on real terminals. Only
 // the prompt owns raw mode; each review starts with fresh keyboard input.
-func ReadKeys(input io.Reader, output io.Writer, selection bool, paint func(string, string) string) (answer string, canceled bool, err error) {
+func ReadKeys(input io.Reader, output io.Writer, mode Prompt, paint func(string, string) string) (answer string, canceled bool, err error) {
 	ctx := context.Background()
 	if wrapped, ok := input.(ContextReader); ok {
 		input = wrapped.Reader
@@ -80,7 +89,7 @@ func ReadKeys(input io.Reader, output io.Writer, selection bool, paint func(stri
 				}
 			}
 		}()
-		return readRepairPrompt(ctx, output, paint, selection, true, func() (string, error) {
+		return readRepairPrompt(ctx, output, paint, mode, true, func() (string, error) {
 			for {
 				select {
 				case <-ctx.Done():
@@ -99,7 +108,7 @@ func ReadKeys(input io.Reader, output io.Writer, selection bool, paint func(stri
 		})
 	}
 	// Non-terminal readers are used by command tests; never prefetch a later answer.
-	return readRepairPrompt(ctx, output, paint, selection, false, func() (string, error) {
+	return readRepairPrompt(ctx, output, paint, mode, false, func() (string, error) {
 		var key [1]byte
 		if _, err := io.ReadFull(input, key[:]); err != nil {
 			return "", err
@@ -122,12 +131,16 @@ func ReadKeys(input io.Reader, output io.Writer, selection bool, paint func(stri
 	})
 }
 
-func readRepairPrompt(ctx context.Context, output io.Writer, paint func(string, string) string, selection, echo bool, next func() (string, error)) (string, bool, error) {
+func readRepairPrompt(ctx context.Context, output io.Writer, paint func(string, string) string, mode Prompt, echo bool, next func() (string, error)) (string, bool, error) {
+	selection := mode == Select
 	action := "enter: apply"
 	if selection {
 		action = "enter: review"
 	}
 	prompt := " " + paint(color.ASCIIBlue, action) + paint(color.ASCIIGrey, " | ") + paint(color.ASCIIBlue, "esc: cancel") + "\n"
+	if mode == ApplyOrExpand {
+		prompt = prompt[:len(prompt)-1] + paint(color.ASCIIGrey, " | ") + paint(color.ASCIIBlue, "d: full diff") + "\n"
+	}
 	if echo {
 		prompt = prompt[:len(prompt)-1] + "\r\n"
 	}
@@ -145,6 +158,9 @@ func readRepairPrompt(ctx context.Context, output io.Writer, paint func(string, 
 		key, err := next()
 		if err != nil {
 			return "", false, err
+		}
+		if mode == ApplyOrExpand && key == "d" {
+			return key, false, nil
 		}
 		switch key {
 		case "enter":
