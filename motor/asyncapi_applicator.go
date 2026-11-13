@@ -196,7 +196,7 @@ func applyAsyncAPIRulesToRuleSet(
 		execution.SpecFileName,
 		asyncCtx.Rolodex,
 		resolveExecutionAliases(execution.RuleSet, asyncCtx.Format, logger),
-		false,
+		false, execution.CaptureRepairSources,
 	)
 	errs = appendContextErrorToErrors(errs, control.Err())
 

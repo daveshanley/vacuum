@@ -1745,3 +1745,13 @@ func TestMergeAliasedResultPreservesRicherPrimaryLocation(t *testing.T) {
 	require.Equal(t, "$.info", primary.Path)
 	require.Contains(t, primary.Paths, "$.info")
 }
+
+func TestAliasedRepairSiblingKeepsOrdinaryLintOccurrence(t *testing.T) {
+	visible := model.RuleFunctionResult{RuleId: "oas3-missing-example", Message: "missing example", Path: "$.public", StartNode: &yaml.Node{Line: 10, Column: 3}}
+	sibling := visible
+	sibling.Path, sibling.RepairOnly = "$.private", true
+	for _, ordered := range [][]model.RuleFunctionResult{{visible, sibling}, {sibling, visible}} {
+		collapsed := collapseAliasedResults(ordered, nil, true)
+		require.Equal(t, []model.RuleFunctionResult{visible}, collapsed)
+	}
+}

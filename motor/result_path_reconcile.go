@@ -135,7 +135,7 @@ func finalizeResultPaths(
 	rootLocation string,
 	rolodex *index.Rolodex,
 	expandedAliases map[string][]string,
-	cacheForMultipleResults bool,
+	cacheForMultipleResults, exhaustiveRepair bool,
 ) []model.RuleFunctionResult {
 	var cache *resultPathCache
 	pathIndexes := make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
@@ -163,7 +163,7 @@ func finalizeResultPaths(
 		upgradeSelectorTerminalPaths(results)
 	}
 	if needsCollapse {
-		results = collapseAliasedResults(results, cache)
+		results = collapseAliasedResults(results, cache, exhaustiveRepair)
 	}
 	upgradeTerminalKeySelectorPaths(results, cache)
 	dropRedundantAdditionalPropertiesFieldAliasesFromResults(results, rolodex, pathIndexes)
@@ -443,14 +443,32 @@ func (c *resultPathCache) originMatchesRoot(origin *index.NodeOrigin) bool {
 	return sameResultPathLocation(c.rootLocation, origin.AbsoluteLocationValue)
 }
 
-func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPathCache) []model.RuleFunctionResult {
+func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPathCache, exhaustiveRepair bool) []model.RuleFunctionResult {
 	if len(results) <= 1 {
 		return results
 	}
 
 	groupedIndexes := make(map[string]int, len(results))
 	collapsed := make([]model.RuleFunctionResult, 0, len(results))
-
+	type fieldKey struct{ group, code string }
+	var extraFields map[fieldKey]int
+	var extra []model.RuleFunctionResult
+	// A source node can be the first missing property at one reference and a
+	// later sibling at another. Build the ordinary report from ordinary
+	// occurrences. Keep additional authored fields for repair selection only.
+	addExtra := func(group string, result model.RuleFunctionResult) {
+		key := fieldKey{group, result.DiagnosticCode}
+		if i, ok := extraFields[key]; ok {
+			mergeAliasedResult(&extra[i], &result, cache)
+			return
+		}
+		if extraFields == nil {
+			extraFields = make(map[fieldKey]int)
+		}
+		result.RepairOnly = true
+		extraFields[key] = len(extra)
+		extra = append(extra, result)
+	}
 	for i := range results {
 		result := results[i]
 		key, ok := aliasedResultKey(&result)
@@ -458,14 +476,26 @@ func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPat
 			collapsed = append(collapsed, result)
 			continue
 		}
-
-		if existingIndex, seen := groupedIndexes[key]; seen {
-			mergeAliasedResult(&collapsed[existingIndex], &result, cache)
+		if exhaustiveRepair && result.RepairOnly {
+			addExtra(key, result)
 			continue
 		}
-
+		if existingIndex, seen := groupedIndexes[key]; seen {
+			primary := &collapsed[existingIndex]
+			if exhaustiveRepair && primary.DiagnosticCode != result.DiagnosticCode {
+				addExtra(key, result)
+			}
+			mergeAliasedResult(primary, &result, cache)
+			continue
+		}
 		groupedIndexes[key] = len(collapsed)
 		collapsed = append(collapsed, result)
+	}
+	for i := range extra {
+		key, _ := aliasedResultKey(&extra[i])
+		if j, ok := groupedIndexes[key]; !ok || collapsed[j].DiagnosticCode != extra[i].DiagnosticCode {
+			collapsed = append(collapsed, extra[i])
+		}
 	}
 
 	return collapsed

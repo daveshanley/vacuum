@@ -60,12 +60,12 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 	}
 	available := map[string]bool{}
 	for _, t := range plan.Targets {
-		available[t.RuleID+"\x00"+t.Pointer] = true
+		available[t.Key()] = true
 	}
 	seen := map[string]bool{}
 	reasons := map[string]string{}
 	for _, f := range orderedFindings(findings) {
-		key := f.RuleID + "\x00" + f.Pointer
+		key := f.Key()
 		if available[key] || f.Unavailable != "" {
 			continue
 		}
@@ -142,12 +142,12 @@ func ReviewedPlanWithSources(source string, data []byte, findings []Finding, sou
 			seen[string(encoded)] = true
 		}
 
-		plan.Targets = append(plan.Targets, Target{RuleID: f.RuleID, Code: "reviewed-proposal", Pointer: f.Pointer})
+		plan.Targets = append(plan.Targets, Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Code: "reviewed-proposal", Pointer: f.Pointer})
 		available[key] = true
 	}
 	declined := plan.Declined[:0]
 	for _, d := range plan.Declined {
-		key := d.Target.RuleID + "\x00" + d.Target.Pointer
+		key := d.Target.Key()
 		if available[key] {
 			continue
 		}

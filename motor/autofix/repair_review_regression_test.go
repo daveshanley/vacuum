@@ -111,3 +111,69 @@ func TestRepairWithoutBaselineRetainsInputError(t *testing.T) {
 	require.Len(t, result.Errors, 1)
 	require.Empty(t, result.RepairWarnings)
 }
+
+func TestReviewShowsOneChoiceForReferencedParameter(t *testing.T) {
+	const source = `openapi: 3.1.0
+info: {title: Ports, version: '1'}
+components:
+  parameters:
+    port_id: {name: id, in: path, required: true, schema: {type: integer}}
+paths:
+  /ports/{id}:
+    parameters: [{$ref: '#/components/parameters/port_id'}]
+    get:
+      responses: {200: {description: Good}}
+`
+	for _, id := range []string{"oas3-parameter-description", "operation-success-response"} {
+		t.Run(id, func(t *testing.T) {
+			e := &motor.RuleSetExecution{Spec: []byte(source), SpecFileName: "ports.yaml", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{id: rulesets.GetAllBuiltInRules()[id]}}}
+			review, err := NewFixReview(e, nil)
+			require.NoError(t, err)
+			defer review.Close()
+			choices := review.Options()
+			require.Len(t, choices, 1)
+			require.True(t, choices[0].Available)
+			p, err := review.PreviewOutput([]FixChoice{{Index: choices[0].Index}}, FixOutputOptions{Overlay: true})
+			require.NoError(t, err)
+			defer p.Close()
+			require.Equal(t, 1, p.Fixed)
+			require.Empty(t, p.Results)
+			require.NotEmpty(t, p.Overlay)
+		})
+	}
+}
+
+func TestFixReviewVerifiesOnlyTheSelectedField(t *testing.T) {
+	id := "info-description"
+	rule := &model.Rule{Id: id, Given: "$.info", Message: "Add metadata", Severity: "warn", Then: []model.RuleAction{{Function: "truthy", Field: "summary"}, {Function: "truthy", Field: "description"}}}
+	e := &motor.RuleSetExecution{Spec: []byte(`{"openapi":"3.1.0","info":{"title":"Pets","version":"1"},"paths":{}}`), SpecFileName: "pets.json", SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{id: rule}}}
+	plain := motor.ApplyRulesToRuleSet(e.CopyConfig())
+	defer plain.ReleaseOwnedResources()
+	require.Len(t, plain.Results, 1)
+	review, err := NewFixReview(e, nil)
+	require.NoError(t, err)
+	defer review.Close()
+	require.Len(t, review.Options(), 2)
+	var selected []FixChoice
+	for _, option := range review.Options() {
+		require.Equal(t, option.Result.DiagnosticCode == "description-missing", option.Available)
+		if option.Available {
+			selected = append(selected, FixChoice{Index: option.Index})
+		}
+	}
+	require.Len(t, selected, 1)
+	p, err := review.Preview(selected)
+	require.NoError(t, err)
+	defer p.Close()
+	require.Equal(t, 1, p.Fixed)
+	require.Len(t, p.Results, 1)
+	require.Equal(t, "summary-missing", p.Results[0].DiagnosticCode)
+	require.Len(t, p.fixed, 1)
+	require.Equal(t, "description-missing", p.fixed[0].DiagnosticCode)
+	baseline := review.TakeBaselineResult()
+	defer baseline.ReleaseOwnedResources()
+	require.Len(t, baseline.Results, len(plain.Results))
+	require.Equal(t, plain.Results[0].DiagnosticCode, baseline.Results[0].DiagnosticCode)
+	require.Equal(t, plain.Results[0].Path, baseline.Results[0].Path)
+	require.Equal(t, plain.Results[0].Paths, baseline.Results[0].Paths)
+}

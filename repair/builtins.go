@@ -25,6 +25,11 @@ type Finding struct {
 	Pointer      string  `json:"pointer"`
 }
 
+// Key identifies the authored diagnostic, including the field when known.
+func (f Finding) Key() string {
+	return diagnosticKey(f.RuleID, f.Pointer, f.Code)
+}
+
 // BuiltinPlan proposes guarded edits for reported built-in findings. Unhandled
 // or ambiguous findings remain explicit declines; no rule is disabled or ignored.
 func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
@@ -63,10 +68,10 @@ func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
 				}
 			}
 			if len(plan.KeyRemovals) > 0 {
-				plan.Targets = append(plan.Targets, Target{RuleID: f.RuleID, Code: "path-duplicate-identical", Pointer: f.Pointer})
+				plan.Targets = append(plan.Targets, Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Code: "path-duplicate-identical", Pointer: f.Pointer})
 				for _, other := range findings {
 					if other.RuleID != f.RuleID || other.Pointer != f.Pointer {
-						plan.Declined = append(plan.Declined, Declined{Target: Target{RuleID: other.RuleID, Pointer: other.Pointer}, Reason: "duplicate mapping keys must be repaired first"})
+						plan.Declined = append(plan.Declined, Declined{Target: Target{RuleID: other.RuleID, DiagnosticCode: other.Code, Pointer: other.Pointer}, Reason: "duplicate mapping keys must be repaired first"})
 					}
 				}
 				return plan, nil
@@ -75,7 +80,7 @@ func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
 	}
 	if err := validateTree(root, make(map[*yaml.Node]bool)); err != nil {
 		for _, f := range findings {
-			plan.Declined = append(plan.Declined, Declined{Target: Target{RuleID: f.RuleID, Pointer: f.Pointer}, Reason: err.Error()})
+			plan.Declined = append(plan.Declined, Declined{Target: Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Pointer: f.Pointer}, Reason: err.Error()})
 		}
 		return plan, nil
 	}
@@ -84,7 +89,7 @@ func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
 	references := hasRef(root)
 	seen := make(map[string]bool)
 	for _, f := range findings {
-		t := Target{RuleID: f.RuleID, Pointer: f.Pointer}
+		t := Target{RuleID: f.RuleID, DiagnosticCode: f.Code, Pointer: f.Pointer}
 		if f.Unavailable != "" {
 			plan.Declined = append(plan.Declined, Declined{Target: t, Reason: f.Unavailable})
 			continue

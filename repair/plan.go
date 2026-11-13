@@ -29,9 +29,24 @@ type Operation struct {
 
 // Target identifies a diagnostic that a plan proposes to repair.
 type Target struct {
-	RuleID  string `json:"ruleId"`
-	Code    string `json:"code"`
-	Pointer string `json:"pointer"`
+	// DiagnosticCode distinguishes conditions on the same source object.
+	DiagnosticCode string `json:"diagnosticCode,omitempty"`
+	RuleID         string `json:"ruleId"`
+	Code           string `json:"code"`
+	Pointer        string `json:"pointer"`
+}
+
+// Key identifies the diagnostic independently of the repair recipe.
+func (t Target) Key() string {
+	return diagnosticKey(t.RuleID, t.Pointer, t.DiagnosticCode)
+}
+
+func diagnosticKey(rule, pointer, code string) string {
+	key := rule + "\x00" + pointer
+	if code != "" {
+		key += "\x00" + code
+	}
+	return key
 }
 
 // Declined explains why a finding has no proposed edit.

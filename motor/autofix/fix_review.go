@@ -162,15 +162,15 @@ func NewFixReviewWithPolicy(execution *motor.RuleSetExecution, options *motor.Ex
 	available := make(map[string]repair.Target)
 	declined := make(map[string]string)
 	for _, finding := range r.findings {
-		if len(r.proposal.ReviewedProposals[fixKey(finding.RuleID, finding.Pointer)]) > 0 {
-			available[fixKey(finding.RuleID, finding.Pointer)] = repair.Target{RuleID: finding.RuleID, Pointer: finding.Pointer, Code: "reviewed-proposal"}
+		if len(r.proposal.ReviewedProposals[finding.Key()]) > 0 {
+			available[finding.Key()] = repair.Target{RuleID: finding.RuleID, DiagnosticCode: finding.Code, Pointer: finding.Pointer, Code: "reviewed-proposal"}
 		}
 	}
 	for _, t := range r.proposal.Targets {
-		available[fixKey(t.RuleID, t.Pointer)] = t
+		available[t.Key()] = t
 	}
 	for _, d := range r.proposal.Declined {
-		declined[fixKey(d.Target.RuleID, d.Target.Pointer)] = d.Reason
+		declined[d.Target.Key()] = d.Reason
 	}
 	root := r.baseline.RuleSetExecution.CanonicalDocument
 	var usedIDs map[string]bool
@@ -181,15 +181,29 @@ func NewFixReviewWithPolicy(execution *motor.RuleSetExecution, options *motor.Ex
 			break
 		}
 	}
-	for _, finding := range r.findings {
+	// Reference use sites can produce multiple lint findings for one authored
+	// edit. Give that edit one choice while keeping every baseline diagnostic.
+	findings := r.findings
+	r.findings = make([]repair.Finding, 0, len(findings))
+	seenChoices := make(map[string]bool)
+	for _, finding := range findings {
+		key := finding.Key()
+		_, hasRecipe := available[key]
+		if finding.Unavailable == "" && (hasRecipe || r.fields[finding.Index] != "" || declined[key] == repair.ExampleInputRequired) {
+			if seenChoices[key] {
+				continue
+			}
+			seenChoices[key] = true
+		}
+		r.findings = append(r.findings, finding)
 		result := r.baseline.Results[finding.Index]
-		option := FixOption{Index: finding.Index, Result: &result, Reason: declined[fixKey(finding.RuleID, finding.Pointer)]}
-		if target, ok := available[fixKey(finding.RuleID, finding.Pointer)]; ok {
+		option := FixOption{Index: len(r.choices), Result: &result, Reason: declined[finding.Key()]}
+		if target, ok := available[finding.Key()]; ok {
 			option.Available = true
 			option.Generated = target.Code == "reviewed-proposal"
 			option.Description = "Apply " + strings.ReplaceAll(target.Code, "-", " ")
 			option.Reason = ""
-			if op, ok := editableProposalOperation(r.proposal, finding.RuleID, finding.Pointer, r.fields[finding.Index], root); ok {
+			if op, ok := editableProposalOperation(r.proposal, finding, r.fields[finding.Index], root); ok {
 				option.Editable = true
 				option.Generated = true
 				option.Value = string(op.Value)
@@ -240,8 +254,6 @@ func NewFixReviewWithPolicy(execution *motor.RuleSetExecution, options *motor.Ex
 	}
 	return r, nil
 }
-
-func fixKey(rule, pointer string) string { return rule + "\x00" + pointer }
 
 // Options returns independent display records. Their parser nodes remain valid
 // until Close; callers must not modify those nodes.
@@ -301,8 +313,8 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 		if output.BundleMode != "" && output.BundleMode != "keep" {
 			return nil, fmt.Errorf("overlay export preserves references")
 		}
-		if len(plan.KeyTags)+len(plan.KeyRemovals) > 0 {
-			return nil, fmt.Errorf("an overlay cannot edit YAML key types or duplicate keys; save the specification instead")
+		if len(plan.KeyRemovals) > 0 {
+			return nil, fmt.Errorf("an overlay cannot remove duplicate YAML keys; save the specification instead")
 		}
 		candidateOutput = FixOutputOptions{}
 	}
@@ -312,12 +324,12 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 		if errors.As(err, &remaining) {
 			targets := make(map[string]bool, len(remaining.targets))
 			for _, target := range remaining.targets {
-				targets[fixKey(target.RuleID, target.Pointer)] = true
+				targets[target.Key()] = true
 			}
 			var indexes []int
 			for _, choice := range choices {
 				finding := r.findings[choice.Index]
-				if targets[fixKey(finding.RuleID, finding.Pointer)] {
+				if targets[finding.Key()] {
 					indexes = append(indexes, choice.Index)
 				}
 			}
@@ -335,23 +347,24 @@ func (r *FixReview) PreviewOutput(choices []FixChoice, output FixOutputOptions) 
 			return nil, err
 		}
 	}
+	reportResult(verification.Final)
 	results := make([]*model.RuleFunctionResult, len(verification.Final.Results))
 	for i := range results {
 		results[i] = &verification.Final.Results[i]
 	}
 	targets := make(map[string]bool, len(plan.Targets))
 	for _, target := range plan.Targets {
-		targets[fixKey(target.RuleID, target.Pointer)] = true
+		targets[target.Key()] = true
 	}
 	var fixed []model.RuleFunctionResult
 	for _, f := range r.findings {
-		if targets[fixKey(f.RuleID, f.Pointer)] {
+		if targets[f.Key()] {
 			result := r.baseline.Results[f.Index]
 			result.AutoFixed = true
 			fixed = append(fixed, result)
 		}
 	}
-	return &FixPreview{Overlay: overlayBytes, original: append([]byte(nil), r.execution.Spec...), fixed: fixed, Impact: assessRepairImpact(r.baseline, verification.Final, options), Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(r.baseline.Results), After: fixStats(verification.Final.Results), final: verification.Final}, nil
+	return &FixPreview{Overlay: overlayBytes, original: append([]byte(nil), r.execution.Spec...), fixed: fixed, Impact: assessRepairImpact(r.baseline, verification.Final, options), Candidate: verification.Candidate, Results: results, Fixed: len(targets), Before: fixStats(reportResults(r.baseline.Results)), After: fixStats(verification.Final.Results), final: verification.Final}, nil
 }
 
 // planChoices derives providers and policy values from the current selection.
@@ -375,7 +388,7 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 		if !option.Available {
 			return repair.Plan{}, fmt.Errorf("fix is unavailable: %s", option.Reason)
 		}
-		targetKey := fixKey(finding.RuleID, finding.Pointer)
+		targetKey := finding.Key()
 		value := option.Value
 		if choice.Value != nil {
 			value = *choice.Value
@@ -401,13 +414,13 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 			if choice.Value != nil {
 				value = *choice.Value
 			}
-			if op, ok := r.edits[choice.Index]; ok {
+			if op, ok := r.edits[finding.Index]; ok {
 				if op.Op == "copy" && choice.Value == nil {
 					selected = append(selected, finding)
 					continue
 				}
 				encoded := json.RawMessage(value)
-				if r.fields[choice.Index] == "$proposal-string" {
+				if r.fields[finding.Index] == "$proposal-string" {
 					encoded, _ = json.Marshal(value)
 				}
 				if !json.Valid(encoded) {
@@ -420,11 +433,11 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 				selected = append(selected, finding)
 				continue
 			}
-			node, err := fixValue(r.fields[choice.Index], value)
+			node, err := fixValue(r.fields[finding.Index], value)
 			if err != nil {
 				return repair.Plan{}, err
 			}
-			entries = append(entries, repair.PolicyEntry{ID: fmt.Sprintf("review-%d", choice.Index), Rule: finding.RuleID, Diagnostic: r.fields[choice.Index] + "-missing", Scope: repair.PolicyScope{Source: r.execution.SpecFileName, Pointer: finding.Pointer}, Value: *node})
+			entries = append(entries, repair.PolicyEntry{ID: fmt.Sprintf("review-%d", choice.Index), Rule: finding.RuleID, Diagnostic: r.fields[finding.Index] + "-missing", Scope: repair.PolicyScope{Source: r.execution.SpecFileName, Pointer: finding.Pointer}, Value: *node})
 		} else if choice.Value != nil {
 			return repair.Plan{}, fmt.Errorf("mechanical fix values cannot be edited")
 		}
@@ -461,10 +474,10 @@ func (r *FixReview) planChoices(choices []FixChoice) (repair.Plan, error) {
 	plan.Sources = r.proposal.Sources
 	targets := make(map[string]bool)
 	for _, target := range plan.Targets {
-		targets[fixKey(target.RuleID, target.Pointer)] = true
+		targets[target.Key()] = true
 	}
 	for _, finding := range selected {
-		if !targets[fixKey(finding.RuleID, finding.Pointer)] {
+		if !targets[finding.Key()] {
 			return repair.Plan{}, fmt.Errorf("selected fix cannot be applied together: %s at %s", finding.RuleID, finding.Pointer)
 		}
 	}

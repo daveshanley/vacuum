@@ -1618,7 +1618,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		execution.SpecFileName,
 		pathRolodex,
 		resolvedAliases,
-		true,
+		true, execution.CaptureRepairSources,
 	)
 
 	then = time.Since(now).Milliseconds()

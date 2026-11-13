@@ -92,7 +92,7 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 
 	result.Results, result.IgnoredResults, result.FixedResults, result.Errors = runDocumentRules(execution, opts, builtins, ctx.SpecInfo, ctx.Index, logger, control)
 	result.Results = finalizeResultPaths(result.Results, ctx.RootNode, ctx.RootNode, execution.SpecFileName, nil,
-		resolveExecutionAliases(execution.RuleSet, ctx.SpecInfo.SpecFormat, logger), false)
+		resolveExecutionAliases(execution.RuleSet, ctx.SpecInfo.SpecFormat, logger), false, execution.CaptureRepairSources)
 	populateResultOrigins(result.Results, nil, nil, execution.SpecFileName)
 	var marshalErr error
 	result.ModifiedSpec, marshalErr = runtime.MarshalDocument(execution.CanonicalDocument, len(result.FixedResults), execution.Spec)
