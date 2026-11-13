@@ -97,14 +97,16 @@ func assessRepairImpact(before, after *motor.RuleSetExecutionResult, options *mo
 		return
 	}
 	impact.BreakingChanges = changes.TotalBreakingChanges()
-	if impact.BreakingChanges > 0 {
-		impact.Status = RepairImpactBreaking
-	}
 	for _, change := range changes.GetAllChanges() {
 		if change == nil {
 			continue
 		}
 		copy := *change
+		// Assigning the first operation ID preserves all existing IDs.
+		if copy.Breaking && copy.Property == "operationId" && copy.ChangeType == changeModel.PropertyAdded {
+			copy.Breaking = false
+			impact.BreakingChanges--
+		}
 		copy.OriginalObject, copy.NewObject = nil, nil
 		if change.Context != nil {
 			contextCopy := *change.Context
@@ -122,6 +124,9 @@ func assessRepairImpact(before, after *motor.RuleSetExecutionResult, options *mo
 			copy.Context = &contextCopy
 		}
 		impact.Changes = append(impact.Changes, &copy)
+	}
+	if impact.BreakingChanges > 0 {
+		impact.Status = RepairImpactBreaking
 	}
 	// The comparison traverses maps. Keep the user-visible result stable.
 	sort.SliceStable(impact.Changes, func(i, j int) bool {
