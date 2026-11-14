@@ -244,20 +244,7 @@ func exportDiagnostic(r *model.RuleFunctionResult, source string, cache map[*yam
 	if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
 		source = r.Origin.AbsoluteLocation
 	}
-	var start, end reports.RangeItem
-	if r.Origin != nil && r.Origin.Line > 0 {
-		start = reports.RangeItem{Line: r.Origin.Line, Char: r.Origin.Column}
-		end = start
-	} else {
-		start, end = annotationRange(r, GitHubAnnotationRenderOptions{SpectralRanges: true}, cache)
-	}
-	start.Line = max(0, start.Line-1)
-	start.Char = max(0, start.Char-1)
-	end.Line = max(0, end.Line-1)
-	end.Char = max(0, end.Char-1)
-	if end.Line < start.Line || end.Line == start.Line && end.Char < start.Char {
-		end = start
-	}
+	span := exportRange(r, cache)
 	path := []any{}
 	if p, err := jsonpath.NewPath(r.Path); err == nil && p.IsSingular() {
 		if segments, err := p.GetSegmentInfo(); err == nil {
@@ -272,7 +259,28 @@ func exportDiagnostic(r *model.RuleFunctionResult, source string, cache map[*yam
 	} else if r.Path != "" && r.Path != "$" {
 		path = append(path, r.Path)
 	}
-	return vacuumreport.Diagnostic{Code: code, Path: path, Message: r.Message, Severity: diagnosticSeverity(r), Range: reports.Range{Start: start, End: end}, Source: source, DocumentationURL: doc}
+	return vacuumreport.Diagnostic{Code: code, Path: path, Message: r.Message, Severity: diagnosticSeverity(r), Range: span, Source: source, DocumentationURL: doc}
+}
+
+func exportRange(r *model.RuleFunctionResult, cache map[*yaml.Node]cachedNodeSpan) reports.Range {
+	if r.RangeIsZeroBased {
+		return r.Range
+	}
+	var start, end reports.RangeItem
+	if r.Origin != nil && r.Origin.Line > 0 {
+		start = reports.RangeItem{Line: r.Origin.Line, Char: r.Origin.Column}
+		end = start
+	} else {
+		start, end = annotationRange(r, GitHubAnnotationRenderOptions{SpectralRanges: true}, cache)
+	}
+	start.Line = max(0, start.Line-1)
+	start.Char = max(0, start.Char-1)
+	end.Line = max(0, end.Line-1)
+	end.Char = max(0, end.Char-1)
+	if end.Line < start.Line || end.Line == start.Line && end.Char < start.Char {
+		end = start
+	}
+	return reports.Range{Start: start, End: end}
 }
 
 // Resolve the existing parent so aliases of one directory cannot overwrite each other's reports.
