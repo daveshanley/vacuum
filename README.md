@@ -139,7 +139,7 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in the next release** 🔥: **Autofix**
+🔥 **v0.40** 🔥: **Autofix**
 
 Found problems? Can't be bothered to fix them? vacuum can auto-fix your linting issues for you.
 
@@ -258,126 +258,6 @@ Open Collection is a new standard for defining and sharing API collections. vacu
 ---
 
 
-`v0.24`: **TURBO MODE**
-
-A huge tune up of hundreds of systems across the stack has resulted in significant speed boosts and improved memory performance.
-
-| Spec | Size | v0.23 | Turbo | Speedup |
-|------|------|-------|-------|-----|
-| petstore.yaml | 21KB | 0.03s | 0.02s | 33% |
-| mistral.yaml | 292KB | 0.17s | 0.10s | 41% |
-| neon.yaml | 370KB | 0.21s | 0.08s | 62% |
-| ld.yaml | 1.9MB | 0.93s | 0.31s | 67% |
-| plaid.yml | 2.9MB | 1.39s | 0.53s | 62% |
-| stripe.yaml | 6.1MB | 3.11s | 0.85s | 73% |
-
-The bigger the spec, the faster vacuum runs!
-
-New `-T` flag will enable **turbo mode**. Go ultra-fast!
-
----
-
-`v0.23`: **OpenAPI Overlay Support**
-
-Ever needed to tweak an OpenAPI spec for different environments without maintaining multiple copies? 
-
-Maybe swap out server URLs between dev, staging, and production? Or perhaps strip out internal endpoints before publishing the API docs?
-
-OpenAPI Overlays are the answer. They let us make non-destructive modifications to specs using JSONPath expressions to 
-target exactly what we want to change. vacuum now supports a new `apply-overlay` command.
-
-- [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
-
-`apply-overlay` can also build a fail-closed publication document after applying
-the standard Overlay actions:
-
-```bash
-vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml \
-  --include-tag public \
-  --tag-match any \
-  --prune-unused
-```
-
-The overlay file is optional when a filter or `--prune-unused` is active:
-
-```bash
-vacuum apply-overlay internal.yaml public.json --exclude-tag internal --prune-unused
-vacuum apply-overlay internal.yaml selected.yaml --include-operation-id listPets
-```
-
-Tags and operation IDs are exact and case-sensitive. All four filter flags
-(`--include-tag`, `--exclude-tag`, `--include-operation-id`, and
-`--exclude-operation-id`) can be repeated. `--tag-match any` matches at least
-one tag; `all` requires every tag in each include/exclude list. Each active
-inclusion filter must match, and exclusions take precedence. Operations with
-no tags or IDs survive exclusion-only filtering. Filtering runs after Overlay
-actions and before pruning. `--prune-unused` removes unreachable components
-and unused tag definitions, retaining parents of used OpenAPI 3.2 tags.
-These opt-in transforms require a bundled, self-contained OpenAPI document.
-YAML merge keys are expanded. Aliases are expanded when filtering or when a removed tag owns an anchor. Retained mapping
-order, comments, and scalar styles are preserved. Pruning rejects schema
-`$id` scopes that cannot be resolved safely. Link Objects targeting filtered
-operations are retained and reported as warnings. Document output remains
-pure on stdout; warnings are written to stderr. The warning summary uses the `apply-overlay produced` prefix to
-cover both Overlay actions and publication transforms.
-A `.json`, `.yaml`, or `.yml` output extension selects the output format.
-Otherwise the input format is retained, including on stdout.
-An inferred output path containing an Overlay document is rejected to prevent accidental overwrites.
-Tag pruning retains `x-tagGroups` entries and `x-traitTag: true` narrative tags.
-Library callers opt into tag pruning with `Options.PruneUnusedTags`;
-`Options.PruneUnused` and `PruneUnusedComponents` continue to prune components only.
-
----
-
-
-`v0.22`: **Async Functions / Promises, Fetch & Batch mode in Custom JS Functions**
-
-Do you want to call remote APIs in your vacuum javascript functions? What about async processing or the ability to use Promises?
-
-vacuum now has its own event loop and will happily support `async` and `await`. Combined with a full implementation of [Fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API).
-
-Also added **Batch Mode**. This allows custom functions to receive the entire list of nodes, instead of firing the function 
-for each result, so you can send all your data off to an API or an LLM, and have the ability parse and process everything at once
-vs individually. 
-
-- [Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
-- [Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
-- [find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
-
----
-
-### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
-
-### Bundle AsyncAPI 3
-
-`vacuum bundle` detects AsyncAPI 3 documents and supports inline and composed output:
-
-```bash
-vacuum bundle events.asyncapi.yaml bundled.yaml
-vacuum bundle events.asyncapi.yaml bundled.json --composed --delimiter __
-cat events.asyncapi.yaml | vacuum bundle --stdin --stdout --base ./specs --format json
-```
-
-External objects are inlined by default. Shared schemas are emitted once, with
-local references for later uses. Composed mode stores external objects in AsyncAPI
-component sections. Both modes preserve the local references required by
-operations, messages, channels, and servers. Input-file references resolve from
-the input directory unless `--base` is supplied. Use `--remote=false` to disable
-remote loading; `--ext-refs` opts into resolving references inside extensions.
-Unresolved or ambiguous references return an error without writing an incomplete
-bundle. Schema resource IDs are resolved before relocation. Non-JSON schema
-content is preserved; language-specific imports and dynamic JSON Schema references
-are not bundled.
-
-### Multi-file editor diagnostics
-
-For a specification split across files, configure your editor to run
-`vacuum language-server ./openapi.yaml`. The optional root can also be an HTTP(S)
-URL. The server lints the root specification with its references and sends each
-open document its own diagnostics. Unsaved edits in open files take precedence
-over their stored content. Without a root argument, each document is linted
-independently.
-
 See all the documentation at https://quobix.com/vacuum
 
 - [Installing vacuum](https://quobix.com/vacuum/installing/)
@@ -389,6 +269,8 @@ See all the documentation at https://quobix.com/vacuum
 - [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
 - [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [Linting JSON Schema](https://quobix.com/vacuum/json-schema/)
+- [Autofix!](https://quobix.com/vacuum/autofix/)
+  - [Autofix! Policies](https://quobix.com/vacuum/autofix-policy/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
@@ -440,10 +322,11 @@ See all the documentation at https://quobix.com/vacuum
   - [AsyncAPI Default Rules](https://quobix.com/vacuum/rulesets/asyncapi-recommended/)
   - [AsyncAPI All Rules](https://quobix.com/vacuum/rulesets/asyncapi/)
   - [Custom Rules](https://quobix.com/vacuum/rulesets/custom-rulesets/)
+  - [OpenLint](https://quobix.com/vacuum/openlint/)
 
 ---
 
-> **vacuum can suck all the lint of a 5mb API description in milliseconds.**
+> **vacuum is an all in one power tool for API architects and engineers.**
 
 Designed to reliably lint API descriptions, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
@@ -818,114 +701,6 @@ lint:
   silent: true
   ...
 ```
-
-### Environment variables
-
-You can configure global and command-local flags with `VACUUM_<FLAG>`
-environment variables. Use uppercase flag names and replace `-` with `_`.
-Explicit command-line flags take precedence over environment variables;
-environment variables take precedence over configuration files.
-
-Collection flags accept comma-separated values. For example,
-`VACUUM_INCLUDE_TAG='public,partner'` sets the included tags for
-`apply-overlay`.
-
-
-## Auto-fixing rule violations
-
-If you have a rule that doesn't need a human to look at it, and the change can be reliably automated you can configure an `AutoFixFunction` on the rule. When you then run the `lint` command you can pass the `--fix` flag and the violation will be automatically fixed.
-
-### Set up
-
-1. Define a rule that has an `autoFixFunction`, e.g.:
-```yaml
-rules:
-  use-compatible-extensions:
-    autoFixFunction: useExtensibleEnum
-    description: Prefer compatible extensions
-    id: use-compatible-extensions
-    given: "$.components.schemas[?@.enum]"
-    severity: warn
-    message: Use x-extensible-enum instead of enum for better compatibility
-    then:
-      field: enum
-      function: falsy
-```
-
-This rule flags any usage of `enum` and recommends they are updated to `x-extensible-enum`.
-A simple change which can be easily auto fixed!
-
-2. Create a function which performs the auto-fix.
-```go
-func useExtensibleEnum(
-	node *yaml.Node,
-	document *yaml.Node,
-	context *model.RuleFunctionContext,
-) (*yaml.Node, error) {
-	if node.Kind != yaml.MappingNode {
-		return node, nil
-	}
-
-	for i := 0; i < len(node.Content); i += 2 {
-		if i+1 >= len(node.Content) {
-			break
-		}
-
-		keyNode := node.Content[i]
-
-		if keyNode.Value == "enum" {
-			keyNode.Value = "x-extensible-enum"
-
-			return node, nil
-		}
-	}
-
-	return node, nil
-}
-```
-
-> [!NOTE]
-> The auto fix function must satisfy the `AutoFixFunction` type.
-> It should take in the `*yaml.Node` of the violation, the root `*yaml.Node` of the document and the `RuleFunctionContext`.
-> It should return the fixed `*yaml.Node` and an error.
-
-3. Configure your `RuleSetExecution` to use the auto fix function.
-```go
-func Lint(rulesFile string, specFile string) error {
-	rules, err := rulesets.LoadLocalRuleSet(ctx, rulesFile)
-	if err != nil {
-		return fmt.Errorf("error loading ruleset: %w", err)
-	}
-
-	rs := rulesets.BuildDefaultRuleSetsWithLogger(slog.Logger).
-		GenerateRuleSetFromSuppliedRuleSet(rules)
-
-	// NOTE: only showing the fields on the RuleSetExecution relevant to auto-fixing.
-	results := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		AutoFixFunctions: map[string]model.AutoFixFunction{
-			"useExtensibleEnum": useExtensibleEnum,
-		},
-		ApplyAutoFixes:         true,
-		RuleSet:                rs,
-	})
-
-	// Write back to file if fixes were applied
-	if len(lintResults.FixedResults) > 0 && autoFix {
-		fileInfo, _ := os.Stat(specFile)
-
-		err = os.WriteFile(specFile, result.ModifiedSpec, fileInfo.Mode())
-		if err != nil {
-			return fmt.Errorf("failed to write file %s: %w", c.file, err)
-		}
-	}
-
-	return nil
-}
-```
-
-When the auto fix function runs, if it returns an error the fix will not be applied, the error will be logged, and the violation will be reported in the standard results.
-
-If the auto fix function succeeds the yaml node flagged by the violation will be replaced with the transformed version returned by the auto fix function.
 
 > [!TIP]
 > When using `vacuum` as a library You can access the fixed yaml content in the `RuleSetExecutionResult.ModifiedSpec`, and choose where to write the file.
