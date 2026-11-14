@@ -34,9 +34,9 @@ import (
 var openLintSchema string
 
 // Adapted from @openlint/ruleset-openapi 0.1.0, as shipped by OpenLint CLI 1.2.0.
-// Callable functions are bound to Go implementations. See schemas/OPENLINT-OPENAPI-LICENSE.
+// Callable functions are bound to Go implementations. See packaged/OPENLINT-OPENAPI-LICENSE.
 //
-//go:embed schemas/openlint-openapi-0.1.0.json
+//go:embed packaged/openlint-openapi-0.1.0.json
 var openLintOpenAPIPackage []byte
 
 type openLintDefinition struct {
