@@ -5,12 +5,13 @@ package openapi
 
 import (
 	"fmt"
-	"net/url"
+
 	"regexp"
-	"strconv"
+
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
+	whatwg "github.com/nlnwa/whatwg-url/url"
 	"github.com/pb33f/go-yaml"
 )
 
@@ -165,20 +166,6 @@ func encodeServerVariable(s string) string {
 }
 
 func validPackagedServerURL(raw string) bool {
-	u, err := url.Parse(raw)
-	if err != nil || !u.IsAbs() {
-		return false
-	}
-	switch strings.ToLower(u.Scheme) {
-	case "http", "https", "ftp", "wss", "ws":
-		if u.Hostname() == "" {
-			return false
-		}
-		if port := u.Port(); port != "" {
-			if _, err := strconv.ParseUint(port, 10, 16); err != nil {
-				return false
-			}
-		}
-	}
-	return true
+	_, err := whatwg.Parse(raw)
+	return err == nil
 }

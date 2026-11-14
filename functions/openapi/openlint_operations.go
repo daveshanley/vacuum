@@ -173,7 +173,11 @@ func (f packagedOperation) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionCon
 				}
 			}
 		case "oasSecurityDefined":
-			checkPackagedSecurity(document, v, ctx.GetOptionsStringMap()["oasVersion"] == "2", &results)
+			source := document
+			if ctx.AuthoredRoot != nil {
+				source.node = documentContentNode(ctx.AuthoredRoot)
+			}
+			checkPackagedSecurity(source, v, ctx.GetOptionsStringMap()["oasVersion"] == "2", &results)
 		case "serverVariables":
 			checkPackagedServerVariables(v, ctx, &results)
 		}
