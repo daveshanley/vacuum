@@ -1,7 +1,7 @@
 // Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // Includes adaptations of @openlint/ruleset-openapi 0.1.0.
 // Copyright 2018 Stoplight, Inc. and 2026 OpenLint.
-// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// See rulesets/packaged/OPENLINT-OPENAPI-LICENSE.
 // SPDX-License-Identifier: MIT AND Apache-2.0
 
 package openapi
@@ -97,7 +97,7 @@ func packagedUnusedObjects(members *yaml.Node, ctx model.RuleFunctionContext) []
 // These resources are taken from @openlint/ruleset-openapi 0.1.0,
 // dist/oas/schemas/{oas,json-schema}. The bundled draft-04 variant uses a
 // private URI so the Go compiler can retain the canonical draft-04 metaschema.
-// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// See rulesets/packaged/OPENLINT-OPENAPI-LICENSE.
 //
 //go:embed openlint_document_schemas.json
 var packagedSchemaResources []byte
