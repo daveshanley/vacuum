@@ -4,7 +4,7 @@
 </picture>
 
 
-# The world's fastest OpenAPI, AsyncAPI, Arazzo and JSON Schema linter.
+# The best OpenAPI, AsyncAPI, Arazzo and JSON Schema toolkit.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
@@ -13,9 +13,22 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 
-An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI, Arazzo and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI, Arazzo and JSON Schema linter and toolkit, originlally inspired by [Spectral](https://github.com/stoplightio/spectral).
 
-It supports Spectral-style YAML and JSON rulesets. See [Spectral migration](#spectral-migration) for compatibility limits and built-in alternatives.
+---
+
+vacuum delivers world class artifacts:
+
+- API linting and quality analysis.
+- Supports OpenAPI, AsyncAPI, and JSON Schema as first class citizens.
+- Document bundling, and autofixing.
+- Apply OpenAPI Overlays, or build validate Arazzo workflows.
+- Agentic first, generated API documentation.
+- CI/CD Optimized with Github Actions
+- Runs with no dependencies.
+- Can operate 100% offline.
+
+---
 
 ## Install using the official [homebrew](https://brew.sh) tap
 
@@ -27,12 +40,6 @@ brew install --cask daveshanley/vacuum/vacuum
 
 ```
 npm i -g @quobix/vacuum
-```
-
-## Install using [yarn](https://yarnpkg.com/)
-
-```
-yarn global add @quobix/vacuum
 ```
 
 ## Install using curl
@@ -87,7 +94,7 @@ To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the a
 
 ## Run with Go
 
-If you have Go 1.26.10 or newer installed, you can use `go run` to build and run it:
+If you have Go 1.26 or newer installed, you can use `go run` to build and run it:
 
 ```
 go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
@@ -326,15 +333,6 @@ See all the documentation at https://quobix.com/vacuum
 
 ---
 
-> **vacuum is an all in one power tool for API architects and engineers.**
-
-Designed to reliably lint API descriptions, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
-when used as an API and does not scale for enterprise applications.
-
-vacuum will tell you what is wrong with your spec, why, where, and how to fix it. 
-
-vacuum will work at scale and is designed as a CLI (with a web or console UI) and a library to be consumed in other applications.
-
 ### Dashboard
 
 vacuum comes with an interactive dashboard (`vacuum dashboard <your-openapi-spec.yaml>`) allowing you to explore
@@ -359,30 +357,6 @@ No external dependencies, the HTML report will run completely offline.
 ![vacuum html-report](.github/assets/html-report-screenshot.png)
 
 ---
-
-> **_Supports OpenAPI Version 2, OpenAPI Version 3+, AsyncAPI 3, and JSON Schema documents_**
-
-You can use either **YAML** or **JSON**, vacuum supports both formats.
-
-## Using vacuum with pre-commit
-
-vacuum can be used with [pre-commit](https://pre-commit.com).
-
-To do that, add to your `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: https://github.com/daveshanley/vacuum
-    rev: # a tag or a commit hash from this repo, see https://github.com/daveshanley/vacuum/releases
-    hooks:
-      - id: vacuum
-```
-
-See the [hook definition](./.pre-commit-hooks.yaml) here for details on what options the hook uses and what files it checks by default.
-
-If no filenames or more than one filename in your repository matches the default `files` pattern in the hook definition,
-the pattern needs to be overridden in your config so that it matches exactly one filename to lint at a time.
-To lint multiple files, specify the hook multiple times with the appropriate overrides.
 
 ## Build an interactive HTML report 
 
@@ -446,261 +420,11 @@ The options here are:
 - `validation`
 - `owasp`
 
-## Generate a Spectral compatible report
-
-If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `spectral-report` command
-
-```
-./vacuum spectral-report <your-openapi-spec.yaml> <report-output-name.json>
-```
-
-The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
-
-
-## Generate a `vacuum report`
-
-vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed'
-back through vacuum. Use the `dashboard` or the `html-report` commands to 'replay' the report and explore the results
-as they were when the report was generated.
-
-```
-./vacuum report -c <your-openapi-spec.yaml> <report-prefix>
-```
-
-The default name of the report will be `vacuum-report-MM-DD-YY-HH_MM_SS.json`. You can change the prefix by supplying
-it as the second argument to the `report` command. 
-
-Ideally, **you should compress the report using `-c`**. This shrinks down the size significantly. vacuum automatically
-recognizes a compressed report file and will deal with it automatically when reading.
-
-> When using compression, the file name will be `vacuum-report-MM-DD-YY-HH_MM_SS.json.gz`. vacuum uses gzip internally.
-
-## Selecting property names in custom rules
-
-Use quoted bracket notation for JSONPath property names with special characters, for example `['$ref']` and `['application/json']`. A single leading backtick also escapes a member name in dot notation or an unquoted bracket selector:
-
-~~~text
-$.paths.*.*.requestBody.content.`application/json.schema.`$ref
-~~~
-
-There is no closing backtick; a trailing backtick becomes part of the property name. Use quoted bracket notation for names that contain path separators or whitespace, and for properties inside filters. Quoted names keep literal backticks unchanged.
-
-To inspect a `$ref` property itself, set `resolved: false`. With `resolved: true`, rules inspect the referenced schema after resolution.
-
-```yaml
-rules:
-  no-request-body-refs:
-    description: Request body schemas must be inline.
-    given: "$.paths.*.*.requestBody.content['application/json'].schema['$ref']"
-    resolved: false
-    severity: warn
-    then:
-      function: falsy
-```
-
-## Ignoring specific linting errors
-
-You can ignore specific linting errors by providing an `--ignore-file` argument to commands that run or replay lint results, including `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, `docs`, `schema`, and `language-server`.
-
-```
-./vacuum lint --ignore-file <path-to-ignore-file.yaml> -d <your-openapi-spec.yaml>
-```
-
-```
-./vacuum report --ignore-file <path-to-ignore-file.yaml> -c <your-openapi-spec.yaml> <report-prefix>
-```
-
-Repeat `--ignore-file` to combine waivers from multiple files. Paths for the same rule are appended; an unreadable or invalid file stops the command.
-
-```sh
-./vacuum lint --ignore-file pets-ignore.yaml --ignore-file stores-ignore.yaml api.yaml
-```
-
-In `vacuum.conf.yaml`, `ignore-file` accepts either one path or a YAML list of paths. A scalar value, including `VACUUM_IGNORE_FILE`, is always one path; commas are part of the filename.
-
-Language-server editor settings accept `ignoreFiles: ["one.yaml", "two.yaml"]`; the legacy `ignoreFile` string still works. An empty `ignoreFiles` list clears waivers. Explicit CLI ignore files override disk config; editor initialization and workspace settings can override the CLI defaults.
-
-The ignore-file should point to a `.yaml` file that contains exact result paths or JSONPath expressions to be ignored by vacuum. The structure of the YAML file is as follows:
-
-```
-<rule-id-1>:
-  - <json_path_to_error_or_warning_1>
-  - <json_path_to_error_or_warning_2>
-<rule-id-2>:
-  - <json_path_to_error_or_warning_1>
-  - <json_path_to_error_or_warning_2>
-  ...
-```
-
-Ignoring errors is useful for when you want to implement new rules to existing production APIs. In some cases, 
-correcting the lint errors would result in a breaking change. Having a way to ignore these errors allows you to implement
-the new rules for new APIs while maintaining backwards compatibility for existing ones.
-
 ---
 
-## Try out the dashboard
-
-This is an early, but working console UI for vacuum. The code isn't great, it needs a lot of clean up, but
-if you're interested in seeing how things are progressing, it's available.
-
-```
-./vacuum dashboard <your-openapi-spec.yaml | vacuum-report.json.gz>
-```
+[-->READ ALL THE DOCS!<--](https://quobix.com/vacuum/)
 
 ---
-## OWASP hard mode
-
-Run `vacuum lint --hard-mode api.yaml` to enable all built-in OpenAPI rules,
-including the OWASP rules. Hard mode checks:
-
-- OAuth [password](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-password/)
-  and [implicit](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-implicit/) flows.
-- [Authentication endpoint URLs](https://quobix.com/vacuum/rules/owasp/owasp-auth-urls-https/)
-  and server URLs for HTTPS, including overrides and server variables.
-- Request objects for unrestricted fields and maps for property-count limits.
-- Write operations for authenticated security requirements, without anonymous alternatives.
-- Declared JWTs for an RFC8725 reference in their description, as a warning.
-
-**Changes for existing users:** strict write security now reports an **error**,
-previously informational. A requirement such as `security: [{auth: []}, {}]` can
-now fail a build. Also, `x-lint-ignore` applies to the entire subtree beneath its
-location for every ruleset, rather than only the node and its immediate children.
-
-See the [OWASP guide](https://quobix.com/vacuum/rulesets/owasp/) for rule details
-and severity overrides, and [ignoring violations](https://quobix.com/vacuum/ignoring/)
-for scoped exceptions.
-
----
-
-## Spectral migration
-
-vacuum loads YAML, JSON, and local JavaScript rulesets. Resolve each relative `extends` path from the
-file that contains it, including on Windows. Keep sibling rulesets relative:
-
-```yaml
-extends:
-  - ./ruleset.bank.yml
-  - ./ruleset.nlgov.yml
-  - [vacuum:owasp, all]
-```
-
-Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importing
-`@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use vacuum's
-rule names and behavior; they do not execute the Spectral package.
-
-For JavaScript rulesets, export an object from a local `.js`, `.mjs`, or `.cjs` file:
-
-```shell
-vacuum lint api.yaml -r rules.mjs
-```
-
-Functions, static imports, Promises, and callable formats run in an isolated runtime
-for each document. See [JavaScript rulesets](https://quobix.com/vacuum/rulesets/javascript/)
-for supported imports, context, and migration limits.
-
-Arazzo 1.0 and 1.1 workflows use `vacuum lint workflows.yaml` and the normal
-report commands. `spectral:arazzo` selects Vacuum's native recommended rules.
-See [Arazzo linting](ARAZZO.md) for source lookup, rule IDs, incomplete checks
-and migration differences.
-
-`--functions` takes a directory containing custom function files:
-
-```shell
-vacuum lint api.yaml --ruleset rules/main.yaml --functions ./functions
-```
-
-JavaScript ruleset functions do not need this directory. Omitting the directory after `--functions` reports an
-input error and exits with code 2. In the editor, vacuum checks recognized ruleset
-buffers against its ruleset schema instead of reporting an unsupported API type.
-
-## Supply your own Spectral compatible ruleset
-
-If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
-then you can use it with vacuum! 
-
-The `lint`, `dashboard`, `docs`, `html-report`, `report`, and `spectral-report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
-
-### Here are some examples you can try
-
-**_All rules turned off_**
-```
-./vacuum lint -r rulesets/examples/norules-ruleset.yaml <your-openapi-spec.yaml>
-```
-
-**_Only recommended rules_**
-```
-./vacuum lint -r rulesets/examples/recommended-ruleset.yaml <your-openapi-spec.yaml>
-```
-
-**_Enable specific rules only_**
-```
-./vacuum lint -r rulesets/examples/specific-ruleset.yaml <your-openapi-spec.yaml>
-```
-
-**_Custom rules_**
-```
-./vacuum lint -r rulesets/examples/custom-ruleset.yaml <your-openapi-spec.yaml>
-```
-
-**_All rules, all of them!_**
-```
-./vacuum lint -r rulesets/examples/all-ruleset.yaml <your-openapi-spec.yaml>
-```
-
----
-
-## Reference resolution in rules
-
-vacuum has two resolved-execution controls:
-
-- Per rule: `resolved`
-- Per run: `--resolve-all-refs` or `motor.ExecutionOptions{ResolveAllRefs: true}`
-
-In YAML/JSON rulesets, `resolved` defaults to `true`. In that mode, `given`, matched nodes, `Index`, and `SpecInfo` come from the dereferenced document, but `context.Document` stays unresolved for compatibility.
-
-Set `resolved: false` when a rule needs the raw document, for example to inspect `$ref` directly. If you build `model.Rule` values in Go, set `Resolved` explicitly.
-
-```yaml
-rules:
-  response-has-content:
-    given: "$.paths[*][*].responses['404']"
-    resolved: false
-    then:
-      field: content
-      function: defined
-```
-
-`--resolve-all-refs` forces every rule into resolved execution, overrides `resolved: false`, and also supplies resolved `context.Document` to rule functions.
-
-Use `--nested-refs-doc-context` or `motor.ExecutionOptions{NestedRefsDocContext: true}` for split specs where an external file contains another relative `$ref`. That makes nested relative refs resolve from the referenced document instead of the root document. It only affects resolved execution, including runs forced by `--resolve-all-refs`.
-
----
-
-## Configuration
-
-### File
-You can configure vacuum using a configuration file named `vacuum.conf.yaml`
-
-By default, vacuum searches for this file in the following locations:
-1. Working directory
-2. `$XDG_CONFIG_HOME`, when set
-3. `${HOME}/.config`, when `$XDG_CONFIG_HOME` is not set
-
-You can also specify a path to a file using the `--config` flag
-
-Global flags are configured as top level nodes
-```yaml
-time: true
-base: 'http://example.com'
-...
-```
-Command specific flags are configured under a node with the commands name
-```yaml
-...
-lint:
-  silent: true
-  ...
-```
 
 > [!TIP]
 > When using `vacuum` as a library You can access the fixed yaml content in the `RuleSetExecutionResult.ModifiedSpec`, and choose where to write the file.
