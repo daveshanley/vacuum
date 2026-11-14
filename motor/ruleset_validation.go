@@ -7,6 +7,7 @@ import (
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/functions/core"
+	"github.com/daveshanley/vacuum/functions/openapi"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 )
@@ -20,6 +21,22 @@ type UnknownFunctionError struct {
 
 func (e *UnknownFunctionError) Error() string {
 	return fmt.Sprintf("rule %q uses unknown function %q", e.RuleID, e.Function)
+}
+
+// Packaged actions belong to the OpenLint contract. Keep their names out of
+// the native function registry, including during preflight validation.
+func lookupRuleFunction(contract model.Contract, builtin functions.Functions, custom map[string]model.RuleFunction, name string) model.RuleFunction {
+	if f := builtin.FindFunction(name); f != nil {
+		return f
+	}
+	if contract == model.OpenLintV1Draft {
+		if local, ok := strings.CutPrefix(name, "openlint:openapi/"); ok {
+			if f := openapi.OpenLintPackageFunction(local); f != nil {
+				return f
+			}
+		}
+	}
+	return custom[name]
 }
 
 // Validate before node selection: a selector with no matches must not hide an
@@ -44,7 +61,7 @@ func validateRuleFunctions(rs *rulesets.RuleSet, builtin functions.Functions, cu
 			id = key
 		}
 		forEachRuleAction(rule, func(action model.RuleAction) bool {
-			if builtin.FindFunction(action.Function) == nil && custom[action.Function] == nil {
+			if lookupRuleFunction(rs.Contract, builtin, custom, action.Function) == nil {
 				errs = append(errs, &UnknownFunctionError{RuleID: id, Function: action.Function})
 			}
 			return false
@@ -113,10 +130,7 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 					return false
 				}
 			}
-			f := builtin.FindFunction(action.Function)
-			if f == nil {
-				f = custom[action.Function]
-			}
+			f := lookupRuleFunction(rs.Contract, builtin, custom, action.Function)
 			if f == nil {
 				return false
 			}

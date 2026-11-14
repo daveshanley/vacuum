@@ -1,5 +1,8 @@
 // Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
-// SPDX-License-Identifier: MIT
+// Includes adaptations of @openlint/ruleset-openapi 0.1.0.
+// Copyright 2018 Stoplight, Inc. and 2026 OpenLint.
+// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// SPDX-License-Identifier: MIT AND Apache-2.0
 
 package openapi
 
@@ -21,17 +24,6 @@ import (
 	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/jsonschema/v6/kind"
 )
-
-// OpenLintPackageSchema returns the schema or reference function supplied by the
-// packaged OpenAPI ruleset. These functions belong to the OpenLint contract.
-func OpenLintPackageSchema(name string) model.RuleFunction {
-	switch name {
-	case "oasUnusedComponent", "oasExample", "oasDocumentSchema", "oasSchema", "unreferencedReusableObject":
-		return packagedSchemaFunction(name)
-	default:
-		return nil
-	}
-}
 
 type packagedSchemaFunction string
 

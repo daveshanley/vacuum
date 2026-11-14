@@ -1,5 +1,8 @@
 // Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
-// SPDX-License-Identifier: MIT
+// Includes adaptations of @openlint/ruleset-openapi 0.1.0.
+// Copyright 2018 Stoplight, Inc. and 2026 OpenLint.
+// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// SPDX-License-Identifier: MIT AND Apache-2.0
 
 package openapi
 

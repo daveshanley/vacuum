@@ -1,5 +1,8 @@
 // Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
-// SPDX-License-Identifier: MIT
+// Includes adaptations of @openlint/ruleset-openapi 0.1.0.
+// Copyright 2018 Stoplight, Inc. and 2026 OpenLint.
+// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// SPDX-License-Identifier: MIT AND Apache-2.0
 
 package openapi
 
@@ -16,11 +19,16 @@ import (
 	"github.com/pb33f/go-yaml"
 )
 
-// OpenLintPackageOperation returns an operation function from OpenLint's packaged OpenAPI ruleset.
-func OpenLintPackageOperation(name string) model.RuleFunction {
+// OpenLintPackageFunction returns the pinned OpenAPI package function for an
+// upstream action name. It returns nil for unknown names.
+func OpenLintPackageFunction(name string) model.RuleFunction {
 	switch name {
 	case "oasOpSuccessResponse", "oasOpFormDataConsumeCheck", "oasOpIdUnique", "oasOpParams", "oasTagDefined", "oasPathParam", "oasDiscriminator", "oasSecurityDefined", "serverVariables":
 		return packagedOperation(name)
+	case "refSiblings", "typedEnum", "uniquenessTags":
+		return openLintValueFunction(name)
+	case "oasUnusedComponent", "oasExample", "oasDocumentSchema", "oasSchema", "unreferencedReusableObject":
+		return packagedSchemaFunction(name)
 	}
 	return nil
 }
