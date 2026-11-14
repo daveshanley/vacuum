@@ -33,6 +33,12 @@ import (
 //go:embed schemas/openlint-v1.schema.json
 var openLintSchema string
 
+// Adapted from @openlint/ruleset-openapi 0.1.0, as shipped by OpenLint CLI 1.2.0.
+// Callable functions are bound to Go implementations. See schemas/OPENLINT-OPENAPI-LICENSE.
+//
+//go:embed schemas/openlint-openapi-0.1.0.json
+var openLintOpenAPIPackage []byte
+
 type openLintDefinition struct {
 	Overrides     []map[string]any `json:"overrides"`
 	ParserOptions map[string]any   `json:"parserOptions"`
@@ -127,7 +133,12 @@ func (rsm ruleSetsModel) generateOpenLintRuleSetWithContext(parent context.Conte
 			}
 			var parent *RuleSet
 			var err error
-			if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
+			if name == "openlint:openapi" {
+				parent, err = createOpenLintRuleSet(openLintOpenAPIPackage)
+				if err == nil {
+					parent.sourceLocation.path = name
+				}
+			} else if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
 				parent, err = DownloadRemoteRuleSetWithContract(ctx, name, client, model.OpenLintV1Draft)
 			} else if rs.sourceLocation.remoteURL != nil {
 				ref, e := rs.sourceLocation.remoteURL.Parse(name)

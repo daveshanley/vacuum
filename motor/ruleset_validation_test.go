@@ -148,3 +148,13 @@ func TestRuleFunctions_CaseInsensitiveActionMaps(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeRulesCannotInvokeOpenLintPackageFunctions(t *testing.T) {
+	rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		"unused": {Id: "unused", Given: "$", Then: model.RuleAction{Function: "openlint:openapi/oasUnusedComponent"}},
+	}}
+	errs := ValidateRuleSet(rs, nil)
+	require.Len(t, errs, 1)
+	var unknown *UnknownFunctionError
+	require.ErrorAs(t, errs[0], &unknown)
+}

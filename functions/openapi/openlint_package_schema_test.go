@@ -27,7 +27,7 @@ components:
 	require.NoError(t, yaml.Unmarshal([]byte(document), &root))
 	idx := index.NewSpecIndexWithConfig(&root, index.CreateClosedAPIIndexConfig())
 	ctx := model.RuleFunctionContext{Index: idx, Rule: &model.Rule{Message: "Potentially unused component has been detected."}}
-	result := OpenLintPackageSchema("oasUnusedComponent").RunRule(root.Content, ctx)
+	result := OpenLintPackageFunction("oasUnusedComponent").RunRule(root.Content, ctx)
 	require.Len(t, result, 2)
 	require.Equal(t, "$.components.schemas.Orphan", result[0].Path)
 	require.Equal(t, "$.components.requestBodies.Payload", result[1].Path)
@@ -49,7 +49,7 @@ func TestOpenLintPackageDocumentSchema(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var root yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(tc.data), &root))
-			result := OpenLintPackageSchema("oasDocumentSchema").RunRule(root.Content, model.RuleFunctionContext{Rule: &model.Rule{}})
+			result := OpenLintPackageFunction("oasDocumentSchema").RunRule(root.Content, model.RuleFunctionContext{Rule: &model.Rule{}})
 			if !tc.invalid {
 				require.Empty(t, result)
 				return
@@ -70,7 +70,7 @@ examples:
   external: {externalValue: 'https://example.com/value'}
 `), &root))
 	ctx := model.RuleFunctionContext{Rule: &model.Rule{}, RuleAction: &model.RuleAction{}, Contract: model.OpenLintV1Draft, Given: "$", ExecutionRoot: &root, Options: map[string]any{"oasVersion": float64(3), "schemaField": "schema", "type": "media"}}
-	result := OpenLintPackageSchema("oasExample").RunRule(root.Content, ctx)
+	result := OpenLintPackageFunction("oasExample").RunRule(root.Content, ctx)
 	require.Len(t, result, 1)
 	require.Equal(t, "two", result[0].StartNode.Value)
 }
@@ -96,7 +96,7 @@ example: `
 			var root yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(data+tc.example), &root))
 			ctx := model.RuleFunctionContext{Rule: &model.Rule{}, RuleAction: &model.RuleAction{}, Given: tc.path, ExecutionRoot: &root, Options: map[string]any{"oasVersion": float64(3), "schemaField": "schema", "type": "media"}}
-			got := OpenLintPackageSchema("oasExample").RunRule(root.Content, ctx)
+			got := OpenLintPackageFunction("oasExample").RunRule(root.Content, ctx)
 			if !tc.invalid {
 				require.Empty(t, got)
 				return

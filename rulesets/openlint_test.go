@@ -287,3 +287,45 @@ func TestOpenLintFunctionPreparationUsesExecutionContext(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.Less(t, time.Since(started), time.Second, "module initialization must use the execution deadline, not its five-second default")
 }
+
+func TestOpenLintPackagedOpenAPIInheritance(t *testing.T) {
+	const rule = "operation-success-response"
+	for _, tc := range []struct {
+		mode   string
+		active int
+	}{{"recommended", 43}, {"all", 48}, {"off", 0}} {
+		t.Run(tc.mode, func(t *testing.T) {
+			rs, _ := loadOpenLintTestSet(t, map[string]string{
+				"rules.yaml": fmt.Sprintf("extends: [[openlint:openapi, %s]]\n", tc.mode),
+			})
+			require.Len(t, rs.Rules, tc.active)
+			definitions, err := rs.RulesForValidation()
+			require.NoError(t, err)
+			require.Len(t, definitions, 48)
+			require.Contains(t, definitions, rule)
+		})
+	}
+	// Inheritance and overrides must still work through a local parent.
+	rs, _ := loadOpenLintTestSet(t, map[string]string{
+		"parent.yaml": "extends: [openlint:openapi]\n",
+		"rules.yaml":  "extends: ./parent.yaml\nrules:\n  operation-success-response: error\n  operation-description: false\n",
+	})
+	require.Equal(t, "error", rs.Rules[rule].Severity)
+	require.NotContains(t, rs.Rules, "operation-description")
+}
+
+func TestOpenLintRemoteParentCanExtendPackagedOpenAPI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/policy.yaml" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = fmt.Fprintln(w, "extends: [openlint:openapi]")
+	}))
+	defer server.Close()
+	rs, err := DownloadRemoteRuleSetWithContract(context.Background(), server.URL+"/policy.yaml", server.Client(), model.OpenLintV1Draft)
+	require.NoError(t, err)
+	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+	require.NoError(t, rs.LoadError())
+	require.Contains(t, rs.Rules, "operation-description")
+}

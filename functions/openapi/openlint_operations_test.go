@@ -54,7 +54,7 @@ func TestOpenLintPackagedOperations(t *testing.T) {
 			var doc, input yaml.Node
 			require.NoError(t, yaml.Unmarshal([]byte(tc.input), &input))
 			require.NoError(t, yaml.Unmarshal([]byte(tc.document), &doc))
-			fn := OpenLintPackageOperation(tc.function)
+			fn := OpenLintPackageFunction(tc.function)
 			require.NotNil(t, fn)
 			results := fn.RunRule([]*yaml.Node{input.Content[0]}, model.RuleFunctionContext{Given: "$", ExecutionRoot: &doc, Contract: model.OpenLintV1Draft, Options: tc.options})
 			var issues []string
@@ -66,7 +66,7 @@ func TestOpenLintPackagedOperations(t *testing.T) {
 			require.ElementsMatch(t, tc.issues, issues)
 		})
 	}
-	require.Nil(t, OpenLintPackageOperation("oasOther"))
+	require.Nil(t, OpenLintPackageFunction("oasOther"))
 }
 
 // OpenLint resolves the requirement selector but looks up schemes in the authored document.
@@ -76,7 +76,7 @@ func TestOpenLintPackagedSecurityUsesAuthoredDefinitions(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(`{components: {securitySchemes: {api: {$ref: "#/components/securitySchemes/other"}}}}`), &authored))
 	require.NoError(t, yaml.Unmarshal([]byte(`{api: [read]}`), &requirement))
 	ctx := model.RuleFunctionContext{ExecutionRoot: &resolved, AuthoredRoot: &authored, Given: "$.security[0]", Contract: model.OpenLintV1Draft, Options: map[string]any{"oasVersion": 3.0}}
-	results := OpenLintPackageOperation("oasSecurityDefined").RunRule(requirement.Content, ctx)
+	results := OpenLintPackageFunction("oasSecurityDefined").RunRule(requirement.Content, ctx)
 	require.Len(t, results, 1)
 	require.Equal(t, "$.security[0].api[0]", results[0].Path)
 	require.Equal(t, `"read" must be listed among scopes.`, results[0].Message)

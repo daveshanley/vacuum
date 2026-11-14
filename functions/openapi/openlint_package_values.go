@@ -1,5 +1,8 @@
 // Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
-// SPDX-License-Identifier: MIT
+// Includes adaptations of @openlint/ruleset-openapi 0.1.0.
+// Copyright 2018 Stoplight, Inc. and 2026 OpenLint.
+// See rulesets/schemas/OPENLINT-OPENAPI-LICENSE.
+// SPDX-License-Identifier: MIT AND Apache-2.0
 
 package openapi
 
@@ -15,16 +18,6 @@ import (
 )
 
 type openLintValueFunction string
-
-// OpenLintPackageValue returns the OpenLint OpenAPI package function with this
-// name, or nil if the package does not define that value check.
-func OpenLintPackageValue(name string) model.RuleFunction {
-	switch name {
-	case "refSiblings", "typedEnum", "uniquenessTags":
-		return openLintValueFunction(name)
-	}
-	return nil
-}
 
 func (f openLintValueFunction) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "openlint:openapi/" + string(f)}

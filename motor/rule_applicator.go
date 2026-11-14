@@ -1817,15 +1817,7 @@ func resolveRuleGivenPaths(rule *model.Rule, expandedAliases map[string][]string
 
 func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.Node) *[]model.RuleFunctionResult {
 
-	ruleFunction := ctx.builtinFunctions.FindFunction(ruleAction.Function)
-	// not found, check if it's been registered as a custom function
-	if ruleFunction == nil {
-		if ctx.customFunctions != nil {
-			if ctx.customFunctions[ruleAction.Function] != nil {
-				ruleFunction = ctx.customFunctions[ruleAction.Function]
-			}
-		}
-	}
+	ruleFunction := lookupRuleFunction(ctx.contract, ctx.builtinFunctions, ctx.customFunctions, ruleAction.Function)
 
 	if ruleFunction != nil {
 
@@ -1846,6 +1838,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			FetchConfig:              ctx.fetchConfig,
 			SchemaPathCache:          ctx.schemaPathCache,
 			RuleTimeout:              ctx.ruleTimeout,
+		}
+		if ctx.contract == model.OpenLintV1Draft {
+			rfc.AuthoredRoot = ctx.specNodeUnresolved
 		}
 		if ctx.reportFunctionErrors {
 			rfc.ReportError = func(err error) {

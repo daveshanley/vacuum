@@ -46,7 +46,7 @@ reference:
 			require.NoError(t, err)
 			nodes := path.Query(&doc)
 			require.Len(t, nodes, 1)
-			fn := OpenLintPackageValue(tt.name)
+			fn := OpenLintPackageFunction(tt.name)
 			actual := fn.RunRule(nodes, model.RuleFunctionContext{Given: tt.given, ExecutionRoot: &doc, Contract: model.OpenLintV1Draft})
 			require.Len(t, actual, len(tt.paths))
 			for i, finding := range actual {
