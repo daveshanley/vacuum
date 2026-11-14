@@ -5,11 +5,13 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
+	vacuumreport "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
 	"io"
@@ -88,4 +90,48 @@ func TestNativeBuildResultsKeepsConfigurationErrorsInExecution(t *testing.T) {
 	defer execution.ReleaseOwnedResources()
 	require.NotEmpty(t, execution.Errors)
 	require.Contains(t, execution.Errors[0].Error(), "empty selector")
+}
+
+// The expected report comes from OpenLint CLI 1.2.0 with @openlint/ruleset-openapi
+// 0.1.0. Compare the entire diagnostic, including the authored source range.
+func TestOpenLintPackagedOpenAPIPetstore(t *testing.T) {
+	dir := t.TempDir()
+	policy := filepath.Join(dir, "policy.yaml")
+	report := filepath.Join(dir, "report.json")
+	spec := filepath.Join(dir, "petstore.yaml")
+	require.NoError(t, os.WriteFile(spec, []byte(`openapi: 3.0.3
+info: {title: Petstore, version: '1'}
+servers: [{url: https://example.org}]
+paths:
+  /pets:
+    get:
+      operationId: getPets
+      description: ''
+      responses:
+        '404':
+          description: No pets
+components:
+  schemas:
+    Unused:
+      type: string
+`), 0600))
+	require.NoError(t, os.WriteFile(policy, []byte("extends: [openlint:openapi]\n"), 0600))
+	command := GetRootCommand()
+	command.SetOut(io.Discard)
+	command.SetErr(io.Discard)
+	command.SetArgs([]string{"lint", "--openlint", "--no-update-check", "-r", policy, "--format", "json", "--output", report, "--min-score", "0", spec})
+	require.NoError(t, command.Execute())
+	read := func(path string) []vacuumreport.Diagnostic {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		var rows []vacuumreport.Diagnostic
+		require.NoError(t, json.Unmarshal(data, &rows))
+		return rows
+	}
+	expected := read("test_data/openlint-petstore-v3.json")
+	for i := range expected {
+		expected[i].Source = spec
+	}
+	require.ElementsMatch(t, expected, read(report))
 }
