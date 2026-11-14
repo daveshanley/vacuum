@@ -45,6 +45,8 @@ func TestOpenLintPackagedOperations(t *testing.T) {
 			"$.variables.host.default|Server Variable \"host\" has a default not listed in the enum.", "$.variables.unused|Server's \"variables\" object has unused defined \"unused\" url variable.", "$.variables.resource|Server Variable \"resource\" has a missing default.", "$.variables|Not all server's variables are described with \"variables\" object. Missed: port.",
 		}},
 		{name: "invalid server", function: "serverVariables", input: `{url: 42}`, issues: []string{"$|Invalid Server Object"}},
+		{name: "IPv4 parts exceed 255", function: "serverVariables", input: `{url: "https://{host}/api", variables: {host: {default: 999.300.0.1}}}`, options: map[string]any{"checkSubstitutions": true}, issues: []string{"$.variables|A few substitutions of server variables resulted in invalid URLs: https://999.300.0.1/api"}},
+		{name: "WHATWG special scheme", function: "serverVariables", input: `{url: "https:{host}", variables: {host: {default: example.com}}}`, options: map[string]any{"checkSubstitutions": true}},
 		{name: "invalid server port", function: "serverVariables", input: `{url: "https://example.org:{port}", variables: {port: {enum: ["42", "65536"], default: "42"}}}`, options: map[string]any{"checkSubstitutions": true}, issues: []string{"$.variables|A few substitutions of server variables resulted in invalid URLs: https://example.org:65536"}},
 	}
 	for _, tc := range tests {
@@ -65,4 +67,17 @@ func TestOpenLintPackagedOperations(t *testing.T) {
 		})
 	}
 	require.Nil(t, OpenLintPackageOperation("oasOther"))
+}
+
+// OpenLint resolves the requirement selector but looks up schemes in the authored document.
+func TestOpenLintPackagedSecurityUsesAuthoredDefinitions(t *testing.T) {
+	var resolved, authored, requirement yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`{components: {securitySchemes: {api: {flows: {implicit: {scopes: {read: ok}}}}}}}`), &resolved))
+	require.NoError(t, yaml.Unmarshal([]byte(`{components: {securitySchemes: {api: {$ref: "#/components/securitySchemes/other"}}}}`), &authored))
+	require.NoError(t, yaml.Unmarshal([]byte(`{api: [read]}`), &requirement))
+	ctx := model.RuleFunctionContext{ExecutionRoot: &resolved, AuthoredRoot: &authored, Given: "$.security[0]", Contract: model.OpenLintV1Draft, Options: map[string]any{"oasVersion": 3.0}}
+	results := OpenLintPackageOperation("oasSecurityDefined").RunRule(requirement.Content, ctx)
+	require.Len(t, results, 1)
+	require.Equal(t, "$.security[0].api[0]", results[0].Path)
+	require.Equal(t, `"read" must be listed among scopes.`, results[0].Message)
 }

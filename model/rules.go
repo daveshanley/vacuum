@@ -77,6 +77,8 @@ type RuleFunctionContext struct {
 	ExecutionContext context.Context `json:"-" yaml:"-"`
 	// ExecutionRoot is the tree used for selector evaluation in this invocation.
 	ExecutionRoot *yaml.Node `json:"-" yaml:"-"`
+	// AuthoredRoot is the original OpenLint document, before reference resolution.
+	AuthoredRoot *yaml.Node `json:"-" yaml:"-"`
 
 	// ExhaustiveRepairFindings reports all independently repairable findings during
 	// repair discovery and verification, including those normally grouped by a rule.
