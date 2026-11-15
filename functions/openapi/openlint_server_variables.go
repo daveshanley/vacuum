@@ -20,6 +20,11 @@ import (
 
 var packagedServerVariable = regexp.MustCompile(`\{(.+?)\}`)
 
+// The substitution check walks every combination of enum values. A handful of
+// large enums would otherwise multiply into millions of URL parses, so only the
+// first combinations, in enumeration order, are checked.
+const maxServerVariableSubstitutions = 4096
+
 func validPackagedServer(server packagedOperand) bool {
 	if !server.field("url").isText() {
 		return false
@@ -119,7 +124,7 @@ func checkPackagedServerVariables(server packagedOperand, ctx model.RuleFunction
 	}
 	counts := make([]int, len(substitutions))
 	var invalid []string
-	for {
+	for checked := 0; checked < maxServerVariableSubstitutions; checked++ {
 		if ctx.ExecutionContext != nil && ctx.ExecutionContext.Err() != nil {
 			return
 		}

@@ -108,3 +108,29 @@ example: `
 		})
 	}
 }
+
+// YAML-authored rulesets decode oasVersion as an int, JSON ones as a float64.
+func TestOpenLintPackageExampleSwaggerVersionFromYAMLOptions(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`{type: integer, x-example: two}`), &root))
+	for _, version := range []any{2, float64(2)} {
+		ctx := model.RuleFunctionContext{Rule: &model.Rule{}, RuleAction: &model.RuleAction{}, Contract: model.OpenLintV1Draft, Given: "$", ExecutionRoot: &root, Options: map[string]any{"oasVersion": version, "schemaField": "$", "type": "schema"}}
+		result := OpenLintPackageFunction("oasExample").RunRule(root.Content, ctx)
+		require.Len(t, result, 1, "oasVersion %T", version)
+		require.Equal(t, "two", result[0].StartNode.Value)
+	}
+}
+
+func TestOpenLintPackagedValueSchemasAreShared(t *testing.T) {
+	schema := map[string]any{"type": "string", "minLength": float64(3)}
+	first, err := compilePackagedValueSchema(packagedValueDraft(nil), schema)
+	require.NoError(t, err)
+	second, err := compilePackagedValueSchema(packagedValueDraft(nil), map[string]any{"minLength": float64(3), "type": "string"})
+	require.NoError(t, err)
+	require.Same(t, first, second)
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`{openapi: 3.1.0}`), &root))
+	other, err := compilePackagedValueSchema(packagedValueDraft(documentContentNode(&root)), schema)
+	require.NoError(t, err)
+	require.NotSame(t, first, other, "the dialect is part of the cache key")
+}

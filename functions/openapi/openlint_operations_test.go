@@ -6,6 +6,7 @@ package openapi
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
@@ -80,4 +81,31 @@ func TestOpenLintPackagedSecurityUsesAuthoredDefinitions(t *testing.T) {
 	require.Len(t, results, 1)
 	require.Equal(t, "$.security[0].api[0]", results[0].Path)
 	require.Equal(t, `"read" must be listed among scopes.`, results[0].Message)
+}
+
+// Enum combinations multiply. The substitution check must stop at its cap
+// instead of parsing every combination.
+func TestOpenLintServerVariableSubstitutionsAreBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(`{url: "https://{a}{b}{c}{d}{e}.example.com/{f}", variables: {`)
+	for i, name := range []string{"a", "b", "c", "d", "e", "f"} {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(name + ": {enum: [")
+		for v := 0; v < 20; v++ {
+			if v > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(`"v` + string(rune('a'+v)) + `"`)
+		}
+		b.WriteString("]}")
+	}
+	b.WriteString("}}")
+	var input yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(b.String()), &input))
+	started := time.Now()
+	results := OpenLintPackageFunction("serverVariables").RunRule(input.Content, model.RuleFunctionContext{Given: "$", ExecutionRoot: &yaml.Node{}, Contract: model.OpenLintV1Draft, Options: map[string]any{"checkSubstitutions": true}})
+	require.Empty(t, results)
+	require.Less(t, time.Since(started), 5*time.Second, "64,000,000 combinations must not all be parsed")
 }
