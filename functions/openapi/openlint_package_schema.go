@@ -202,31 +202,7 @@ func packagedDocumentValidation(root *yaml.Node, ctx model.RuleFunctionContext) 
 
 // OpenLint uses the selected document dialect to check examples and enum arrays.
 func validatePackagedValues(values []packagedOperand, ctx model.RuleFunctionContext, schema any) []model.RuleFunctionResult {
-	c := jsonschema.NewCompiler()
-	c.UseLoader(jsonschema.SchemeURLLoader{}) // examples may only use the resolved input and embedded metaschemas
-	c.DefaultDraft(jsonschema.Draft4)
-	root := documentContentNode(ctx.ExecutionRoot)
-	if v := findMappingValue(root, "openapi"); v != nil && (strings.HasPrefix(v.Value, "3.1.") || strings.HasPrefix(v.Value, "3.2.")) {
-		c.DefaultDraft(jsonschema.Draft2020)
-		if d := findMappingValue(root, "jsonSchemaDialect"); d != nil {
-			switch strings.TrimSuffix(d.Value, "#") {
-			case "http://json-schema.org/draft-04/schema":
-				c.DefaultDraft(jsonschema.Draft4)
-			case "http://json-schema.org/draft-06/schema":
-				c.DefaultDraft(jsonschema.Draft6)
-			case "http://json-schema.org/draft-07/schema":
-				c.DefaultDraft(jsonschema.Draft7)
-			case "https://json-schema.org/draft/2019-09/schema":
-				c.DefaultDraft(jsonschema.Draft2019)
-			}
-		}
-	}
-	const schemaID = "urn:openlint:example"
-	var compiled *jsonschema.Schema
-	err := c.AddResource(schemaID, schema)
-	if err == nil {
-		compiled, err = c.Compile(schemaID)
-	}
+	compiled, err := compilePackagedValueSchema(packagedValueDraft(documentContentNode(ctx.ExecutionRoot)), schema)
 	var results packagedDiagnostics
 	if err != nil {
 		results.add(values[0], err.Error())
@@ -289,11 +265,78 @@ func validatePackagedValues(values []packagedOperand, ctx model.RuleFunctionCont
 	return results
 }
 
+func packagedValueDraft(root *yaml.Node) *jsonschema.Draft {
+	v := findMappingValue(root, "openapi")
+	if v == nil || !strings.HasPrefix(v.Value, "3.1.") && !strings.HasPrefix(v.Value, "3.2.") {
+		return jsonschema.Draft4
+	}
+	if d := findMappingValue(root, "jsonSchemaDialect"); d != nil {
+		switch strings.TrimSuffix(d.Value, "#") {
+		case "http://json-schema.org/draft-04/schema":
+			return jsonschema.Draft4
+		case "http://json-schema.org/draft-06/schema":
+			return jsonschema.Draft6
+		case "http://json-schema.org/draft-07/schema":
+			return jsonschema.Draft7
+		case "https://json-schema.org/draft/2019-09/schema":
+			return jsonschema.Draft2019
+		}
+	}
+	return jsonschema.Draft2020
+}
+
+type packagedCompiledSchema struct {
+	schema *jsonschema.Schema
+	err    error
+}
+
+// Resolved documents repeat each referenced component schema at every use
+// site, so compiled schemas are shared by content. A full cache is dropped
+// rather than evicted entry by entry; content keys keep any reuse correct.
+var packagedSchemaCache = struct {
+	sync.Mutex
+	entries map[string]packagedCompiledSchema
+}{entries: make(map[string]packagedCompiledSchema)}
+
+const maxPackagedSchemaCacheEntries = 1024
+
+func compilePackagedValueSchema(draft *jsonschema.Draft, schema any) (*jsonschema.Schema, error) {
+	key := ""
+	if data, err := json.Marshal(schema); err == nil {
+		key = fmt.Sprintf("%p\x00%s", draft, data)
+		packagedSchemaCache.Lock()
+		cached, ok := packagedSchemaCache.entries[key]
+		packagedSchemaCache.Unlock()
+		if ok {
+			return cached.schema, cached.err
+		}
+	}
+	c := jsonschema.NewCompiler()
+	c.UseLoader(jsonschema.SchemeURLLoader{}) // examples may only use the resolved input and embedded metaschemas
+	c.DefaultDraft(draft)
+	const schemaID = "urn:openlint:example"
+	var compiled *jsonschema.Schema
+	err := c.AddResource(schemaID, schema)
+	if err == nil {
+		compiled, err = c.Compile(schemaID)
+	}
+	if key != "" {
+		packagedSchemaCache.Lock()
+		if len(packagedSchemaCache.entries) >= maxPackagedSchemaCacheEntries {
+			clear(packagedSchemaCache.entries)
+		}
+		packagedSchemaCache.entries[key] = packagedCompiledSchema{compiled, err}
+		packagedSchemaCache.Unlock()
+	}
+	return compiled, err
+}
+
 func packagedExampleValidation(node *yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	opts, _ := ctx.Options.(map[string]any)
 	path, _ := ctx.Given.(string)
 	target := packagedOperand{node, path}
-	version2 := opts["oasVersion"] == float64(2)
+	// JSON options decode numbers as float64 and YAML options as int.
+	version2 := ctx.GetOptionsStringMap()["oasVersion"] == "2"
 	media := opts["type"] == "media"
 	schemaNode := node
 	if opts["schemaField"] != "$" {
