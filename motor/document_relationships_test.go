@@ -123,3 +123,38 @@ paths:
 	require.NotNil(t, f.Origin)
 	require.Equal(t, owner, f.Origin.AbsoluteLocation)
 }
+
+func TestOpenAPILinkTargetsInAlreadyLoadedDocuments(t *testing.T) {
+	dir := t.TempDir()
+	const other = `openapi: 3.1.1
+info: {title: Jobs, version: '1'}
+paths:
+  /jobs:
+    get: {operationId: listJobs, responses: {'200': {description: ok}}}
+components:
+  responses:
+    Accepted:
+      description: ok
+      links:
+        next: {operationId: listJobs}
+        broken: {operationId: exampleOnly}
+  examples:
+    Fake: {value: {operationId: exampleOnly}}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.yaml"), []byte(other), 0600))
+	const root = `openapi: 3.1.1
+info: {title: Test, version: '1'}
+paths:
+  /shop:
+    get: {responses: {'200': {$ref: 'other.yaml#/components/responses/Accepted'}}}
+`
+	rule := rulesets.GetOAS3DocumentRelationshipsRule()
+	r := ApplyRulesToRuleSet(&RuleSetExecution{
+		Spec: []byte(root), SpecFileName: filepath.Join(dir, "root.yaml"),
+		Base: dir, AllowLookup: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}},
+	})
+	defer r.Release()
+	require.Len(t, r.Results, 1)
+	require.Equal(t, "$.components.responses.Accepted.links.broken.operationId", r.Results[0].Path)
+	require.Equal(t, filepath.Join(dir, "other.yaml"), r.Results[0].Origin.AbsoluteLocation)
+}

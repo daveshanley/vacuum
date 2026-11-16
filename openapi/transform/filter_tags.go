@@ -488,6 +488,21 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 	return ids, refs
 }
 
+// VisitOperationIDs visits IDs declared by Operation Objects in one parsed OpenAPI 3
+// document, including callbacks, webhooks and reusable Path Items. It does no I/O.
+func VisitOperationIDs(root *yaml.Node, visit func(string)) {
+	root = documentRoot(root)
+	version := resolvedMapValue(root, "openapi")
+	if version == nil || !strings.HasPrefix(version.Value, "3.") {
+		return
+	}
+	visitOperations(root, version.Value, func(node *yaml.Node, _ []string) {
+		if id := resolvedMapValue(node, "operationId"); id != nil && id.Kind == yaml.ScalarNode && id.Tag == "!!str" {
+			visit(id.Value)
+		}
+	})
+}
+
 // visitOperations follows local Path Item and Callback references once per node.
 func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []string)) {
 	seen := make(map[*yaml.Node]struct{})
