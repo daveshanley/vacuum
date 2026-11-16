@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +22,7 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/jsonschema/v6/kind"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 )
 
 type packagedSchemaFunction string
@@ -62,14 +62,26 @@ func (fn packagedSchemaFunction) RunRule(nodes []*yaml.Node, ctx model.RuleFunct
 		return packagedUnusedObjects(node, ctx)
 	case "oasDocumentSchema":
 		return packagedDocumentValidation(node, ctx)
+	case "oasSchema":
+		return runPackagedSchema(node, ctx)
 	case "oasExample":
 		return packagedExampleValidation(node, ctx)
-	case "oasSchema":
-		options, _ := ctx.Options.(map[string]any)
-		path, _ := ctx.Given.(string)
-		return validatePackagedValues([]packagedOperand{{node, path}}, ctx, options["schema"])
 	}
 	return nil
+}
+
+// Use core schema for the selected value; only the packaged presentation differs.
+func runPackagedSchema(node *yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	opts, _ := ctx.Options.(map[string]any)
+	compiled, err := packagedExamples.CompileSchema(opts["schema"], packagedValueDraft(documentContentNode(ctx.ExecutionRoot)))
+	path, _ := ctx.Given.(string)
+	value := packagedOperand{node, path}
+	if err != nil {
+		var results packagedDiagnostics
+		results.add(value, err.Error())
+		return results
+	}
+	return validatePackagedValue(value, ctx, compiled)
 }
 
 func packagedUnusedObjects(members *yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
@@ -154,12 +166,8 @@ func packagedDocumentValidation(root *yaml.Node, ctx model.RuleFunctionContext) 
 		return nil
 	}
 	compiled, err := load()
-	var value any
 	if err == nil {
-		err = root.Decode(&value)
-	}
-	if err == nil {
-		err = compiled.Validate(normalizeToStringMap(value))
+		err = schema_validation.ValidateYAMLNode(root, compiled)
 	}
 	if err == nil {
 		return nil
@@ -200,69 +208,103 @@ func packagedDocumentValidation(root *yaml.Node, ctx model.RuleFunctionContext) 
 	return results
 }
 
-// OpenLint uses the selected document dialect to check examples and enum arrays.
-func validatePackagedValues(values []packagedOperand, ctx model.RuleFunctionContext, schema any) []model.RuleFunctionResult {
-	compiled, err := compilePackagedValueSchema(packagedValueDraft(documentContentNode(ctx.ExecutionRoot)), schema)
+// Keep the source path of each selected value when core reports a failure.
+func validatePackagedValue(v packagedOperand, ctx model.RuleFunctionContext, compiled *jsonschema.Schema) []model.RuleFunctionResult {
+	ctx.Given = v.path
+	return (core.Schema{}).RunCompiled([]*yaml.Node{v.node}, ctx, compiled, func(_ *yaml.Node, failure *jsonschema.ValidationError) []model.RuleFunctionResult {
+		return packagedValueFailure(v, ctx, failure)
+	})
+}
+
+func packagedValueFailure(v packagedOperand, ctx model.RuleFunctionContext, failure *jsonschema.ValidationError) []model.RuleFunctionResult {
 	var results packagedDiagnostics
-	if err != nil {
-		results.add(values[0], err.Error())
+	for _, leaf := range extractLeafValidationErrors(failure) {
+		loc := v
+		property := ""
+		if parsed, e := jsonpath.NewPath(v.path); e == nil {
+			if segments, e := parsed.GetSegmentInfo(); e == nil && len(segments) > 0 {
+				property = segments[len(segments)-1].Key
+			}
+		}
+		for _, key := range leaf.err.InstanceLocation {
+			if loc.is(yaml.SequenceNode) {
+				idx, e := strconv.Atoi(key)
+				if e != nil || idx < 0 || idx >= len(loc.node.Content) {
+					break
+				}
+				loc = packagedOperand{loc.node.Content[idx], model.AppendResultPathIndex(loc.path, idx)}
+			} else {
+				loc = loc.fieldOrSelf(key)
+			}
+			property = key
+		}
+		prefix := ""
+		if property != "" {
+			prefix = fmt.Sprintf("%q property ", property)
+		}
+		msg := defaultFormatter.Format(NewErrorContext(leaf.err))
+		switch k := leaf.err.ErrorKind.(type) {
+		case *kind.Type:
+			msg = prefix + "type must be " + strings.Join(k.Want, ",")
+		case *kind.Required:
+			if len(k.Missing) > 0 {
+				msg = prefix + fmt.Sprintf("must have required property %q", k.Missing[0])
+			}
+		case *kind.UniqueItems:
+			first, second := k.Duplicates[0], k.Duplicates[1]
+			if loc.node != nil && loc.node.Kind == yaml.SequenceNode && len(loc.node.Content) > 2 {
+				first, second = lastDuplicatePair(loc.node, first, second)
+			}
+			msg = fmt.Sprintf("%smust not have duplicate items (items ## %d and %d are identical)", prefix, first, second)
+		}
+		results.add(loc, msg)
 		return results
 	}
-	for _, v := range values {
-		var example any
-		if err = v.node.Decode(&example); err != nil {
-			results.add(v, err.Error())
-			continue
+	return results
+}
+
+// AJV reports the last repeated value and its nearest earlier match.
+func lastDuplicatePair(node *yaml.Node, first, second int) (int, int) {
+	values, err := schema_validation.DecodeYAMLValue(node)
+	if err != nil {
+		return first, second
+	}
+	items, ok := values.([]any)
+	if !ok {
+		return first, second
+	}
+	seen := make(map[string]int, len(items))
+	for i, item := range items {
+		raw, err := json.Marshal(normalizeDuplicateZeros(item))
+		if err != nil {
+			return first, second
 		}
-		err = compiled.Validate(normalizeToStringMap(example))
-		if err == nil {
-			continue
+		key := string(raw)
+		if j, ok := seen[key]; ok {
+			first, second = j, i
 		}
-		var failure *jsonschema.ValidationError
-		if !errors.As(err, &failure) {
-			results.add(v, err.Error())
-			continue
+		seen[key] = i
+	}
+	return first, second
+}
+
+// JSON Schema considers signed zeros equal, including inside a composite value.
+func normalizeDuplicateZeros(value any) any {
+	switch v := value.(type) {
+	case float64:
+		if v == 0 {
+			return 0
 		}
-		for _, leaf := range extractLeafValidationErrors(failure) {
-			loc := v
-			property := ""
-			if parsed, e := jsonpath.NewPath(v.path); e == nil {
-				if segments, e := parsed.GetSegmentInfo(); e == nil && len(segments) > 0 {
-					property = segments[len(segments)-1].Key
-				}
-			}
-			for _, key := range leaf.err.InstanceLocation {
-				if loc.is(yaml.SequenceNode) {
-					idx, e := strconv.Atoi(key)
-					if e != nil || idx < 0 || idx >= len(loc.node.Content) {
-						break
-					}
-					loc = packagedOperand{loc.node.Content[idx], model.AppendResultPathIndex(loc.path, idx)}
-				} else {
-					loc = loc.fieldOrSelf(key)
-				}
-				property = key
-			}
-			prefix := ""
-			if property != "" {
-				prefix = fmt.Sprintf("%q property ", property)
-			}
-			msg := defaultFormatter.Format(NewErrorContext(leaf.err))
-			switch k := leaf.err.ErrorKind.(type) {
-			case *kind.Type:
-				msg = prefix + "type must be " + strings.Join(k.Want, ",")
-			case *kind.Required:
-				if len(k.Missing) > 0 {
-					msg = prefix + fmt.Sprintf("must have required property %q", k.Missing[0])
-				}
-			case *kind.UniqueItems:
-				msg = prefix + "must not have duplicate items"
-			}
-			results.add(loc, msg)
-			break // the package defaults to allErrors: false
+	case []any:
+		for i := range v {
+			v[i] = normalizeDuplicateZeros(v[i])
+		}
+	case map[string]any:
+		for k := range v {
+			v[k] = normalizeDuplicateZeros(v[k])
 		}
 	}
-	return results
+	return value
 }
 
 func packagedValueDraft(root *yaml.Node) *jsonschema.Draft {
@@ -285,51 +327,7 @@ func packagedValueDraft(root *yaml.Node) *jsonschema.Draft {
 	return jsonschema.Draft2020
 }
 
-type packagedCompiledSchema struct {
-	schema *jsonschema.Schema
-	err    error
-}
-
-// Resolved documents repeat each referenced component schema at every use
-// site, so compiled schemas are shared by content. A full cache is dropped
-// rather than evicted entry by entry; content keys keep any reuse correct.
-var packagedSchemaCache = struct {
-	sync.Mutex
-	entries map[string]packagedCompiledSchema
-}{entries: make(map[string]packagedCompiledSchema)}
-
-const maxPackagedSchemaCacheEntries = 1024
-
-func compilePackagedValueSchema(draft *jsonschema.Draft, schema any) (*jsonschema.Schema, error) {
-	key := ""
-	if data, err := json.Marshal(schema); err == nil {
-		key = fmt.Sprintf("%p\x00%s", draft, data)
-		packagedSchemaCache.Lock()
-		cached, ok := packagedSchemaCache.entries[key]
-		packagedSchemaCache.Unlock()
-		if ok {
-			return cached.schema, cached.err
-		}
-	}
-	c := jsonschema.NewCompiler()
-	c.UseLoader(jsonschema.SchemeURLLoader{}) // examples may only use the resolved input and embedded metaschemas
-	c.DefaultDraft(draft)
-	const schemaID = "urn:openlint:example"
-	var compiled *jsonschema.Schema
-	err := c.AddResource(schemaID, schema)
-	if err == nil {
-		compiled, err = c.Compile(schemaID)
-	}
-	if key != "" {
-		packagedSchemaCache.Lock()
-		if len(packagedSchemaCache.entries) >= maxPackagedSchemaCacheEntries {
-			clear(packagedSchemaCache.entries)
-		}
-		packagedSchemaCache.entries[key] = packagedCompiledSchema{compiled, err}
-		packagedSchemaCache.Unlock()
-	}
-	return compiled, err
-}
+var packagedExamples schema_validation.ExampleSchemaCache
 
 func packagedExampleValidation(node *yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	opts, _ := ctx.Options.(map[string]any)
@@ -373,35 +371,34 @@ func packagedExampleValidation(node *yaml.Node, ctx model.RuleFunctionContext) [
 	if len(values) == 0 {
 		return nil
 	}
-	var schema any
-	if err := schemaNode.Decode(&schema); err != nil {
-		return []model.RuleFunctionResult{{Rule: ctx.Rule, StartNode: schemaNode, Message: err.Error()}}
-	}
-	schema = normalizeToStringMap(schema)
-	access := ""
+	purpose := schema_validation.SchemaValidationPurposeGeneric
 	if media {
-		access = packagedExampleAccess(path)
+		purpose = packagedExampleAccess(path)
 	}
-	if obj, ok := schema.(map[string]any); ok {
-		if _, ok := obj["required"].(bool); ok && version2 {
-			delete(obj, "required")
-		}
-		prepareExampleSchema(obj, access, version2, false)
+	compiled, err := packagedExamples.Compile(schemaNode, packagedValueDraft(documentContentNode(ctx.ExecutionRoot)), purpose, version2)
+	if err != nil {
+		var results packagedDiagnostics
+		results.add(values[0], err.Error())
+		return results
 	}
-	return validatePackagedValues(values, ctx, schema)
+	var results []model.RuleFunctionResult
+	for _, v := range values {
+		results = append(results, validatePackagedValue(v, ctx, compiled)...)
+	}
+	return results
 }
 
-func packagedExampleAccess(path string) string {
+func packagedExampleAccess(path string) schema_validation.SchemaValidationPurpose {
 	parsed, err := jsonpath.NewPath(path)
 	if err != nil {
-		return ""
+		return schema_validation.SchemaValidationPurposeGeneric
 	}
 	s, err := parsed.GetSegmentInfo()
 	if err != nil || len(s) == 0 {
-		return ""
+		return schema_validation.SchemaValidationPurposeGeneric
 	}
 	if s[0].Key == "responses" {
-		return "writeOnly"
+		return schema_validation.SchemaValidationPurposeResponseBody
 	}
 	at := 1
 	switch s[0].Key {
@@ -409,63 +406,15 @@ func packagedExampleAccess(path string) string {
 		at = 3
 	case "components":
 	default:
-		return ""
+		return schema_validation.SchemaValidationPurposeGeneric
 	}
 	if len(s) > at {
 		switch s[at].Key {
 		case "requestBodies", "requestBody":
-			return "readOnly"
+			return schema_validation.SchemaValidationPurposeRequestBody
 		case "responses":
-			return "writeOnly"
+			return schema_validation.SchemaValidationPurposeResponseBody
 		}
 	}
-	return ""
-}
-
-// Only schema-bearing keywords are traversed. A property named "not" or an
-// example containing "required" must not be interpreted as a schema keyword.
-func prepareExampleSchema(obj map[string]any, access string, swagger, negated bool) {
-	nullable := obj["nullable"] == true || swagger && obj["x-nullable"] == true
-	if t, ok := obj["type"].(string); ok && nullable && t != "null" {
-		obj["type"] = []any{t, "null"}
-	}
-	if access != "" && !negated {
-		props, _ := obj["properties"].(map[string]any)
-		if required, ok := obj["required"].([]any); ok {
-			required = slices.DeleteFunc(required, func(v any) bool {
-				key, ok := v.(string)
-				if !ok {
-					return false
-				}
-				p, _ := props[key].(map[string]any)
-				return p[access] == true
-			})
-			if len(required) == 0 {
-				delete(obj, "required")
-			} else {
-				obj["required"] = required
-			}
-		}
-	}
-	for key, value := range obj {
-		switch key {
-		case "properties", "patternProperties", "$defs", "definitions", "dependentSchemas", "dependencies":
-			group, _ := value.(map[string]any)
-			for _, sub := range group {
-				if child, ok := sub.(map[string]any); ok {
-					prepareExampleSchema(child, access, swagger, negated)
-				}
-			}
-		case "not", "if", "then", "else", "additionalProperties", "additionalItems", "propertyNames", "contains", "items", "allOf", "anyOf", "oneOf", "prefixItems", "unevaluatedProperties", "unevaluatedItems":
-			if child, ok := value.(map[string]any); ok {
-				prepareExampleSchema(child, access, swagger, negated != (key == "not"))
-			} else if list, ok := value.([]any); ok {
-				for _, sub := range list {
-					if child, ok := sub.(map[string]any); ok {
-						prepareExampleSchema(child, access, swagger, negated)
-					}
-				}
-			}
-		}
-	}
+	return schema_validation.SchemaValidationPurposeGeneric
 }

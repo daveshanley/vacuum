@@ -6,6 +6,7 @@ package core
 
 import (
 	ctx "context"
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
@@ -328,20 +329,11 @@ var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", 
 func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, fieldNode, fieldNodeValue *yaml.Node,
 	context model.RuleFunctionContext, x int) []model.RuleFunctionResult {
 
-	ruleMessage := context.Rule.Description
-	if context.Rule.Message != "" {
-		ruleMessage = context.Rule.Message
-	}
-
-	var results []model.RuleFunctionResult
-	message := context.Rule.Message
-	interpolateErrorMessage := shouldInterpolateSchemaErrorMessage(context.Options)
-
 	// validate using schema provided.
 	res, resErrors := parser.ValidateNodeAgainstSchema(ctx, schema, fieldNodeValue, false)
 
 	if res {
-		return results
+		return nil
 	}
 
 	var schemaErrors []*validationErrors.SchemaValidationFailure
@@ -357,6 +349,50 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 		}
 
 	}
+
+	return schemaFindings(fieldNode, fieldNodeValue, context, x, schemaErrors)
+}
+
+// RunCompiled evaluates already selected nodes with a shared, precompiled schema.
+// format can supply rule-specific diagnostics for a structured schema failure.
+// A nil formatter uses the core schema rule's usual messages and locations.
+func (Schema) RunCompiled(nodes []*yaml.Node, ctx model.RuleFunctionContext, compiled *jsonschema.Schema, format func(*yaml.Node, *jsonschema.ValidationError) []model.RuleFunctionResult) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+	for i, node := range nodes {
+		err := schema_validation.ValidateYAMLNode(node, compiled)
+		if err == nil {
+			continue
+		}
+		var failure *jsonschema.ValidationError
+		var failures []*validationErrors.SchemaValidationFailure
+		if errors.As(err, &failure) {
+			if format != nil {
+				results = append(results, format(node, failure)...)
+				continue
+			}
+			for _, item := range helpers.FlattenSchemaOutputErrors(failure.DetailedOutput()) {
+				if item.Error != nil {
+					failures = append(failures, &validationErrors.SchemaValidationFailure{Reason: item.Error.String(), OriginalJsonSchemaError: failure, KeywordLocation: item.KeywordLocation, InstancePath: helpers.ConvertStringLocationToPathSegments(item.InstanceLocation)})
+				}
+			}
+		}
+		if len(failures) == 0 {
+			failures = append(failures, &validationErrors.SchemaValidationFailure{Reason: err.Error()})
+		}
+		results = append(results, schemaFindings(nil, node, ctx, i, failures)...)
+	}
+	return results
+}
+
+func schemaFindings(fieldNode, fieldNodeValue *yaml.Node, context model.RuleFunctionContext, x int, schemaErrors []*validationErrors.SchemaValidationFailure) []model.RuleFunctionResult {
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
+	var results []model.RuleFunctionResult
+	message := context.Rule.Message
+	interpolateErrorMessage := shouldInterpolateSchemaErrorMessage(context.Options)
 
 	if context.Contract == model.OpenLintV1Draft {
 		var expanded []*validationErrors.SchemaValidationFailure

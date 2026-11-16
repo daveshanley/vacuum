@@ -121,16 +121,26 @@ func TestOpenLintPackageExampleSwaggerVersionFromYAMLOptions(t *testing.T) {
 	}
 }
 
-func TestOpenLintPackagedValueSchemasAreShared(t *testing.T) {
-	schema := map[string]any{"type": "string", "minLength": float64(3)}
-	first, err := compilePackagedValueSchema(packagedValueDraft(nil), schema)
-	require.NoError(t, err)
-	second, err := compilePackagedValueSchema(packagedValueDraft(nil), map[string]any{"minLength": float64(3), "type": "string"})
-	require.NoError(t, err)
-	require.Same(t, first, second)
-	var root yaml.Node
-	require.NoError(t, yaml.Unmarshal([]byte(`{openapi: 3.1.0}`), &root))
-	other, err := compilePackagedValueSchema(packagedValueDraft(documentContentNode(&root)), schema)
-	require.NoError(t, err)
-	require.NotSame(t, first, other, "the dialect is part of the cache key")
+func TestOpenLintPackageSchemaUsesCoreOnSelectedValue(t *testing.T) {
+	const path = "$.components.schemas.Value.enum"
+	for _, tc := range []struct{ input, want string }{
+		{"[{2: x}, {3: y}]", ""},
+		{"[{2: x}, {2: x}]", `"enum" property must not have duplicate items (items ## 0 and 1 are identical)`},
+		{"[1, 2, 1, 2]", `"enum" property must not have duplicate items (items ## 1 and 3 are identical)`},
+		{"[2, 2, 0, -0.0]", `"enum" property must not have duplicate items (items ## 2 and 3 are identical)`},
+		{"[2, 2, {a: [0]}, {a: [-0.0]}]", `"enum" property must not have duplicate items (items ## 2 and 3 are identical)`},
+	} {
+		var input yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(tc.input), &input))
+		ctx := model.RuleFunctionContext{Given: path, Contract: model.OpenLintV1Draft, Rule: &model.Rule{}, RuleAction: &model.RuleAction{}, Options: map[string]any{"schema": map[string]any{"type": "array", "uniqueItems": true}}}
+		got := OpenLintPackageFunction("oasSchema").RunRule(input.Content, ctx)
+		if tc.want == "" {
+			require.Empty(t, got)
+			continue
+		}
+		require.Len(t, got, 1)
+		require.Equal(t, path, got[0].Path)
+		require.Same(t, input.Content[0], got[0].StartNode)
+		require.Equal(t, tc.want, got[0].Message)
+	}
 }
