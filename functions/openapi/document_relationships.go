@@ -9,6 +9,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/openapi"
+	"github.com/daveshanley/vacuum/openapi/transform"
 	"github.com/daveshanley/vacuum/repair"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
@@ -113,7 +114,17 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 		}
 	}
 	v.Walk(doc)
+	// A Link can name an operation elsewhere in an already parsed document.
+	rolodex := ctx.Document.GetRolodex()
 	for _, t := range targets {
+		if !ids[t.id] && rolodex != nil {
+			for _, idx := range rolodex.GetIndexes() {
+				if idx != nil && idx != rolodex.GetRootIndex() {
+					transform.VisitOperationIDs(idx.GetRootNode(), func(id string) { ids[id] = true })
+				}
+			}
+			rolodex = nil // All loaded documents now share the ID table.
+		}
 		if !ids[t.id] {
 			add(t.node, t.pointer, fmt.Sprintf("link operationId %q does not resolve to an operation", t.id))
 		}

@@ -873,7 +873,7 @@ func GetOAS3DocumentRelationshipsRule() *model.Rule {
 		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
-		Description:  "Links must resolve, tag names and parents must be valid, and server defaults must match their enums in OpenAPI 3.1 and later.",
+		Description:  "Link operation IDs must resolve, tag names and parents must be valid, and server defaults must match their enums in OpenAPI 3.1 and later.",
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         Validation,
 		Severity:     model.SeverityError,
