@@ -864,6 +864,23 @@ func GetOAS3SchemaRule() *model.Rule {
 	}
 }
 
+// GetOAS3DocumentRelationshipsRule checks relationships between OpenAPI objects.
+func GetOAS3DocumentRelationshipsRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check OpenAPI document relationships",
+		Id:           Oas3DocumentRelationships,
+		Formats:      model.OAS3AllFormat,
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		Description:  "Links must resolve, tag names and parents must be valid, and server defaults must match their enums in OpenAPI 3.1 and later.",
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then:         model.RuleAction{Function: "oasDocumentRelationships"},
+	}
+}
+
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{

@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-var totalRules = 69
-var totalRecommendedRules = 55
+var totalRules = 70
+var totalRecommendedRules = 56
 var totalOwaspRules = 26
 
 type blockingRulesetTransport struct {
@@ -647,7 +647,7 @@ rules:
 	rs, err := CreateRuleSetFromData([]byte(yamlA))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 57)
+	assert.Len(t, override.Rules, totalRecommendedRules+2)
 	assert.Len(t, override.RuleDefinitions, 2)
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.NotNil(t, rs.Rules["dong"])

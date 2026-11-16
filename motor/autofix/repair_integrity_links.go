@@ -9,12 +9,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/daveshanley/vacuum/openapi"
 	"github.com/daveshanley/vacuum/repair"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 // repairLinkDefects follows typed OpenAPI model owners. Example properties named
@@ -36,65 +36,16 @@ func repairLinkDefects(document libopenapi.Document, root *yaml.Node) []repairDe
 	}
 	operations := make(map[*yaml.Node]operationOwner)
 	links := make(map[*yaml.Node]*v3.Link)
-	visited := make(map[*yaml.Node]bool)
-	var walkPaths func(*orderedmap.Map[string, *v3.PathItem], string)
-	var walkCallbacks func(*orderedmap.Map[string, *v3.Callback], string)
-	addLinks := func(values *orderedmap.Map[string, *v3.Link]) {
-		for _, link := range values.FromOldest() {
-			if link != nil && link.GoLow() != nil {
-				links[link.GoLow().RootNode] = link
+	visitor := openapi.OperationVisitor{
+		Operation: func(op *v3.Operation, site string) {
+			operations[op.GoLow().RootNode] = operationOwner{op.OperationId, op.GoLow().GetIndex(), site}
+			if op.OperationId != "" {
+				ids[op.OperationId] = true
 			}
-		}
+		},
+		Link: func(link *v3.Link, _ string) { links[link.GoLow().RootNode] = link },
 	}
-	response := func(r *v3.Response) {
-		if r != nil {
-			addLinks(r.Links)
-		}
-	}
-	walkCallbacks = func(callbacks *orderedmap.Map[string, *v3.Callback], prefix string) {
-		for name, cb := range callbacks.FromOldest() {
-			if cb != nil {
-				walkPaths(cb.Expression, prefix+"/"+repair.EscapeToken(name))
-			}
-		}
-	}
-	walkPaths = func(paths *orderedmap.Map[string, *v3.PathItem], prefix string) {
-		for path, p := range paths.FromOldest() {
-			if p == nil || p.GoLow() == nil || visited[p.GoLow().RootNode] {
-				continue
-			}
-			visited[p.GoLow().RootNode] = true
-			for method, op := range p.GetOperations().FromOldest() {
-				if op == nil || op.GoLow() == nil {
-					continue
-				}
-				operations[op.GoLow().RootNode] = operationOwner{op.OperationId, op.GoLow().GetIndex(), prefix + "/" + repair.EscapeToken(path) + "/" + repair.EscapeToken(method)}
-				if op.OperationId != "" {
-					ids[op.OperationId] = true
-				}
-				if op.Responses != nil {
-					response(op.Responses.Default)
-					for _, r := range op.Responses.Codes.FromOldest() {
-						response(r)
-					}
-				}
-				walkCallbacks(op.Callbacks, prefix+"/"+repair.EscapeToken(path)+"/"+repair.EscapeToken(method)+"/callbacks")
-			}
-		}
-	}
-	d := &built.Model
-	if d.Paths != nil {
-		walkPaths(d.Paths.PathItems, "/paths")
-	}
-	walkPaths(d.Webhooks, "/webhooks")
-	if d.Components != nil {
-		walkPaths(d.Components.PathItems, "/components/pathItems")
-		walkCallbacks(d.Components.Callbacks, "/components/callbacks")
-		addLinks(d.Components.Links)
-		for _, r := range d.Components.Responses.FromOldest() {
-			response(r)
-		}
-	}
+	visitor.Walk(&built.Model)
 	// Cross-parse low nodes need canonical position mapping before pointer lookup.
 	operationPaths := make(map[string]bool)
 	idOwners := make(map[string]map[string]repairDefect)
