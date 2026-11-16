@@ -124,7 +124,11 @@ func checkPackagedServerVariables(server packagedOperand, ctx model.RuleFunction
 	}
 	counts := make([]int, len(substitutions))
 	var invalid []string
-	for checked := 0; checked < maxServerVariableSubstitutions; checked++ {
+	for checked := 0; ; checked++ {
+		if checked == maxServerVariableSubstitutions {
+			results.add(at, fmt.Sprintf("Server URL validation is incomplete after %d substitutions.", checked))
+			break
+		}
 		if ctx.ExecutionContext != nil && ctx.ExecutionContext.Err() != nil {
 			return
 		}

@@ -106,6 +106,7 @@ func TestOpenLintServerVariableSubstitutionsAreBounded(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal([]byte(b.String()), &input))
 	started := time.Now()
 	results := OpenLintPackageFunction("serverVariables").RunRule(input.Content, model.RuleFunctionContext{Given: "$", ExecutionRoot: &yaml.Node{}, Contract: model.OpenLintV1Draft, Options: map[string]any{"checkSubstitutions": true}})
-	require.Empty(t, results)
+	require.Len(t, results, 1)
+	require.Equal(t, "Server URL validation is incomplete after 4096 substitutions.", results[0].Message)
 	require.Less(t, time.Since(started), 5*time.Second, "64,000,000 combinations must not all be parsed")
 }
