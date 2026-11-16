@@ -117,8 +117,17 @@ func ClassifyError(ctx ErrorContext) ErrorClassification {
 	}
 }
 
+func isExplicitProperty(schemaURL string) bool {
+	last := strings.LastIndexByte(schemaURL, '/')
+	return last >= 0 && strings.HasSuffix(schemaURL[:last], "/properties")
+}
+
 // classifyFalseSchema determines if a FalseSchema error is signal or noise
 func classifyFalseSchema(ctx ErrorContext) ErrorClassification {
+	// A property explicitly forbidden by a boolean schema is a real constraint.
+	if isExplicitProperty(ctx.SchemaURL) {
+		return ErrorClassHighPriority
+	}
 	// FalseSchema from constraint keywords = real error (property doesn't match allowed patterns)
 	switch ctx.SchemaKeyword {
 	case "unevaluatedProperties", "additionalProperties":
@@ -208,7 +217,7 @@ func (f OpenAPIErrorFormatter) Format(ctx ErrorContext) string {
 
 // formatFalseSchema generates specific messages for FalseSchema errors based on context
 func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
-	if len(ctx.InstanceLocation) >= 2 && ctx.InstanceLocation[0] == "paths" {
+	if len(ctx.InstanceLocation) == 2 && ctx.InstanceLocation[0] == "paths" {
 		pathKey := ctx.InstanceLocation[1]
 		if !strings.HasPrefix(pathKey, "/") && !strings.HasPrefix(pathKey, "x-") {
 			return fmt.Sprintf("path `%s` is invalid: paths must begin with `/` or `x-`", pathKey)
@@ -216,7 +225,7 @@ func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
 		return fmt.Sprintf("path `%s` is not allowed", pathKey)
 	}
 
-	if ctx.SchemaKeyword == "unevaluatedProperties" && len(ctx.InstanceLocation) > 0 {
+	if len(ctx.InstanceLocation) > 0 && (ctx.SchemaKeyword == "unevaluatedProperties" || isExplicitProperty(ctx.SchemaURL)) {
 		property := ctx.InstanceLocation[len(ctx.InstanceLocation)-1]
 		return fmt.Sprintf("property `%s` is not allowed", property)
 	}
@@ -321,7 +330,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		results = append(results, nameResults...)
 	}
 	if version >= 3.1 {
-		nullableResults := checkForNullableKeyword(context)
+		nullableResults := checkSchemaVocabulary(context)
 		results = append(results, nullableResults...)
 	}
 
@@ -534,17 +543,33 @@ func hashDocumentValidationResult(res *model.RuleFunctionResult) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", res.Path, line, column, res.Message))))
 }
 
-// checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents
-func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunctionResult {
+// checkSchemaVocabulary checks version-specific fields on typed OpenAPI schemas.
+func checkSchemaVocabulary(context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if context.DrDocument == nil {
 		return results
 	}
 
-	// Check all schemas for nullable keyword
+	// Validate OAS vocabulary fields on typed Schema Objects.
 	if context.DrDocument.Schemas != nil {
 		for _, schema := range context.DrDocument.Schemas {
+			if schema.Value != nil && schema.Value.XML != nil && context.SpecInfo != nil && context.SpecInfo.VersionNumeric >= 3.2 {
+				xml := schema.Value.XML.GoLow()
+				if xml != nil && xml.NodeType.ValueNode != nil {
+					for _, field := range []struct {
+						name string
+						node *yaml.Node
+					}{
+						{"attribute", xml.Attribute.KeyNode}, {"wrapped", xml.Wrapped.KeyNode},
+					} {
+						if field.node != nil {
+							path := schema.GenerateJSONPath() + ".xml." + field.name
+							results = append(results, schemaFieldResult(path, field.node, "xml."+field.name+" cannot be used with xml.nodeType", context.Rule))
+						}
+					}
+				}
+			}
 			if schema.Value != nil && schema.Value.Nullable != nil && *schema.Value.Nullable {
 				// Found nullable keyword in OpenAPI 3.1+ schema
 				result := model.RuleFunctionResult{
