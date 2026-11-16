@@ -138,7 +138,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "GET: paths `/pizza/{cake}/{limes}` and `/pizza/{minty}/{tape}` must not be equivalent, paths must be unique for the same HTTP method", res[0].Message)
+	assert.Equal(t, "paths `/pizza/{cake}/{limes}` and `/pizza/{minty}/{tape}` have equivalent templates", res[0].Message)
 
 }
 
@@ -634,7 +634,7 @@ paths:
 }
 
 func TestPathParameters_RunRule_Issue740_ThreeDifferentMethods(t *testing.T) {
-	// Test that three paths with same normalized pattern but different methods don't conflict
+	// All three path templates identify the same resource.
 	yml := `openapi: 3.1.0
 paths:
   /api/users/{userId}/items/{itemId}:
@@ -688,8 +688,10 @@ paths:
 	def := PathParameters{}
 	res := def.RunRule(nil, ctx)
 
-	// Should be NO errors - all different methods
-	assert.Len(t, res, 0)
+	if assert.Len(t, res, 2) {
+		assert.Contains(t, res[0].Message, "/api/users/{customerId}/items/{productId}")
+		assert.Contains(t, res[1].Message, "/api/users/{accountId}/items/{objectId}")
+	}
 }
 
 func TestPathParameters_RunRule_Issue740_SameMethodConflict(t *testing.T) {
@@ -710,13 +712,13 @@ paths:
           in: path
           required: true
   /api/resources/{resourceId}:
-    get:  # This should conflict with the GET above
+    get:
       summary: Get resource by resource ID
       parameters:
         - name: resourceId
           in: path
           required: true
-    put:  # This should NOT conflict (different method)
+    put:
       summary: Update resource
       parameters:
         - name: resourceId
@@ -743,10 +745,9 @@ paths:
 	def := PathParameters{}
 	res := def.RunRule(nil, ctx)
 
-	// Should have exactly 1 error for the duplicate GET methods
+	// Two methods on each path still produce just one duplicate path finding.
 	assert.Len(t, res, 1)
-	assert.Contains(t, res[0].Message, "GET: paths")
-	assert.Contains(t, res[0].Message, "must not be equivalent")
+	assert.Contains(t, res[0].Message, "equivalent templates")
 	assert.Contains(t, res[0].Message, "/api/resources/{id}")
 	assert.Contains(t, res[0].Message, "/api/resources/{resourceId}")
 }
@@ -757,6 +758,12 @@ info:
   title: "Test"
   version: "1.0"
 paths:
+  /users/%20:
+    get: {}
+    post: {}
+  /users/{id}20:
+    parameters: [{name: id, in: path, required: true, schema: {type: string}}]
+    delete: {}
   /users/{id}:
     get:
       summary: Get user
