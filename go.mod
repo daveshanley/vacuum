@@ -23,7 +23,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/json-iterator/go v1.1.12
 	github.com/muesli/termenv v0.16.0
-	github.com/nlnwa/whatwg-url v0.6.2
 	github.com/pb33f/doctor v0.0.89
 	github.com/pb33f/go-yaml v0.2.0
 	github.com/pb33f/jsonpath v0.8.5
@@ -53,7 +52,6 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/basgys/goxml2json v1.1.1-0.20231018121955-e66ee54ceaad // indirect
-	github.com/bits-and-blooms/bitset v1.24.6 // indirect
 	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect

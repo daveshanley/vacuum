@@ -7,15 +7,18 @@
 package openapi
 
 import (
+	"errors"
 	"fmt"
-
+	"math"
+	"net/netip"
+	"net/url"
 	"regexp"
-
+	"strconv"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
-	whatwg "github.com/nlnwa/whatwg-url/url"
 	"github.com/pb33f/go-yaml"
+	"golang.org/x/net/idna"
 )
 
 var packagedServerVariable = regexp.MustCompile(`\{(.+?)\}`)
@@ -177,7 +180,241 @@ func encodeServerVariable(s string) string {
 	return b.String()
 }
 
+// OpenLint checks each substituted URL with JavaScript's new URL(), which
+// follows the WHATWG URL Standard. Only validity matters here, so this applies
+// the standard's scheme, host and port rules without building a parsed URL.
+// TestPackagedServerURLMatchesWHATWG pins the expected results to Node.
 func validPackagedServerURL(raw string) bool {
-	_, err := whatwg.Parse(raw)
-	return err == nil
+	raw = strings.Trim(raw, "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\v\f\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f ")
+	raw = strings.NewReplacer("\t", "", "\n", "", "\r", "").Replace(raw)
+	colon := strings.IndexByte(raw, ':')
+	if colon < 1 || !validURLScheme(raw[:colon]) {
+		return false
+	}
+	scheme := strings.ToLower(raw[:colon])
+	switch scheme {
+	case "http", "https", "ws", "wss", "ftp":
+	case "file":
+		// A file host may be empty or a Windows drive letter, and never has a port.
+		rest := strings.ReplaceAll(raw[colon+1:], "\\", "/")
+		if !strings.HasPrefix(rest, "//") {
+			return true
+		}
+		host := rest[2:]
+		if end := strings.IndexAny(host, "/?#"); end >= 0 {
+			host = host[:end]
+		}
+		if host == "" || len(host) == 2 && validURLScheme(host[:1]) && (host[1] == ':' || host[1] == '|') {
+			return true
+		}
+		return validSpecialURLHost(host)
+	default:
+		// Non-special URLs accept an opaque path, so only an authority
+		// introduced by "//" is checked.
+		rest := raw[colon+1:]
+		if !strings.HasPrefix(rest, "//") {
+			return true
+		}
+		authority := rest[2:]
+		if end := strings.IndexAny(authority, "/?#"); end >= 0 {
+			authority = authority[:end]
+		}
+		host, port, ok := splitURLAuthority(authority)
+		if !ok || !validURLPort(port) {
+			return false
+		}
+		// An empty host is valid only without credentials or a port.
+		if host == "" {
+			return authority == ""
+		}
+		return validOpaqueURLHost(host)
+	}
+	// Special URLs treat backslashes as slashes and ignore any number of
+	// slashes before the authority, so "https:example.com" has a host.
+	rest := strings.TrimLeft(strings.ReplaceAll(raw[colon+1:], "\\", "/"), "/")
+	authority := rest
+	if end := strings.IndexAny(authority, "/?#"); end >= 0 {
+		authority = authority[:end]
+	}
+	host, port, ok := splitURLAuthority(authority)
+	if !ok || host == "" || !validURLPort(port) {
+		return false
+	}
+	return validSpecialURLHost(host)
+}
+
+func validURLScheme(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		alpha := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+		if !alpha && (i == 0 || !(c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.')) {
+			return false
+		}
+	}
+	return s != ""
+}
+
+// splitURLAuthority drops userinfo and separates the host from the port.
+func splitURLAuthority(authority string) (host, port string, ok bool) {
+	if at := strings.LastIndexByte(authority, '@'); at >= 0 {
+		authority = authority[at+1:]
+	}
+	if strings.HasPrefix(authority, "[") {
+		end := strings.IndexByte(authority, ']')
+		if end < 0 {
+			return "", "", false
+		}
+		host, rest := authority[:end+1], authority[end+1:]
+		if rest == "" {
+			return host, "", true
+		}
+		if !strings.HasPrefix(rest, ":") {
+			return "", "", false
+		}
+		return host, rest[1:], true
+	}
+	if colon := strings.IndexByte(authority, ':'); colon >= 0 {
+		return authority[:colon], authority[colon+1:], true
+	}
+	return authority, "", true
+}
+
+func validURLPort(port string) bool {
+	if port == "" {
+		return true
+	}
+	for i := 0; i < len(port); i++ {
+		if port[i] < '0' || port[i] > '9' {
+			return false
+		}
+	}
+	n, err := strconv.ParseUint(port, 10, 64)
+	return err == nil && n <= 65535
+}
+
+func validIPv6URLHost(host string) bool {
+	addr, err := netip.ParseAddr(host[1 : len(host)-1])
+	return err == nil && addr.Is6() && addr.Zone() == ""
+}
+
+func validOpaqueURLHost(host string) bool {
+	if strings.HasPrefix(host, "[") {
+		return strings.HasSuffix(host, "]") && validIPv6URLHost(host)
+	}
+	for i := 0; i < len(host); i++ {
+		if c := host[i]; c != '%' && forbiddenURLHostByte(c) {
+			return false
+		}
+	}
+	return true
+}
+
+var urlHostProfile = idna.New(
+	idna.MapForLookup(),
+	idna.Transitional(false),
+	idna.CheckHyphens(false),
+	idna.CheckJoiners(true),
+	idna.BidiRule(),
+	idna.StrictDomainName(false),
+	idna.VerifyDNSLength(false),
+)
+
+func validSpecialURLHost(host string) bool {
+	if strings.HasPrefix(host, "[") {
+		return strings.HasSuffix(host, "]") && validIPv6URLHost(host)
+	}
+	decoded, err := url.PathUnescape(host)
+	if err != nil {
+		return false
+	}
+	ascii, err := urlHostProfile.ToASCII(decoded)
+	if err != nil || ascii == "" {
+		return false
+	}
+	for i := 0; i < len(ascii); i++ {
+		if c := ascii[i]; forbiddenURLHostByte(c) || c == '%' || c == 0x7f || c < 0x20 {
+			return false
+		}
+	}
+	if !urlHostEndsInNumber(ascii) {
+		return true
+	}
+	return validURLIPv4(ascii)
+}
+
+func forbiddenURLHostByte(c byte) bool {
+	switch c {
+	case 0, '\t', '\n', '\r', ' ', '#', '/', ':', '<', '>', '?', '@', '[', '\\', ']', '^', '|':
+		return true
+	}
+	return false
+}
+
+func urlIPv4Labels(host string) []string {
+	labels := strings.Split(host, ".")
+	if len(labels) > 1 && labels[len(labels)-1] == "" {
+		labels = labels[:len(labels)-1]
+	}
+	return labels
+}
+
+// A host whose last label is a number must be a valid IPv4 address.
+func urlHostEndsInNumber(host string) bool {
+	labels := urlIPv4Labels(host)
+	last := labels[len(labels)-1]
+	if last == "" {
+		return false
+	}
+	if strings.Trim(last, "0123456789") == "" {
+		return true
+	}
+	_, ok := parseURLIPv4Number(last)
+	return ok
+}
+
+func parseURLIPv4Number(s string) (uint64, bool) {
+	if s == "" {
+		return 0, false
+	}
+	base := 10
+	switch {
+	case len(s) >= 2 && (s[:2] == "0x" || s[:2] == "0X"):
+		s, base = s[2:], 16
+		if s == "" {
+			return 0, true
+		}
+	case len(s) >= 2 && s[0] == '0':
+		s, base = s[1:], 8
+	}
+	n, err := strconv.ParseUint(s, base, 64)
+	if err != nil {
+		// Digits beyond 64 bits still form a number, just an out-of-range one.
+		var numErr *strconv.NumError
+		if errors.As(err, &numErr) && numErr.Err == strconv.ErrRange {
+			return math.MaxUint64, true
+		}
+		return 0, false
+	}
+	return n, true
+}
+
+func validURLIPv4(host string) bool {
+	labels := urlIPv4Labels(host)
+	if len(labels) > 4 {
+		return false
+	}
+	for i, label := range labels {
+		n, ok := parseURLIPv4Number(label)
+		if !ok {
+			return false
+		}
+		if i < len(labels)-1 {
+			if n > 255 {
+				return false
+			}
+			continue
+		}
+		return n < uint64(1)<<(8*(5-len(labels)))
+	}
+	return false
 }
