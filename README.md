@@ -4,7 +4,7 @@
 </picture>
 
 
-# The best OpenAPI, AsyncAPI, Arazzo and JSON Schema toolkit.
+# OpenAPI, AsyncAPI, Arazzo and JSON Schema toolkit.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
