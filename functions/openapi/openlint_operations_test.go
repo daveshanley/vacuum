@@ -110,3 +110,50 @@ func TestOpenLintServerVariableSubstitutionsAreBounded(t *testing.T) {
 	require.Equal(t, "Server URL validation is incomplete after 4096 substitutions.", results[0].Message)
 	require.Less(t, time.Since(started), 5*time.Second, "64,000,000 combinations must not all be parsed")
 }
+
+// Expected values come from Node's new URL(), the parser OpenLint uses.
+func TestPackagedServerURLMatchesWHATWG(t *testing.T) {
+	for _, tc := range []struct {
+		raw   string
+		valid bool
+	}{
+		{"https://example.com/api", true},
+		{"https:example.com", true},
+		{"https:\\\\example.com", true},
+		{"HTTPS://EXAMPLE.com", true},
+		{"https://999.300.0.1/api", false},
+		{"https://1.2.3", true},
+		{"https://0x7f.1", true},
+		{"https://1.2.3.4.5", false},
+		{"https://a.09", false},
+		{"https://4294967296", false},
+		{"https://example.org:65535", true},
+		{"https://example.org:65536", false},
+		{"https://example.org:8a", false},
+		{"https://[::1]:8080", true},
+		{"https://[::1", false},
+		{"https://[fe80::1%25eth0]", false},
+		{"https://ex%41mple.com", true},
+		{"https://ex%2Fample.com", false},
+		{"https://ex ample.com", false},
+		{"https://ex^ample.com", false},
+		{"https://bücher.de", true},
+		{"https://é_b", true},
+		{"https://xn--zz", false},
+		{"https://user:pass@example.com", true},
+		{"https://", false},
+		{"https://:80", false},
+		{"file:///etc/hosts", true},
+		{"file://C:/x", true},
+		{"file://example.com:80", false},
+		{"custom:anything at all", true},
+		{"custom://:", false},
+		{"custom://user@", false},
+		{"custom://host:99999", false},
+		{"mailto:dev@example.com", true},
+		{"1http://example.com", false},
+		{"relative/path", false},
+	} {
+		require.Equal(t, tc.valid, validPackagedServerURL(tc.raw), tc.raw)
+	}
+}
