@@ -196,6 +196,31 @@ paths:
 	assert.Equal(t, "operation `changeMelody` must define at least a single `2xx` or `3xx` response", res[0].Message)
 }
 
+func TestSuccessResponse_RangeCodeInExtensionValue(t *testing.T) {
+
+	// an extension value that looks like a status code is not a response
+	yml := `openapi: 3.1.0
+paths:
+  /melody:
+    get:
+      operationId: listMelodies
+      responses:
+        x-status-family: "2XX"
+        "4XX":
+          description: hello`
+
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction("$", "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, index.CreateOpenAPIIndexConfig())
+	ctx.SpecInfo = info
+
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+}
+
 func TestSuccessResponse_RangeCodes_Swagger(t *testing.T) {
 
 	// Swagger 2.0 has no range codes, so 2XX is not a success response there.

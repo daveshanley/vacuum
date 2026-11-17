@@ -70,7 +70,10 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 						var responseInvalidType bool
 						var responseCode int
 						var invalidCodes []int
-						for _, response := range valNode.Content {
+						// only the response keys are status codes; the values are response objects
+						// or extension values, which must not count as a success response.
+						for i := 0; i < len(valNode.Content); i += 2 {
+							response := valNode.Content[i]
 							if utils.IsNodeStringValue(response) {
 								responseCode, _ = strconv.Atoi(response.Value)
 								if responseCode >= 200 && responseCode < 400 {
