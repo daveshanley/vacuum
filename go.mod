@@ -28,7 +28,7 @@ require (
 	github.com/pb33f/jsonpath v0.8.5
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.7
-	github.com/pb33f/libopenapi v0.42.6-0.20261116163002-79ba2485445f
+	github.com/pb33f/libopenapi v0.43.0
 	github.com/pb33f/libopenapi-validator v0.16.3
 	github.com/pb33f/testify v0.1.1
 	github.com/sergi/go-diff v1.4.0
