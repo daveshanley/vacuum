@@ -20,6 +20,9 @@ func TestOpenAPINativeDocumentRelationships(t *testing.T) {
 		rule                *model.Rule
 		violations          []string
 	}{
+		{"null operation", "3.1.1", `paths:
+  /items: {get: null}
+`, rulesets.GetOAS3SchemaRule(), []string{"$.paths['/items'].get"}},
 		{"missing link target", "3.1.1", `components:
   links:
     next: {operationId: missing, server: {url: /}}
