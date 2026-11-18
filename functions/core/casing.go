@@ -274,9 +274,10 @@ func (c *Casing) compileExpressions() {
 	c.camel = fmt.Sprintf("[a-z][a-z%[1]s]*(?:[A-Z%[1]s](?:[a-z%[1]s]+|$))*", digits)
 	c.pascal = fmt.Sprintf("[A-Z][a-z%[1]s]*(?:[A-Z%[1]s](?:[a-z%[1]s]+|$))*", digits)
 	c.pascalKebab = fmt.Sprintf("[A-Z][a-z%[1]s]*(-[A-Z][a-z%[1]s]*)*", digits)
-	c.kebab = fmt.Sprintf("[a-z%[1]s-]+", digits)
-	c.cobol = fmt.Sprintf("[A-Z%[1]s-]+", digits)
-	c.snake = fmt.Sprintf("[a-z%[1]s_]+", digits)
-	c.macro = fmt.Sprintf("[A-Z%[1]s_]+", digits)
+	// words start with a letter and are joined by single separators, as in Spectral
+	c.kebab = fmt.Sprintf("[a-z][a-z%[1]s]*(?:-[a-z%[1]s]+)*", digits)
+	c.cobol = fmt.Sprintf("[A-Z][A-Z%[1]s]*(?:-[A-Z%[1]s]+)*", digits)
+	c.snake = fmt.Sprintf("[a-z][a-z%[1]s]*(?:_[a-z%[1]s]+)*", digits)
+	c.macro = fmt.Sprintf("[A-Z][A-Z%[1]s]*(?:_[A-Z%[1]s]+)*", digits)
 	c.compiled = true
 }

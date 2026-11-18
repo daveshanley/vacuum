@@ -853,3 +853,51 @@ func TestCasing_RunRule_ThenField_AtKeyChecksKeys(t *testing.T) {
 	assert.Len(t, res, 1)
 	assert.Contains(t, res[0].Message, "`bad_name` is not `pascal` case")
 }
+
+// kebab, cobol, snake and macro values are words joined by single separators,
+// each word starting with a letter, as in Spectral. A leading, trailing or
+// doubled separator, or a leading digit, is not in the case.
+func TestCasing_RunRule_SeparatedCaseWords(t *testing.T) {
+	tests := []struct {
+		casingType string
+		pass       []string
+		fail       []string
+	}{
+		{"kebab", []string{"a", "is-what-makes-life", "v1-api", "a1-2b"},
+			[]string{"-leading", "trailing-", "double--hyphen", "1st-tag", "-", "---"}},
+		{"cobol", []string{"A", "IS-WHAT-MAKES-LIFE", "V1-API"},
+			[]string{"-LEADING", "TRAILING-", "DOUBLE--HYPHEN", "1ST-TAG", "---"}},
+		{"snake", []string{"a", "list_things", "v1_api"},
+			[]string{"_private", "trailing_", "double__under", "9lives", "_", "___"}},
+		{"macro", []string{"A", "LIST_THINGS", "V1_API"},
+			[]string{"_PRIVATE", "TRAILING_", "DOUBLE__UNDER", "9LIVES", "___"}},
+	}
+
+	for _, tc := range tests {
+		for _, value := range append(append([]string{}, tc.pass...), tc.fail...) {
+			sampleYaml := "value: '" + value + "'"
+			path := "$.value"
+
+			nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+			assert.Len(t, nodes, 1)
+
+			opts := map[string]any{"type": tc.casingType}
+
+			rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+			ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+			ctx.Given = path
+			ctx.Rule = &rule
+
+			def := &Casing{}
+			res := def.RunRule(nodes, ctx)
+
+			want := 0
+			for _, f := range tc.fail {
+				if f == value {
+					want = 1
+				}
+			}
+			assert.Len(t, res, want, "%s: %q", tc.casingType, value)
+		}
+	}
+}
