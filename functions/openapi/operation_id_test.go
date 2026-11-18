@@ -28,7 +28,7 @@ paths:
     post:
       operationId: littleSong
   /maddox:
-    get:
+    get: {}
   /ember:
     get:
       operationId: littleMenace`
@@ -53,7 +53,9 @@ paths:
 	def := OperationId{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
+	if !assert.Len(t, res, 1) {
+		return
+	}
 	assert.Equal(t, "the `GET` operation does not contain an `operationId`", res[0].Message)
 }
 
