@@ -23,13 +23,13 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/json-iterator/go v1.1.12
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.88
-	github.com/pb33f/go-yaml v0.1.1
+	github.com/pb33f/doctor v0.0.89
+	github.com/pb33f/go-yaml v0.2.0
 	github.com/pb33f/jsonpath v0.8.5
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.7
-	github.com/pb33f/libopenapi v0.43.0
-	github.com/pb33f/libopenapi-validator v0.16.3
+	github.com/pb33f/libopenapi v0.43.2
+	github.com/pb33f/libopenapi-validator v0.16.4
 	github.com/pb33f/testify v0.1.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
