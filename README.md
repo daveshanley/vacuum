@@ -146,7 +146,19 @@ come say hi!
 
 ## Documentation
 
-🔥 **v0.40** 🔥: **Autofix**
+🔥 **v0.42** 🔥: **OpenAPI validation**
+
+Catch broken Link targets, duplicate tags and invalid server variable defaults. Updated schema checks cover OpenAPI 3.1 and 3.2.
+
+Native lint can report errors on specs that passed before. Equivalent path templates conflict even when their HTTP methods differ.
+
+- [Document relationships](https://quobix.com/vacuum/rules/validation/oas3-document-relationships/)
+- [Path parameter changes](https://quobix.com/vacuum/rules/operations/path-params/#changed-in-v0420)
+- [OpenAPI schema validation](https://quobix.com/vacuum/rules/validation/oas3-schema/)
+
+---
+
+`v0.40`: **Autofix**
 
 Found problems? Can't be bothered to fix them? vacuum can auto-fix your linting issues for you.
 
