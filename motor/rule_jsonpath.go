@@ -65,8 +65,12 @@ func findRuleGivenNodes(
 
 func compileRuleGivenPath(expression string, cache *sync.Map, contract model.Contract) (*jsonpath.JSONPath, error) {
 	cleaned := openapiUtils.FixContext(expression)
+	cacheKey := struct {
+		expression string
+		contract   model.Contract
+	}{cleaned, contract}
 	if cache != nil {
-		if cached, ok := cache.Load(cleaned); ok {
+		if cached, ok := cache.Load(cacheKey); ok {
 			entry := cached.(cachedRuleJSONPath)
 			return entry.path, entry.err
 		}
@@ -74,30 +78,30 @@ func compileRuleGivenPath(expression string, cache *sync.Map, contract model.Con
 
 	selector := cleaned
 	if contract == model.OpenLintV1Draft {
-		selector = openLintSlashMembers(selector)
+		selector = openLintLiteralMembers(selector)
 	}
 	path, err := jsonpath.NewPath(selector,
 		jsonpathConfig.WithSpectralCompatibility(),
 		jsonpathConfig.WithLazyContextTracking(),
 	)
 	if cache != nil {
-		actual, _ := cache.LoadOrStore(cleaned, cachedRuleJSONPath{path: path, err: err})
+		actual, _ := cache.LoadOrStore(cacheKey, cachedRuleJSONPath{path: path, err: err})
 		entry := actual.(cachedRuleJSONPath)
 		return entry.path, entry.err
 	}
 	return path, err
 }
 
-// OpenLint accepts a slash-prefixed member after a dot. Use the JSONPath
-// parser's literal-member escape only at that token boundary.
-func openLintSlashMembers(expression string) string {
-	if !strings.Contains(expression, "./") {
+// OpenLint accepts slash-prefixed and hyphenated members after a dot. Use
+// the parser's literal-member escape outside brackets and filter expressions.
+func openLintLiteralMembers(expression string) string {
+	if !strings.Contains(expression, "./") && !strings.Contains(expression, "-") {
 		return expression
 	}
 	tokens := token.NewTokenizer(expression, jsonpathConfig.WithSpectralCompatibility()).Tokenize()
 	var out strings.Builder
 	bracketDepth, offset, copied := 0, 0, 0
-	for i, t := range tokens {
+	for _, t := range tokens {
 		// Token lengths are in bytes and exclude whitespace between tokens.
 		for offset < len(expression) && strings.ContainsRune(" \t\r\n", rune(expression[offset])) {
 			offset++
@@ -107,12 +111,20 @@ func openLintSlashMembers(expression string) string {
 			bracketDepth++
 		case token.BRACKET_RIGHT:
 			bracketDepth--
-		case token.ILLEGAL:
-			if bracketDepth == 0 && i > 0 && (tokens[i-1].Token == token.CHILD || tokens[i-1].Token == token.RECURSIVE) &&
-				t.Literal == "/" && offset > 0 && offset < len(expression) && expression[offset-1:offset+1] == "./" {
-				out.WriteString(expression[copied:offset])
+		case token.CHILD, token.RECURSIVE:
+			start := offset + t.Len
+			if bracketDepth != 0 || start >= len(expression) || expression[start] == '`' {
+				break
+			}
+			end := start
+			for end < len(expression) && !strings.ContainsRune(".[],^~\"' \t\r\n", rune(expression[end])) {
+				end++
+			}
+			member := expression[start:end]
+			if strings.HasPrefix(member, "/") || strings.Contains(member, "-") {
+				out.WriteString(expression[copied:start])
 				out.WriteByte('`')
-				copied = offset
+				copied = start
 			}
 		}
 		offset += t.Len
