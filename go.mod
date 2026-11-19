@@ -29,7 +29,7 @@ require (
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.7
 	github.com/pb33f/libopenapi v0.43.2
-	github.com/pb33f/libopenapi-validator v0.16.5-0.20261119170455-9f66d8679f1e
+	github.com/pb33f/libopenapi-validator v0.16.5
 	github.com/pb33f/testify v0.1.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
