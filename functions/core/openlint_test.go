@@ -4,6 +4,7 @@
 package core
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -191,7 +192,7 @@ func TestOpenLintSchemaDialectPrecedence(t *testing.T) {
 	require.Len(t, (Schema{}).RunRule(root.Content, ctx), 1)
 }
 
-func TestOpenLintAlphabeticalDoesNotCompareAcrossTypes(t *testing.T) {
+func TestOpenLintAlphabeticalPreservesNativeComparison(t *testing.T) {
 	for _, source := range []string{`[z, null, a]`, `[{rank: 2}, {rank: 10}]`} {
 		var root yaml.Node
 		require.NoError(t, yaml.Unmarshal([]byte(source), &root))
@@ -200,7 +201,11 @@ func TestOpenLintAlphabeticalDoesNotCompareAcrossTypes(t *testing.T) {
 			opts["keyedBy"] = "rank"
 		}
 		ctx := openLintTestContext("alphabetical", opts)
-		require.Empty(t, (Alphabetical{}).RunRule(root.Content, ctx))
+		if source == `[z, null, a]` {
+			require.Len(t, (Alphabetical{}).RunRule(root.Content, ctx), 1)
+		} else {
+			require.Empty(t, (Alphabetical{}).RunRule(root.Content, ctx))
+		}
 		ctx.Contract = model.NativeContract
 		require.Len(t, (Alphabetical{}).RunRule(root.Content, ctx), 1)
 	}
@@ -273,4 +278,114 @@ func TestNativePatternIgnoresEmptyNotMatch(t *testing.T) {
 	require.Empty(t, (Pattern{}).RunRule([]*yaml.Node{node}, ctx))
 	ctx.Contract = model.OpenLintV1Draft
 	require.Len(t, (Pattern{}).RunRule([]*yaml.Node{node}, ctx), 1)
+}
+
+func TestOpenLintAlphabeticalProposedComparisonPreservesNative(t *testing.T) {
+	for _, tc := range []struct {
+		name, source, keyedBy string
+		keyed                 bool
+		openlint, native      int
+	}{
+		{name: "fraction descending", source: `[1.5, 1]`, openlint: 1, native: 1},
+		{name: "fraction ascending", source: `[1, 1.5]`},
+		{name: "equal", source: `[1.5, 1.5]`},
+		{name: "negative fraction", source: `[-1, -1.5]`, openlint: 1, native: 1},
+		{name: "number then numeric string", source: `[1.5, "1"]`, openlint: 1},
+		{name: "number then empty string", source: `[1, ""]`, openlint: 1},
+		{name: "numeric string then number", source: `["2", 1]`},
+		{name: "word then numeric string", source: `[b, "1"]`, native: 1},
+		{name: "two numeric strings", source: `["9", "10"]`, openlint: 1, native: 1},
+		{name: "numeric then nonnumeric string", source: `["2", "1a"]`, openlint: 1, native: 1},
+		{name: "first problem only", source: `[z, y, x]`, openlint: 1, native: 2},
+		{name: "null last", source: `[a, null]`, openlint: 1},
+		{name: "boolean first", source: `[true, a]`, openlint: 1},
+		{name: "array last", source: `[a, []]`, openlint: 1},
+		{name: "object last", source: `[a, {}]`, openlint: 1},
+		{name: "single invalid", source: `[false]`},
+		{name: "single missing key", source: `[false]`, keyed: true, keyedBy: "name"},
+		{name: "missing key", source: `[{name: a}, {title: b}]`, keyed: true, keyedBy: "name", openlint: 1},
+		{name: "keyed nonobject", source: `[{name: a}, b]`, keyed: true, keyedBy: "name", openlint: 1},
+		{name: "keyed array", source: `[{name: a}, [b]]`, keyed: true, keyedBy: "name", openlint: 1},
+		{name: "keyed boolean", source: `[{name: a}, {name: false}]`, keyed: true, keyedBy: "name", openlint: 1},
+		{name: "keyed object", source: `{b: 1, a: 2}`, keyed: true, keyedBy: "name", openlint: 1},
+		{name: "keyed fractions", source: `[{rank: 1.5}, {rank: 1}]`, keyed: true, keyedBy: "rank", openlint: 1, native: 1},
+		{name: "keyed first problem", source: `[{name: z}, {name: y}, {name: x}]`, keyed: true, keyedBy: "name", openlint: 1, native: 2},
+		{name: "numeric object keys are strings", source: `{2: a, 10: b}`, openlint: 1},
+		{name: "empty keyed property", source: `[{"": z}, {"": a}]`, keyed: true, openlint: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var root yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(tc.source), &root))
+			opts := map[string]any{}
+			if tc.keyed {
+				opts["keyedBy"] = tc.keyedBy
+			}
+			ctx := openLintTestContext("alphabetical", opts)
+			results := (Alphabetical{}).RunRule(root.Content, ctx)
+			require.Len(t, results, tc.openlint)
+			ctx.Contract = model.NativeContract
+			require.Len(t, (Alphabetical{}).RunRule(root.Content, ctx), tc.native)
+		})
+	}
+}
+
+func TestOpenLintAlphabeticalNumericStringGrammar(t *testing.T) {
+	// YAML folds NEL into a space; test the original string at the parser boundary.
+	_, numeric := openLintNumericString("\u00852")
+	require.False(t, numeric)
+	for _, tc := range []struct {
+		text  string
+		value float64
+	}{
+		{"0x10", 16}, {"0X10", 16}, {"0b11", 3}, {"0B11", 3}, {"0o17", 15}, {"0O17", 15},
+		{"1e1", 10}, {"1E+1", 10}, {".5", 0.5}, {"5.", 5}, {"+4", 4}, {"-1", -1},
+		{" 2 ", 2}, {"\t2\n", 2}, {" 2\u3000", 2}, {"\ufeff2\u2028", 2}, {"", 0}, {" ", 0},
+	} {
+		t.Run(tc.text, func(t *testing.T) {
+			for _, delta := range []float64{0, 0.5} {
+				data, err := json.Marshal([]any{tc.value + delta, tc.text})
+				require.NoError(t, err)
+				var root yaml.Node
+				require.NoError(t, yaml.Unmarshal(data, &root))
+				results := (Alphabetical{}).RunRule(root.Content, openLintTestContext("alphabetical", nil))
+				if delta == 0 {
+					require.Empty(t, results)
+				} else {
+					require.Len(t, results, 1)
+				}
+			}
+		})
+	}
+	for _, text := range []string{"1_000", "0x", "0x1G", "0x1_0", "0b1_0", "-0x1", "+0b1", "0x+1", "0b-1", "1e", "1,5", "1n", "- 1", "\u200b2", "one", "NaN", "infinity", "Inf", "0x1p2"} {
+		t.Run(text, func(t *testing.T) {
+			data, err := json.Marshal([]any{1000000, text})
+			require.NoError(t, err)
+			var root yaml.Node
+			require.NoError(t, yaml.Unmarshal(data, &root))
+			require.Empty(t, (Alphabetical{}).RunRule(root.Content, openLintTestContext("alphabetical", nil)))
+		})
+	}
+	for _, source := range []string{`[0, "-Infinity"]`, `["j", "infinity"]`, `["o", "NaN"]`} {
+		var root yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(source), &root))
+		require.Len(t, (Alphabetical{}).RunRule(root.Content, openLintTestContext("alphabetical", nil)), 1)
+	}
+	for _, source := range []string{`["zzz", "Infinity"]`, `["zzz", "+Infinity"]`, `[1, "1e999"]`, `["zzz", "0xffffffffffffffffffffffffffffffff"]`} {
+		var root yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(source), &root))
+		require.Empty(t, (Alphabetical{}).RunRule(root.Content, openLintTestContext("alphabetical", nil)))
+	}
+}
+
+func TestOpenLintAlphabeticalFirstFindingLocation(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("[z, y, x]"), &root))
+	ctx := openLintTestContext("alphabetical", nil)
+	results := (Alphabetical{}).RunRule(root.Content, ctx)
+	require.Len(t, results, 1)
+	require.Equal(t, "$.value[0]", results[0].Path)
+	require.Same(t, root.Content[0].Content[0], results[0].StartNode)
+	ctx.Rule.Message = "custom ordering message"
+	results = (Alphabetical{}).RunRule(root.Content, ctx)
+	require.Equal(t, "custom ordering message", results[0].Message)
 }

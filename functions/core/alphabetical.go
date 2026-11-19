@@ -5,9 +5,15 @@
 package core
 
 import (
+	"math"
+	"math/big"
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
+
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
-	"strconv"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -41,7 +47,10 @@ func (a Alphabetical) GetCategory() string {
 
 // RunRule reports unordered adjacent values. Plain maps report their first unordered pair.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	keyedBy := context.GetOptionsStringMap()["keyedBy"]
+	keyedBy, keyed := context.GetOptionsStringMap()["keyedBy"]
+	if context.Contract != model.OpenLintV1Draft {
+		keyed = keyedBy != ""
+	}
 	var ordering *collate.Collator
 	if context.Contract == model.OpenLintV1Draft {
 		ordering = collate.New(language.English)
@@ -50,24 +59,11 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		if left == nil || right == nil {
 			return false
 		}
-		if (keyedBy == "" || context.Contract == model.OpenLintV1Draft) && isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
-			// Keep integer comparisons exact before using the mixed numeric path.
-			if left.Tag == "!!int" && right.Tag == "!!int" {
-				l, le := strconv.ParseInt(left.Value, 10, 64)
-				r, re := strconv.ParseInt(right.Value, 10, 64)
-				if le == nil && re == nil {
-					return l > r
-				}
-			}
-			l, lok := alphabeticalNumber(left)
-			r, rok := alphabeticalNumber(right)
-			return lok && rok && l > r
+		if keyedBy == "" && isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
+			return alphabeticalNumbersGreater(left, right)
 		}
 		if keyedBy == "" && (left.Tag != "!!str" || right.Tag != "!!str") {
 			return false
-		}
-		if ordering != nil {
-			return ordering.CompareString(left.Value, right.Value) > 0
 		}
 		return left.Value > right.Value
 	}
@@ -79,30 +75,46 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
 		}
-		values := alphabeticalValues(node, keyedBy)
+		values := alphabeticalValues(node, keyedBy, keyed)
 		for i := 0; i+1 < len(values); i++ {
-			if !alphabeticalComparable(values[i], values[i], keyedBy != "") {
+			if context.Contract != model.OpenLintV1Draft && !alphabeticalComparable(values[i], values[i], keyedBy != "") {
 				continue
 			}
 			j := i + 1
 			for context.Contract != model.OpenLintV1Draft && j < len(values) && !alphabeticalComparable(values[i], values[j], keyedBy != "") {
 				j++
 			}
-			if j == len(values) || context.Contract == model.OpenLintV1Draft && !alphabeticalComparable(values[i], values[j], false) || !greater(values[i], values[j]) {
+			if j == len(values) {
+				continue
+			}
+			outOfOrder := false
+			if context.Contract == model.OpenLintV1Draft {
+				// keyedBy addresses array elements, not the keys of a mapping.
+				outOfOrder = node.Kind == yaml.MappingNode && keyed ||
+					openLintAlphabeticalGreater(values[i], values[j], ordering, node.Kind == yaml.MappingNode && !keyed)
+			} else {
+				outOfOrder = greater(values[i], values[j])
+			}
+			if !outOfOrder {
 				continue
 			}
 			path, paths, objects := locateNodePaths(&context, node)
 			start := node
-			if keyedBy == "" && node.Kind == yaml.SequenceNode {
+			if !keyed && node.Kind == yaml.SequenceNode {
 				start = values[i]
 				path = model.GetStringTemplates().BuildArrayPath(path, i)
 				for p := range paths {
 					paths[p] = model.GetStringTemplates().BuildArrayPath(paths[p], i)
 				}
 			}
-			message := model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, values[j].Value, values[i].Value)
-			if keyedBy == "" && isAlphabeticalNumber(values[i]) && isAlphabeticalNumber(values[j]) {
-				message = model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, values[j].Value, values[i].Value)
+			message := "values must be numbers or strings in ascending order"
+			if values[i] != nil && values[j] != nil && (context.Contract != model.OpenLintV1Draft || alphabeticalComparable(values[i], values[i], false) && alphabeticalComparable(values[j], values[j], false)) {
+				message = model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, values[j].Value, values[i].Value)
+				if keyedBy == "" && isAlphabeticalNumber(values[i]) && isAlphabeticalNumber(values[j]) {
+					message = model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, values[j].Value, values[i].Value)
+				}
+			} else if keyed {
+				message = "each element must be an object with property " + strconv.Quote(keyedBy)
 			}
 			result := model.RuleFunctionResult{
 				Rule: context.Rule, Path: path, StartNode: start,
@@ -114,7 +126,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 			}
 			addResultToLocatedModel(objects, &result)
 			results = append(results, result)
-			if node.Kind == yaml.MappingNode && keyedBy == "" {
+			if context.Contract == model.OpenLintV1Draft || node.Kind == yaml.MappingNode && keyedBy == "" {
 				break
 			}
 		}
@@ -124,6 +136,20 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 func isAlphabeticalNumber(node *yaml.Node) bool {
 	return node.Tag == "!!int" || node.Tag == "!!float"
+}
+
+func alphabeticalNumbersGreater(left, right *yaml.Node) bool {
+	// Keep integer comparisons exact before using the mixed numeric path.
+	if left.Tag == "!!int" && right.Tag == "!!int" {
+		l, le := strconv.ParseInt(left.Value, 10, 64)
+		r, re := strconv.ParseInt(right.Value, 10, 64)
+		if le == nil && re == nil {
+			return l > r
+		}
+	}
+	l, lok := alphabeticalNumber(left)
+	r, rok := alphabeticalNumber(right)
+	return lok && rok && l > r
 }
 
 func alphabeticalNumber(node *yaml.Node) (float64, bool) {
@@ -137,24 +163,24 @@ func alphabeticalNumber(node *yaml.Node) (float64, bool) {
 }
 
 // Return values in source order. Object values with keyedBy remain supported.
-func alphabeticalValues(node *yaml.Node, keyedBy string) []*yaml.Node {
+func alphabeticalValues(node *yaml.Node, keyedBy string, keyed bool) []*yaml.Node {
 	if node.Kind != yaml.MappingNode && node.Kind != yaml.SequenceNode {
 		return nil
 	}
-	if keyedBy == "" && node.Kind == yaml.SequenceNode {
+	if !keyed && node.Kind == yaml.SequenceNode {
 		return node.Content
 	}
 	step, first := 1, 0
 	if node.Kind == yaml.MappingNode {
 		step = 2
-		if keyedBy != "" {
+		if keyed {
 			first = 1
 		}
 	}
 	values := make([]*yaml.Node, 0, len(node.Content)/step)
 	for i := first; i < len(node.Content); i += step {
 		value := node.Content[i]
-		if keyedBy != "" {
+		if keyed {
 			if value.Kind == yaml.MappingNode {
 				_, value = utils.FindKeyNodeTop(keyedBy, value.Content)
 			} else {
@@ -175,4 +201,73 @@ func alphabeticalComparable(left, right *yaml.Node, keyed bool) bool {
 		return left.Kind == yaml.ScalarNode && right.Kind == yaml.ScalarNode
 	}
 	return left.Tag == "!!str" && right.Tag == "!!str" || isAlphabeticalNumber(left) && isAlphabeticalNumber(right)
+}
+
+// OpenLint compares number/string pairs asymmetrically, following its comparison
+// table. Native mode retains its own handling of unsupported and missing values.
+func openLintAlphabeticalGreater(left, right *yaml.Node, ordering *collate.Collator, keys bool) bool {
+	if left == nil || right == nil {
+		return true
+	}
+	if !keys && (!alphabeticalComparable(left, left, false) || !alphabeticalComparable(right, right, false)) {
+		return true
+	}
+	if keys || left.Tag == "!!str" && right.Tag == "!!str" {
+		_, leftNumeric := openLintNumericString(left.Value)
+		_, rightNumeric := openLintNumericString(right.Value)
+		return (leftNumeric || !rightNumeric) && ordering.CompareString(left.Value, right.Value) > 0
+	}
+	if !isAlphabeticalNumber(left) {
+		return false
+	}
+	if right.Tag != "!!str" {
+		return alphabeticalNumbersGreater(left, right)
+	}
+	l, lok := alphabeticalNumber(left)
+	r, rok := openLintNumericString(right.Value)
+	return lok && rok && l > r
+}
+
+var openLintDecimalString = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
+
+// openLintNumericString accepts ECMAScript StringNumericLiteral, not Go or YAML
+// numeric syntax. In particular, separators and signed radix literals are invalid.
+func openLintNumericString(value string) (float64, bool) {
+	value = strings.TrimFunc(value, func(r rune) bool {
+		return r == '\t' || r == '\n' || r == '\v' || r == '\f' || r == '\r' ||
+			r == '\u2028' || r == '\u2029' || r == '\ufeff' || unicode.Is(unicode.Zs, r)
+	})
+	switch value {
+	case "":
+		return 0, true
+	case "Infinity", "+Infinity":
+		return math.Inf(1), true
+	case "-Infinity":
+		return math.Inf(-1), true
+	}
+	if len(value) > 2 && value[0] == '0' {
+		base := 0
+		switch value[1] {
+		case 'x', 'X':
+			base = 16
+		case 'o', 'O':
+			base = 8
+		case 'b', 'B':
+			base = 2
+		}
+		if base != 0 {
+			integer, ok := new(big.Int).SetString(value[2:], base)
+			if !ok || value[2] == '+' || value[2] == '-' {
+				return 0, false
+			}
+			number, _ := integer.Float64()
+			return number, true
+		}
+	}
+	if !openLintDecimalString.MatchString(value) {
+		return 0, false
+	}
+	number, err := strconv.ParseFloat(value, 64)
+	// Overflow is a valid numeric string whose value is Infinity.
+	return number, err == nil || math.IsInf(number, 0)
 }
