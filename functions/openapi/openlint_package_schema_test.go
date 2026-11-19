@@ -75,6 +75,53 @@ examples:
 	require.Equal(t, "two", result[0].StartNode.Value)
 }
 
+func TestOpenLintPackageDocumentSchemaEncodingConflict(t *testing.T) {
+	const document = `openapi: 3.2.0
+info: {title: API, version: '1'}
+paths: {}
+components:
+  mediaTypes:
+    Payload:
+`
+	for _, tc := range []struct {
+		name, fields string
+		invalid      bool
+	}{
+		{"both", "      encoding: {}\n      prefixEncoding:\n        - {}\n", true},
+		{"encoding", "      encoding: {}\n", false},
+		{"prefixEncoding", "      prefixEncoding:\n        - {}\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var root yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(document+tc.fields), &root))
+			ctx := model.RuleFunctionContext{Contract: model.OpenLintV1Draft, Rule: &model.Rule{}}
+			got := OpenLintPackageFunction("oasDocumentSchema").RunRule(root.Content, ctx)
+			if !tc.invalid {
+				require.Empty(t, got)
+				return
+			}
+			require.Len(t, got, 1)
+			require.Equal(t, `"prefixEncoding" property boolean schema is false`, got[0].Message)
+			require.Equal(t, "$.components.mediaTypes.Payload.prefixEncoding", got[0].Path)
+			require.Equal(t, yaml.SequenceNode, got[0].StartNode.Kind)
+		})
+	}
+}
+
+func TestOpenLintPackageSchemaForbiddenProperty(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("openapi: 3.1.0\nblocked: value\n"), &root))
+	ctx := model.RuleFunctionContext{
+		Given: "$", ExecutionRoot: &root, Contract: model.OpenLintV1Draft, Rule: &model.Rule{}, RuleAction: &model.RuleAction{},
+		Options: map[string]any{"schema": map[string]any{"properties": map[string]any{"blocked": false}}},
+	}
+	got := OpenLintPackageFunction("oasSchema").RunRule(root.Content, ctx)
+	require.Len(t, got, 1)
+	require.Equal(t, `"blocked" property boolean schema is false`, got[0].Message)
+	require.Equal(t, "$.blocked", got[0].Path)
+	require.Same(t, root.Content[0].Content[3], got[0].StartNode)
+}
+
 func TestOpenLintPackagedMediaAccessAndNestedExamplePaths(t *testing.T) {
 	const data = `schema:
   type: object

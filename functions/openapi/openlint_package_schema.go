@@ -201,6 +201,8 @@ func packagedDocumentValidation(root *yaml.Node, ctx model.RuleFunctionContext) 
 			}
 		case *kind.Type:
 			add(path, prefix+"must be "+strings.Join(k.Want, ","))
+		case *kind.FalseSchema:
+			add(path, prefix+"boolean schema is false")
 		default:
 			add(path, defaultFormatter.Format(NewErrorContext(leaf.err)))
 		}
@@ -244,6 +246,8 @@ func packagedValueFailure(v packagedOperand, ctx model.RuleFunctionContext, fail
 		}
 		msg := defaultFormatter.Format(NewErrorContext(leaf.err))
 		switch k := leaf.err.ErrorKind.(type) {
+		case *kind.FalseSchema:
+			msg = prefix + "boolean schema is false"
 		case *kind.Type:
 			msg = prefix + "type must be " + strings.Join(k.Want, ",")
 		case *kind.Required:
