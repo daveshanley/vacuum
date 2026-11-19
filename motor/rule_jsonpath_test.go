@@ -1,3 +1,6 @@
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
+
 package motor
 
 import (
@@ -97,6 +100,84 @@ func TestOpenLintSlashMemberSelection(t *testing.T) {
 	_, err := compileRuleGivenPath("$.paths./pets", nil, model.NativeContract)
 	require.Error(t, err)
 	for _, selector := range []string{`$[?(@.name == './literal')]`, `$[?(@.name.match(/x./))]`, `$[?(@./invalid)]`} {
-		require.Equal(t, selector, openLintSlashMembers(selector))
+		require.Equal(t, selector, openLintLiteralMembers(selector))
 	}
+}
+
+func TestOpenLintHyphenatedMemberSelection(t *testing.T) {
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`number-then-numeric-string: [1.5, "1"]
+not-numeric-words: [[1, nope], [2, NaN]]
+parent-name:
+  child-2: found
+  accented-é: unicode
+items:
+  - child-name: inside
+    name: a-b
+`), &node))
+	for _, tc := range []struct {
+		path, want string
+		count      int
+	}{
+		{"$.number-then-numeric-string[0]", "1.5", 1},
+		{"$.not-numeric-words[*][1]", "nope", 2},
+		{"$.parent-name.child-2", "found", 1},
+		{"$.parent-name.accented-é", "unicode", 1},
+		{"$..child-name", "inside", 1},
+		{"$.items[*].child-name", "inside", 1},
+		{`$.items[?(@.name == 'a-b')].child-name`, "inside", 1},
+		{"$['parent-name']['child-2']", "found", 1},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			nodes, err := findRuleGivenNodes(&node, tc.path, 0, nil, model.OpenLintV1Draft)
+			require.NoError(t, err)
+			require.Len(t, nodes, tc.count)
+			require.Equal(t, tc.want, nodes[0].Value)
+		})
+	}
+	for _, selector := range []string{
+		`$['quoted-name']`, `$[?(@.name == 'a-b')]`, `$[?(@.name.match(/a-b/))]`,
+		`$[?(@.score - 1 > 0)]`, "$[?(@['child-name'])]", "$.`already-escaped",
+	} {
+		require.Equal(t, selector, openLintLiteralMembers(selector))
+	}
+}
+
+func TestOpenLintSelectorCacheKeepsNativeContract(t *testing.T) {
+	for _, contracts := range [][]model.Contract{
+		{model.NativeContract, model.OpenLintV1Draft},
+		{model.OpenLintV1Draft, model.NativeContract},
+	} {
+		var cache sync.Map
+		for range 2 {
+			for _, contract := range contracts {
+				_, err := compileRuleGivenPath("$.hyphenated-name", &cache, contract)
+				if contract == model.OpenLintV1Draft {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+				}
+			}
+		}
+	}
+}
+
+func TestOpenLintHyphenatedGivenAndField(t *testing.T) {
+	rs, err := rulesets.CreateRuleSetFromDataWithContract([]byte(`rules:
+  hyphenated:
+    given: $.parent-name
+    then:
+      field: $.child-name
+      function: falsy
+`), model.OpenLintV1Draft)
+	require.NoError(t, err)
+	result := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet: rs, Spec: []byte("parent-name:\n  child-name: present\n"), SilenceLogs: true,
+	}, &ExecutionOptions{Contract: model.OpenLintV1Draft})
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "$['parent-name']['child-name']", result.Results[0].Path)
+	require.Equal(t, 2, result.Results[0].StartNode.Line)
+	require.Equal(t, 15, result.Results[0].StartNode.Column)
 }
