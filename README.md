@@ -152,6 +152,8 @@ Catch broken Link targets, duplicate tags and invalid server variable defaults. 
 
 Native lint can report errors on specs that passed before. Equivalent path templates conflict even when their HTTP methods differ.
 
+Use [OpenLint's packaged OpenAPI rules](https://quobix.com/vacuum/openlint/#packaged-openapi-rules) with `extends: ["openlint:openapi"]`. Built into vacuum. Works offline.
+
 - [Document relationships](https://quobix.com/vacuum/rules/validation/oas3-document-relationships/)
 - [Path parameter changes](https://quobix.com/vacuum/rules/operations/path-params/#changed-in-v0420)
 - [OpenAPI schema validation](https://quobix.com/vacuum/rules/validation/oas3-schema/)
