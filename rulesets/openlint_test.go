@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,7 +246,13 @@ func TestOpenLintOverrideFetchUsesExecutionContext(t *testing.T) {
 	defer cancel()
 	release := make(chan struct{})
 	requestCancelled := make(chan struct{})
+	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			// Loading checks the override graph before a document is selected.
+			fmt.Fprint(w, "rules: {}")
+			return
+		}
 		cancel()
 		select {
 		case <-r.Context().Done():
@@ -328,4 +335,116 @@ func TestOpenLintRemoteParentCanExtendPackagedOpenAPI(t *testing.T) {
 	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
 	require.NoError(t, rs.LoadError())
 	require.Contains(t, rs.Rules, "operation-description")
+}
+
+func TestOpenLintExtendsCyclesIncludeOverrides(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+	}{
+		{"self", map[string]string{"rules.yaml": "extends: ./rules.yaml\n"}},
+		{"two files", map[string]string{
+			"rules.yaml": "extends: ./other.yaml\n", "other.yaml": "extends: ./rules.yaml\n",
+		}},
+		{"unused override", map[string]string{
+			"rules.yaml": "overrides:\n  - files: ['unmatched/**']\n    extends: ./rules.yaml\n",
+		}},
+		{"matching override", map[string]string{
+			"rules.yaml": "overrides:\n  - files: ['*.yaml']\n    extends: ./rules.yaml\n",
+		}},
+		{"override through another file", map[string]string{
+			"rules.yaml":        "overrides:\n  - files: ['unmatched/**']\n    extends: ./nested/other.yaml\n",
+			"nested/other.yaml": "extends: ../rules.yaml\n",
+		}},
+		{"inherited override", map[string]string{
+			"rules.yaml": "extends: ./other.yaml\n",
+			"other.yaml": "overrides:\n  - files: ['unmatched/**']\n    extends: ./rules.yaml\n",
+		}},
+		{"two overrides", map[string]string{
+			"rules.yaml": "overrides:\n  - files: ['one/**']\n    extends: ./other.yaml\n",
+			"other.yaml": "overrides:\n  - files: ['two/**']\n    extends: ./rules.yaml\n",
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, data := range tc.files {
+				file := filepath.Join(dir, name)
+				require.NoError(t, os.MkdirAll(filepath.Dir(file), 0700))
+				require.NoError(t, os.WriteFile(file, []byte(data), 0600))
+			}
+			rs, err := LoadLocalRuleSetWithContract(context.Background(), filepath.Join(dir, "rules.yaml"), model.OpenLintV1Draft)
+			require.NoError(t, err)
+			rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+			require.ErrorContains(t, rs.LoadError(), "ruleset inheritance cycle")
+		})
+	}
+}
+
+func TestOpenLintSharedBaseAndUnusedOverrideRemainSeparate(t *testing.T) {
+	rs, dir := loadOpenLintTestSet(t, map[string]string{
+		"rules.yaml":  "extends: [./left.yaml, ./right.yaml]\noverrides:\n  - files: ['unmatched/**']\n    extends: ./unused.yaml\n",
+		"left.yaml":   "extends: ./base.yaml\n",
+		"right.yaml":  "extends: ./base.yaml\n",
+		"base.yaml":   "rules: {base: {given: $, then: {function: truthy}}}\n",
+		"unused.yaml": "extends: ./base.yaml\nrules: {unused: {given: $, then: {function: falsy}}}\n",
+	})
+	compiled, err := rs.ForOpenLintDocument(context.Background(), filepath.Join(dir, "document.yaml"), nil)
+	require.NoError(t, err)
+	require.Len(t, compiled.Rules, 1)
+	require.Contains(t, compiled.Rules, "base")
+}
+
+func TestOpenLintOverrideCycleDoesNotChangeNativeLoading(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "rules.yaml")
+	require.NoError(t, os.WriteFile(file, []byte("rules: {own: {given: $, then: {function: truthy}}}\noverrides:\n  - files: ['unmatched/**']\n    extends: ./rules.yaml\n"), 0600))
+	rs, err := LoadLocalRuleSet(context.Background(), file)
+	require.NoError(t, err)
+	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+	require.NoError(t, rs.LoadError())
+	require.Contains(t, rs.Rules, "own")
+}
+
+func TestOpenLintRemoteOverrideCycle(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/rules.yaml":
+			fmt.Fprint(w, "overrides:\n  - files: ['unmatched/**']\n    extends: ./other.yaml\n")
+		case "/other.yaml":
+			fmt.Fprint(w, "extends: ./rules.yaml\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	rs, err := DownloadRemoteRuleSetWithContract(context.Background(), server.URL+"/rules.yaml", server.Client(), model.OpenLintV1Draft)
+	require.NoError(t, err)
+	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rs, server.Client())
+	require.ErrorContains(t, rs.LoadError(), "ruleset inheritance cycle")
+}
+
+func TestOpenLintOverrideGraphLoadsEachDependencyOnce(t *testing.T) {
+	const depth = 10
+	dir := t.TempDir()
+	reads := map[string]int{}
+	read := func(name string) ([]byte, error) {
+		reads[name]++
+		var level int
+		_, err := fmt.Sscanf(filepath.Base(name), "%d.yaml", &level)
+		if err != nil {
+			return nil, err
+		}
+		if level == depth {
+			return []byte("rules: {}"), nil
+		}
+		return []byte(fmt.Sprintf("overrides:\n  - files: ['one/**']\n    extends: './%d.yaml'\n  - files: ['two/**']\n    extends: './%d.yaml'\n", level+1, level+1)), nil
+	}
+	rs, err := LoadLocalRuleSetWithReaderAndContract(context.Background(), filepath.Join(dir, "0.yaml"), read, model.OpenLintV1Draft)
+	require.NoError(t, err)
+	rs = BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+	require.NoError(t, rs.LoadError())
+	require.Len(t, reads, depth+1)
+	for name, count := range reads {
+		require.Equal(t, 1, count, "dependency %s was loaded more than once", name)
+	}
 }
