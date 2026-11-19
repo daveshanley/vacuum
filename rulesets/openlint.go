@@ -100,6 +100,8 @@ func (rsm ruleSetsModel) generateOpenLintRuleSetWithContext(parent context.Conte
 	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 	active := map[string]bool{}
+	loaded := map[string]*RuleSet{}
+	complete := map[*RuleSet]bool{}
 	var walk func(*RuleSet) error
 	walk = func(rs *RuleSet) error {
 		if err := ctx.Err(); err != nil {
@@ -115,52 +117,84 @@ func (rsm ruleSetsModel) generateOpenLintRuleSetWithContext(parent context.Conte
 		if active[location] {
 			return fmt.Errorf("ruleset inheritance cycle at %s", location)
 		}
+		if complete[rs] {
+			return nil
+		}
+		loaded[location] = rs
 		active[location] = true
 		defer delete(active, location)
-		entries := []any{}
-		switch e := rs.Extends.(type) {
-		case string:
-			entries = append(entries, e)
-		case []any:
-			entries = e
+		walkExtends := func(extends any, inherit bool) error {
+			entries := []any{}
+			switch e := extends.(type) {
+			case string:
+				entries = append(entries, e)
+			case []any:
+				entries = e
+			}
+			for _, entry := range entries {
+				mode := "recommended"
+				name, _ := entry.(string)
+				if tuple, ok := entry.([]any); ok {
+					name, _ = tuple[0].(string)
+					mode, _ = tuple[1].(string)
+				}
+				remote := strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://")
+				if name != "openlint:openapi" && !remote {
+					if rs.sourceLocation.remoteURL != nil {
+						ref, err := rs.sourceLocation.remoteURL.Parse(name)
+						if err != nil {
+							return err
+						}
+						name, remote = ref.String(), true
+					} else {
+						name = filepath.Join(filepath.Dir(location), name)
+					}
+				}
+				parent := loaded[name]
+				var err error
+				if parent == nil {
+					switch {
+					case name == "openlint:openapi":
+						parent, err = createOpenLintRuleSet(openLintOpenAPIPackage)
+						if err == nil {
+							parent.sourceLocation.path = name
+						}
+					case remote:
+						parent, err = DownloadRemoteRuleSetWithContract(ctx, name, client, model.OpenLintV1Draft)
+					default:
+						parent, err = LoadLocalRuleSetWithReaderAndContract(ctx, name, rs.readLocalFile, model.OpenLintV1Draft)
+					}
+					if err != nil {
+						return err
+					}
+					loaded[name] = parent
+				}
+				if err = walk(parent); err != nil {
+					return err
+				}
+				if inherit {
+					rs.openLintParents = append(rs.openLintParents, parent)
+					rs.openLintParentModes = append(rs.openLintParentModes, mode)
+				}
+			}
+			return nil
 		}
-		for _, entry := range entries {
-			mode := "recommended"
-			name, _ := entry.(string)
-			if tuple, ok := entry.([]any); ok {
-				name, _ = tuple[0].(string)
-				mode, _ = tuple[1].(string)
-			}
-			var parent *RuleSet
-			var err error
-			if name == "openlint:openapi" {
-				parent, err = createOpenLintRuleSet(openLintOpenAPIPackage)
-				if err == nil {
-					parent.sourceLocation.path = name
-				}
-			} else if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
-				parent, err = DownloadRemoteRuleSetWithContract(ctx, name, client, model.OpenLintV1Draft)
-			} else if rs.sourceLocation.remoteURL != nil {
-				ref, e := rs.sourceLocation.remoteURL.Parse(name)
-				if e != nil {
-					return e
-				}
-				parent, err = DownloadRemoteRuleSetWithContract(ctx, ref.String(), client, model.OpenLintV1Draft)
-			} else {
-				name = filepath.Join(filepath.Dir(location), name)
-				parent, err = LoadLocalRuleSetWithReaderAndContract(ctx, name, rs.readLocalFile, model.OpenLintV1Draft)
-			}
-			if err != nil {
+		if err := walkExtends(rs.Extends, true); err != nil {
+			return err
+		}
+		// Overrides participate in cycle detection even when no document matches.
+		// Their rules remain separate until ForOpenLintDocument applies them.
+		for _, override := range rs.openLint.Overrides {
+			if err := walkExtends(override["extends"], false); err != nil {
 				return err
 			}
-			if err = walk(parent); err != nil {
-				return err
-			}
-			rs.openLintParents = append(rs.openLintParents, parent)
-			rs.openLintParentModes = append(rs.openLintParentModes, mode)
 		}
 		rs.openLint.client = client
-		return rs.compileOpenLintRules(nil)
+		if err := rs.compileOpenLintRules(nil); err != nil {
+			return err
+		}
+		complete[rs] = true
+		return nil
 	}
 	if err := walk(root); err != nil {
 		root.addLoadError(err)
