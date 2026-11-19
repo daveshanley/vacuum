@@ -232,7 +232,7 @@ func getOrCompileOASSchema(apiSchema string, version float32) (*jsonschema.Schem
 	if cached, ok := oasSchemaCache.Load(version); ok {
 		return cached.(*jsonschema.Schema), nil
 	}
-	options := config.NewValidationOptions()
+	options := config.NewValidationOptions(oasValidationOptions...)
 	compiled, err := helpers.NewCompiledSchemaWithVersion("schema", []byte(apiSchema), options, version)
 	if err != nil {
 		return nil, err
@@ -308,8 +308,11 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	// Use a cached compiled schema when possible to avoid recompiling the OAS schema every invocation
 	compiledSchema, _ := getOrCompileOASSchema(info.APISchema, info.VersionNumeric)
+	// The options matter even with a precompiled schema: when it is nil (the
+	// OpenAPI 3.0 schema does not compile with the cached options) the
+	// validator compiles the schema itself using these options.
 	valid, validationErrors := schema_validation.ValidateOpenAPIDocumentWithPrecompiled(
-		context.Document, compiledSchema)
+		context.Document, compiledSchema, oasValidationOptions...)
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := validationInfo.VersionNumeric
