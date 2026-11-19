@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/dlclark/regexp2 v1.12.0
-	github.com/dlclark/regexp2/v2 v2.12.0
+	github.com/dlclark/regexp2/v2 v2.13.0
 	github.com/dop251/goja v0.0.0-20261021140635-64adc8bb4d51
 	github.com/dop251/goja_nodejs v0.0.0-20260918173711-b481721df8a2
 	github.com/dustin/go-humanize v1.1.0
@@ -29,7 +29,7 @@ require (
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.7
 	github.com/pb33f/libopenapi v0.43.2
-	github.com/pb33f/libopenapi-validator v0.16.4-0.20261116011106-271e6e6c85d7
+	github.com/pb33f/libopenapi-validator v0.16.5-0.20261119170455-9f66d8679f1e
 	github.com/pb33f/testify v0.1.1
 	github.com/sergi/go-diff v1.4.0
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -41,7 +41,7 @@ require (
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 )
 
 require (
