@@ -532,7 +532,9 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityError,
+		// The specification only recommends programming naming conventions, so
+		// an operationId with spaces is still a valid document.
+		Severity: model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:           "operationId",
 			Function:        "pattern",
