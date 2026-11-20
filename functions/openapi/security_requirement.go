@@ -73,7 +73,9 @@ func securitySchemePointer(fragment string) string {
 }
 
 // externalSecuritySchemeDefined only searches documents already admitted to the
-// rolodex. A security key cannot load a file or bypass reference access controls.
+// rolodex. A security key cannot load a file or bypass reference access controls,
+// so a scheme in a document that was never loaded cannot be judged and is accepted.
+// Only a loaded document that lacks the scheme proves the requirement wrong.
 func externalSecuritySchemeDefined(name string, documentURI *url.URL, root *index.SpecIndex,
 	securityByIndex map[*index.SpecIndex]map[string]*index.Reference) bool {
 	if documentURI == nil || strings.HasPrefix(name, "#") {
@@ -94,11 +96,13 @@ func externalSecuritySchemeDefined(name string, documentURI *url.URL, root *inde
 	if identity == documentURI.String() {
 		return false
 	}
+	loaded := false
 	matches := func(candidate *index.SpecIndex) bool {
 		uri := securityDocumentURI(candidate)
 		if uri == nil || uri.String() != identity {
 			return false
 		}
+		loaded = true
 		schemes := securityByIndex[candidate]
 		if schemes == nil {
 			schemes = candidate.GetAllSecuritySchemes()
@@ -116,7 +120,7 @@ func externalSecuritySchemeDefined(name string, documentURI *url.URL, root *inde
 			}
 		}
 	}
-	return false
+	return !loaded
 }
 
 // securityDocumentURI establishes the source document's identity without I/O.
