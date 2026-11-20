@@ -39,3 +39,9 @@ func ruleFormatsMatch(ruleFormats []string, specFormat string) bool {
 	}
 	return false
 }
+
+// The specification only recommends programming naming conventions for operationId,
+// so a URL-unfriendly operationId must not fail an otherwise valid document.
+func TestGetOperationIdValidInUrlRule_IsWarning(t *testing.T) {
+	assert.Equal(t, model.SeverityWarn, GetOperationIdValidInUrlRule().Severity)
+}
