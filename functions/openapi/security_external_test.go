@@ -30,12 +30,12 @@ func TestSecurityRequirementIssue1056(t *testing.T) {
 		{name: "nested property", requirement: "security.json#/components/securitySchemes/ApiKey/type", missing: true},
 		{name: "non-scheme pointer", requirement: "security.json#/info", missing: true},
 		{name: "invalid escape", requirement: "security.json#/components/securitySchemes/Api~2Key", missing: true},
-		{name: "query differs", requirement: "security.json?v=2#/components/securitySchemes/ApiKey", missing: true},
-		{name: "not loaded", requirement: "unloaded.json#/components/securitySchemes/ApiKey", missing: true},
-		{name: "remote not loaded", requirement: "https://example.test/security.json#/components/securitySchemes/ApiKey", missing: true},
+		{name: "query differs is unverified", requirement: "security.json?v=2#/components/securitySchemes/ApiKey"},
+		{name: "not loaded is unverified", requirement: "unloaded.json#/components/securitySchemes/ApiKey"},
+		{name: "remote not loaded is unverified", requirement: "https://example.test/security.json#/components/securitySchemes/ApiKey"},
 		{name: "name precedence", requirement: "unloaded.json#/components/securitySchemes/ApiKey", named: true},
 		{name: "target self", requirement: "https://example.test/security.json#/components/securitySchemes/ApiKey", self: "https://example.test/security.json"},
-		{name: "target self overrides retrieval", requirement: "security.json#/components/securitySchemes/ApiKey", self: "https://example.test/security.json", missing: true},
+		{name: "target self overrides retrieval is unverified", requirement: "security.json#/components/securitySchemes/ApiKey", self: "https://example.test/security.json"},
 		{name: "3.0 rejects URI", requirement: "security.json#/components/securitySchemes/ApiKey", version: "3.0.3", missing: true},
 		{name: "3.1 rejects URI", requirement: "security.json#/components/securitySchemes/ApiKey", version: "3.1.0", missing: true},
 	} {
@@ -47,7 +47,8 @@ func TestSecurityRequirementIssue1056(t *testing.T) {
 					shared = strings.Replace(shared, "{", fmt.Sprintf(`{"$self":%q,`, tc.self), 1)
 				}
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "security.json"), []byte(shared), 0600))
-				// Merely existing on disk must not admit a file to the lookup.
+				// Merely existing on disk must not admit a file to the lookup; a document
+				// that was never loaded cannot be judged, so its requirement is accepted.
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "unloaded.json"), []byte(shared), 0600))
 				version := tc.version
 				if version == "" {
