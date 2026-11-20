@@ -20,7 +20,7 @@ import (
 func TestSecurityRequirementIssue1053(t *testing.T) {
 	for _, tc := range []struct {
 		name, self, selfYAML, retrieval, requirement string
-		missing                                      bool
+		missing, unverified                          bool
 	}{
 		{name: "aliased self", selfYAML: "x-identity: &identity https://example.test/security.yaml\n$self: *identity", requirement: "./security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "merged self", selfYAML: "x-identity: &identity\n  $self: https://example.test/security.yaml\n<<: *identity", requirement: "./security.yaml#/components/securitySchemes/ApiKey"},
@@ -31,13 +31,13 @@ func TestSecurityRequirementIssue1053(t *testing.T) {
 		{name: "dot segments", self: "https://example.test/api/security.yaml", requirement: "../api/./security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "fragment with self", self: "https://example.test/security.yaml", requirement: "#/components/securitySchemes/ApiKey"},
 		{name: "missing target", self: "https://example.test/security.yaml", requirement: "https://example.test/security.yaml#/components/securitySchemes/Missing", missing: true},
-		{name: "other document", self: "https://example.test/security.yaml", requirement: "https://example.test/other.yaml#/components/securitySchemes/ApiKey", missing: true},
-		{name: "other host", self: "https://example.test/security.yaml", requirement: "https://other.test/security.yaml#/components/securitySchemes/ApiKey", missing: true},
-		{name: "other query", self: "https://example.test/security.yaml?v=1", requirement: "https://example.test/security.yaml?v=2#/components/securitySchemes/ApiKey", missing: true},
+		{name: "other document is unverified", self: "https://example.test/security.yaml", requirement: "https://example.test/other.yaml#/components/securitySchemes/ApiKey", unverified: true},
+		{name: "other host is unverified", self: "https://example.test/security.yaml", requirement: "https://other.test/security.yaml#/components/securitySchemes/ApiKey", unverified: true},
+		{name: "other query is unverified", self: "https://example.test/security.yaml?v=1", requirement: "https://example.test/security.yaml?v=2#/components/securitySchemes/ApiKey", unverified: true},
 		{name: "query identity", self: "https://example.test/security.yaml?v=1", requirement: "./security.yaml?v=1#/components/securitySchemes/ApiKey"},
 		{name: "relative self", self: "../schemas/security.yaml", retrieval: "https://example.test/api/root.yaml", requirement: "https://example.test/schemas/security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "retrieval URI", retrieval: "https://example.test/security.yaml", requirement: "./security.yaml#/components/securitySchemes/ApiKey"},
-		{name: "self overrides retrieval", self: "https://example.test/security.yaml", retrieval: "https://example.test/root.yaml", requirement: "./root.yaml#/components/securitySchemes/ApiKey", missing: true},
+		{name: "self overrides retrieval is unverified", self: "https://example.test/security.yaml", retrieval: "https://example.test/root.yaml", requirement: "./root.yaml#/components/securitySchemes/ApiKey", unverified: true},
 		{name: "relative file self", self: "security.yaml", retrieval: filepath.Join(t.TempDir(), "download.json"), requirement: "./security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "file identity", retrieval: filepath.Join(t.TempDir(), "security.yaml"), requirement: "./security.yaml#/components/securitySchemes/ApiKey"},
 		{name: "invalid self", self: "https://example.test/%ZZ", requirement: "./security.yaml#/components/securitySchemes/ApiKey", missing: true},
@@ -90,6 +90,11 @@ components:
 					require.Equal(t, tc.requirement, results[0].StartNode.Value)
 					require.Same(t, ctx.Rule, results[0].Rule)
 					require.Positive(t, results[0].StartNode.Line)
+					require.Len(t, unused, 1)
+				} else if tc.unverified {
+					// A document that was never loaded cannot be judged, but the
+					// local component is still unused.
+					require.Empty(t, results)
 					require.Len(t, unused, 1)
 				} else {
 					require.Empty(t, results)
