@@ -213,3 +213,36 @@ func TestNativeKeyFieldJavaScriptErrorPath(t *testing.T) {
 	require.Equal(t, "$.data.bad", result.Results[0].Path)
 	require.Equal(t, "bad", result.Results[0].StartNode.Value)
 }
+
+func TestNativeKeyFieldDefinedMessageAndArrayCasing(t *testing.T) {
+	const spec = `openapi: 3.1.0
+info: {title: Test, version: "1"}
+paths: {}
+x-empty: {}
+x-tags: [alpha, beta]
+`
+	const rules = `rules:
+  empty:
+    description: keys required
+    given: $['x-empty']
+    then: {field: '@key', function: defined}
+  # Like Spectral, @key on an array selects its indices, not its elements.
+  tags:
+    given: $['x-tags']
+    then: {field: '@key', function: casing, functionOptions: {type: camel}}
+`
+	raw, err := rulesets.CreateRuleSetFromData([]byte(rules))
+	require.NoError(t, err)
+	result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw), Spec: []byte(spec), SilenceLogs: true})
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	var got []string
+	for _, r := range result.Results {
+		got = append(got, r.RuleId+" "+r.Path+" "+r.Message)
+	}
+	require.ElementsMatch(t, []string{
+		"empty $['x-empty'] keys required: `value` must be defined",
+		"tags $['x-tags'][0] : `0` is not `camel` case",
+		"tags $['x-tags'][1] : `1` is not `camel` case",
+	}, got)
+}
