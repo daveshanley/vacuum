@@ -59,6 +59,9 @@ components:
 `, rulesets.GetOAS3DocumentRelationshipsRule(), []string{"$.servers[0].variables.s.default"}},
 		{"empty string is an enum value", "3.1.1", `servers: [{url: 'https://{s}', variables: {s: {default: '', enum: ['']}}}]
 `, rulesets.GetOAS3DocumentRelationshipsRule(), nil},
+		// The schema rule reports the empty enum; membership is not reported again.
+		{"empty enum left to the schema", "3.1.1", `servers: [{url: 'https://{s}', variables: {s: {default: c, enum: []}}}]
+`, rulesets.GetOAS3DocumentRelationshipsRule(), nil},
 		{"xml presence", "3.2.0", `components:
   schemas: {X: {type: array, xml: {nodeType: element, wrapped: false}}}
 `, rulesets.GetOAS3SchemaRule(), []string{"$.components.schemas['X'].xml.wrapped"}},

@@ -114,7 +114,7 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext, 
 		},
 	}
 	if version >= 3.1 {
-		v.Server = checkServerDefaults("must", add)
+		v.Server = checkServerDefaults("must", false, add)
 	}
 	v.Walk(doc)
 	if len(refs) > 0 {
