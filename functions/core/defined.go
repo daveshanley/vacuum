@@ -62,14 +62,13 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 			locatedPath, allPaths, locatedObjects := locateNodePaths(&context, node)
 
-			// Without a field, as for an empty object selected by @key, the matched value itself is missing.
-			fieldName := context.RuleAction.Field
-			if fieldName == "" {
-				fieldName = "value"
+			defaultMessage := fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)
+			// An empty object selected by @key has no field to name; the matched value itself is missing.
+			if context.KeyTargetPath != nil && context.RuleAction.Field == "" {
+				defaultMessage = fmt.Sprintf("%s: value must be defined", ruleMessage)
 			}
 			result := model.RuleFunctionResult{
-				Message: vacuumUtils.SuppliedOrDefault(message,
-					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, fieldName)),
+				Message:   vacuumUtils.SuppliedOrDefault(message, defaultMessage),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,
