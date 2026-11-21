@@ -13,7 +13,7 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 106)
+	assert.Len(t, funcs.GetAllFunctions(), 107)
 	assert.Contains(t, funcs.GetAllFunctions(), "or")
 	assert.Equal(t, "or", funcs.FindFunction("or").GetSchema().Name)
 	assert.Contains(t, funcs.GetAllFunctions(), "pathsSpecificityOrder")

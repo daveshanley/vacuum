@@ -119,6 +119,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasDocumentSchema"] = openapi_functions.OASSchema{}
 		funcs["oasServerVariableDefaults"] = openapi_functions.ServerVariableDefaults{}
 		funcs["oasDocumentRelationships"] = openapi_functions.DocumentRelationships{}
+		funcs["oasOperationRefReferences"] = openapi_functions.OperationRefReferences{}
 		funcs["oasAPIServers"] = openapi_functions.APIServers{}
 		funcs["noAmbiguousPaths"] = openapi_functions.AmbiguousPaths{}
 		funcs["pathsSpecificityOrder"] = openapi_functions.PathSpecificityOrder{}
