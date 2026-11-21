@@ -59,10 +59,18 @@ func (s *ruleKeySources) targets(nodes []*yaml.Node, includeEmpty, batch bool, l
 				aliasPath, _ = lookup(node)
 				node = node.Alias
 			}
-			if len(node.Content) == 0 && includeEmpty && (node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode) {
+			var mapKeys []mappingKey
+			if node.Kind == yaml.MappingNode {
+				mapKeys = merged.keys(node)
+			}
+			// A mapping whose merge keys inherit nothing has no keys either, so it is empty.
+			empty := len(node.Content) == 0 || node.Kind == yaml.MappingNode && len(mapKeys) == 0
+			if empty && includeEmpty && (node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode) {
+				// Functions receive an empty container; the source node still locates it.
 				key := node
-				if aliasPath != "" {
+				if aliasPath != "" || len(node.Content) > 0 {
 					clone := *node
+					clone.Content = nil
 					key = &clone
 				}
 				if !emit(key, node, aliasPath) {
@@ -74,7 +82,7 @@ func (s *ruleKeySources) targets(nodes []*yaml.Node, includeEmpty, batch bool, l
 			case yaml.MappingNode:
 				// Inherited keys belong to this mapping, not to their anchor.
 				container, located := aliasPath, aliasPath != ""
-				for _, entry := range merged.keys(node) {
+				for _, entry := range mapKeys {
 					source := entry.node
 					key := source
 					path := ""

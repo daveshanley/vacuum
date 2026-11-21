@@ -4,6 +4,7 @@
 package motor
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -228,6 +229,7 @@ x-tags: [alpha, beta]
     then: {field: '@key', function: defined}
   # Like Spectral, @key on an array selects its indices, not its elements.
   tags:
+    description: tags
     given: $['x-tags']
     then: {field: '@key', function: casing, functionOptions: {type: camel}}
 `
@@ -241,8 +243,49 @@ x-tags: [alpha, beta]
 		got = append(got, r.RuleId+" "+r.Path+" "+r.Message)
 	}
 	require.ElementsMatch(t, []string{
-		"empty $['x-empty'] keys required: `value` must be defined",
-		"tags $['x-tags'][0] : `0` is not `camel` case",
-		"tags $['x-tags'][1] : `1` is not `camel` case",
+		"empty $['x-empty'] keys required: value must be defined",
+		"tags $['x-tags'][0] tags: `0` is not `camel` case",
+		"tags $['x-tags'][1] tags: `1` is not `camel` case",
+	}, got)
+}
+
+func TestNativeKeyFieldEmptyMerge(t *testing.T) {
+	const spec = `openapi: 3.1.0
+info: {title: Test, version: "1"}
+paths: {}
+x-base: &empty {}
+x-full: &full {a: 1}
+x-empty:
+  <<: *empty
+x-filled:
+  <<: *full
+`
+	const rules = `rules:
+  defined:
+    description: keys required
+    given:
+      - $['x-empty']
+      - $['x-filled']
+    then: {field: '@key', function: defined}
+  truthy:
+    description: keys required
+    given:
+      - $['x-empty']
+      - $['x-filled']
+    then: {field: '@key', function: truthy}
+`
+	raw, err := rulesets.CreateRuleSetFromData([]byte(rules))
+	require.NoError(t, err)
+	result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(raw), Spec: []byte(spec), SilenceLogs: true})
+	defer result.ReleaseOwnedResources()
+	require.Empty(t, result.Errors)
+	var got []string
+	for _, r := range result.Results {
+		got = append(got, fmt.Sprintf("%s %s %d", r.RuleId, r.Path, r.StartNode.Line))
+	}
+	// Merging an empty anchor inherits no keys, so x-empty has none; x-filled inherits 'a'.
+	require.ElementsMatch(t, []string{
+		"defined $['x-empty'] 7",
+		"truthy $['x-empty'] 7",
 	}, got)
 }
