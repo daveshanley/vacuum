@@ -16,8 +16,11 @@ import (
 
 // formatRuleMessages runs once for each function result, before auto-fixes can
 // change its value. Replacement text is never interpreted as another template.
-func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, paths *vacuumUtils.NodePathIndex) {
+func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, paths *vacuumUtils.NodePathIndex, keyPath func(*yaml.Node) (string, bool)) {
 	rule, root, updates := ctx.rule, ctx.specNode, ctx.messageUpdates
+	if keyPath != nil {
+		action.Field = ""
+	}
 	needsLocation := ruleMessageNeedsLocation(rule.Message)
 	needsValue := strings.Contains(rule.Message, "{{value}}")
 	var selectedNodes map[*yaml.Node]struct{}
@@ -37,6 +40,9 @@ func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*ya
 			var valueNode *yaml.Node
 			valueRoot := root
 			knownPath, known := paths.Lookup(target)
+			if keyPath != nil && targetIsValue {
+				knownPath, known = keyPath(target)
+			}
 			if !needsValue || targetIsValue && known && knownPath == path {
 				valueRoot = nil
 			}

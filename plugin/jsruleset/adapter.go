@@ -36,12 +36,22 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 		s.current = &rfc
 		defer func() { s.current = nil }()
 		pathIndex := s.paths[rfc.ExecutionRoot]
-		if pathIndex == nil {
+		if pathIndex == nil && rfc.KeyTargetPath == nil {
 			pathIndex = nodePaths(rfc.ExecutionRoot)
 			s.paths[rfc.ExecutionRoot] = pathIndex
 		}
 		for _, node := range nodes {
 			segments, ok := pathIndex[node]
+			if rfc.KeyTargetPath != nil {
+				if path, found := rfc.KeyTargetPath(node); found {
+					var err error
+					segments, err = pathSegments(path)
+					if err != nil {
+						return err
+					}
+					ok = true
+				}
+			}
 			if !ok {
 				return fmt.Errorf("cannot locate JavaScript rule input in execution document")
 			}
@@ -127,7 +137,9 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 					return fmt.Errorf("finding %d requires a string message", i)
 				}
 				resultPath := segments
+				explicitPath := false
 				if pv := item.Get("path"); pv != nil && !goja.IsUndefined(pv) {
+					explicitPath = true
 					p, ok := pv.(*goja.Object)
 					if !ok || p.ClassName() != "Array" {
 						return fmt.Errorf("finding path must be an array")
@@ -156,10 +168,10 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 						located = exactNode(rfc.ExecutionRoot, resultPath)
 					}
 				}
-				if located == nil {
+				if located == nil || (rfc.KeyTargetPath != nil && !explicitPath) {
 					located = node
 				}
-				results = append(results, model.RuleFunctionResult{Message: message, Path: resultPathString(resultPath), StartNode: located, EndNode: located, Rule: rfc.Rule})
+				results = append(results, model.RuleFunctionResult{Message: message, Path: resultPathString(resultPath), StartNode: located, EndNode: located, Rule: rfc.Rule, PathFromRuleGiven: rfc.KeyTargetPath != nil && !explicitPath})
 			}
 		}
 		return nil

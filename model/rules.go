@@ -71,6 +71,9 @@ type RuleFunctionContext struct {
 	// its parent; custom functions must receive an undefined input value.
 	MissingValue bool `json:"-" yaml:"-"`
 
+	// KeyTargetPath locates a selected native @key input, including generated array indices.
+	KeyTargetPath func(*yaml.Node) (string, bool) `json:"-" yaml:"-"`
+
 	// Contract selects the semantics of this invocation.
 	Contract Contract `json:"-" yaml:"-"`
 	// ExecutionContext carries the rule deadline, including time spent queued.
@@ -138,6 +141,8 @@ type ResultSourceContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
+	// KeyTarget marks a diagnostic located at a selected property name or array index.
+	KeyTarget bool `json:"-" yaml:"-"`
 	// DiagnosticCode identifies a specific condition without parsing Message.
 	DiagnosticCode string `json:"diagnosticCode,omitempty" yaml:"diagnosticCode,omitempty"`
 	// RepairNode identifies the authored object for a repair when StartNode is a display owner.

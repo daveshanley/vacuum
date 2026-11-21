@@ -139,6 +139,8 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		var path []string
 		if result.RangeIsZeroBased {
 			resultRange = result.Range
+		}
+		if result.RangeIsZeroBased || result.KeyTarget {
 			path = make([]string, 0)
 			parsed, pathErr := jsonpath.NewPath(result.Path)
 			if pathErr == nil && parsed.IsSingular() {

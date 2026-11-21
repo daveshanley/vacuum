@@ -288,6 +288,9 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 		}
 
 		runtimeValue := rt.ToValue(enc)
+		if ruleContext.MissingValue {
+			runtimeValue = goja.Undefined()
+		}
 		ruleOutput, rErr := loop.Run(ctx, func(vm *goja.Runtime) (goja.Value, error) {
 			return runRuleFn(goja.Undefined(), runtimeValue)
 		})
