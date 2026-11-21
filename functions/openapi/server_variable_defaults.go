@@ -28,11 +28,13 @@ func (ServerVariableDefaults) GetCategory() string { return model.FunctionCatego
 // RunRule checks Server Objects in the document, including those on operations and links.
 func (ServerVariableDefaults) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	return runDocumentCheck(nodes, ctx, func(doc *v3.Document, _ model.RuleFunctionContext, add reportRelationship) {
-		openapi.OperationVisitor{Server: checkServerDefaults("should", add)}.Walk(doc)
+		openapi.OperationVisitor{Server: checkServerDefaults("should", true, add)}.Walk(doc)
 	})
 }
 
-func checkServerDefaults(obligation string, add reportRelationship) func(*v3.Server, string) {
+// checkServerDefaults reports defaults outside their enums. With checkEmpty, an empty enum is
+// reported too; OpenAPI 3.1 and later leave that to the schema, which requires at least one item.
+func checkServerDefaults(obligation string, checkEmpty bool, add reportRelationship) func(*v3.Server, string) {
 	seen := make(map[*yaml.Node]bool)
 	return func(s *v3.Server, at string) {
 		for name, variable := range s.Variables.FromOldest() {
@@ -45,6 +47,9 @@ func checkServerDefaults(obligation string, add reportRelationship) func(*v3.Ser
 				continue
 			}
 			if len(low.Enum) == 0 {
+				if !checkEmpty {
+					continue
+				}
 				enum := libutils.NodeAlias(findMappingValue(low.RootNode, "enum"))
 				if enum == nil || enum.Kind != yaml.SequenceNode {
 					continue
