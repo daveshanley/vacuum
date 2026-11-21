@@ -14,6 +14,7 @@ import (
 	"maps"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1872,6 +1873,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 			rfc.Rule = &rule
 		}
+		batch := vacuumUtils.IsBatchMode(ruleAction.FunctionOptions)
+		isKeyAction := ctx.contract == model.NativeContract && ruleAction.Field == "@key"
+		var keySources ruleKeySources
 		var messagePaths *vacuumUtils.NodePathIndex
 		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
 			if ctx.evidence != nil {
@@ -1886,7 +1890,14 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					invocation.Given = path
 				}
 			}
+			if isKeyAction && !batch && len(selected) == 1 {
+				node := selected[0]
+				invocation.MissingValue = (node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode) && len(node.Content) == 0
+			}
 			results := ruleFunction.RunRule(selected, invocation)
+			if isKeyAction && len(results) > 0 {
+				locateKeyResults(results, invocation.KeyTargetPath, ctx.builtinFunctions.FindFunction(ruleAction.Function) == nil)
+			}
 			if ctx.contract == model.OpenLintV1Draft && ctx.rule.Message == "" && ctx.rule.Description != "" {
 				for i := range results {
 					results[i].Message = ctx.rule.Description
@@ -1896,7 +1907,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
 					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
 				}
-				formatRuleMessages(ctx, ruleAction, selected, results, messagePaths)
+				formatRuleMessages(ctx, ruleAction, selected, results, messagePaths, invocation.KeyTargetPath)
 			}
 			return results
 		}
@@ -1949,32 +1960,41 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			// Filter out ignore nodes to prevent them from being processed by other rules
 			filteredNodes := filterIgnoreNodes(nodes)
 
-			// Check if batch mode is enabled for this rule
-			if vacuumUtils.IsBatchMode(ruleAction.FunctionOptions) {
-				// BATCH MODE: Pass all nodes to the function at once
-
-				// Pre-filter nodes for inline ignores (format already checked at rule level)
-				var batchNodes []*yaml.Node
-				for _, node := range filteredNodes {
-					// Check inline ignore (skip entirely when no x-lint-ignore keys exist in spec)
-					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
-						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-							Message:      "Rule ignored due to inline ignore directive",
-							RuleId:       ctx.rule.Id,
-							RuleSeverity: ctx.rule.Severity,
-							Rule:         ctx.rule,
-							StartNode:    node,
-							EndNode:      node,
-						})
-						continue
+			if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" {
+				filteredNodes = slices.DeleteFunc(filteredNodes, func(node *yaml.Node) bool {
+					if !checkInlineIgnore(node, ctx.rule.Id) {
+						return false
 					}
-
-					batchNodes = append(batchNodes, node)
+					*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
+						Message:      "Rule ignored due to inline ignore directive",
+						RuleId:       ctx.rule.Id,
+						RuleSeverity: ctx.rule.Severity,
+						Rule:         ctx.rule,
+						StartNode:    node,
+						EndNode:      node,
+					})
+					return true
+				})
+			}
+			selectedNodes := slices.Values(filteredNodes)
+			if isKeyAction {
+				index := sync.OnceValue(func() *vacuumUtils.NodePathIndex {
+					return vacuumUtils.NodePathIndexForContext(rfc, ctx.specNode)
+				})
+				lookup := func(node *yaml.Node) (string, bool) { return index().Lookup(node) }
+				rfc.KeyTargetPath = func(target *yaml.Node) (string, bool) { return keySources.path(target, lookup) }
+				includeEmpty := ruleAction.Function == "defined" || ruleAction.Function == "truthy" || (ruleFunction.GetCategory() == model.FunctionCategoryCustomJS && !batch)
+				selectedNodes = keySources.targets(filteredNodes, includeEmpty, batch, lookup)
+				if batch {
+					filteredNodes = slices.Collect(selectedNodes)
 				}
-
-				// Only run if we have nodes to process
-				if len(batchNodes) > 0 {
-					runRuleResults := runRule(batchNodes)
+				selectedAction := ruleAction
+				selectedAction.Field = ""
+				rfc.RuleAction = &selectedAction
+			}
+			if batch {
+				if len(filteredNodes) > 0 {
+					runRuleResults := runRule(filteredNodes)
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
@@ -2021,19 +2041,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				// DEFAULT: Per-node invocation (original behavior)
 				// Iterate through nodes and supply them one at a time so we don't pollute each run
 				// (format already checked at rule level)
-				for _, node := range filteredNodes {
-
-					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
-						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-							Message:      "Rule ignored due to inline ignore directive",
-							RuleId:       ctx.rule.Id,
-							RuleSeverity: ctx.rule.Severity,
-							Rule:         ctx.rule,
-							StartNode:    node,
-							EndNode:      node,
-						})
-						continue
-					}
+				for node := range selectedNodes {
 
 					var runRuleResults []model.RuleFunctionResult
 					if ctx.contract == model.OpenLintV1Draft {

@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/testify/require"
 )
 
@@ -47,4 +49,27 @@ func TestJavaScriptRulesetCLI(t *testing.T) {
 			require.Equal(t, tc.code, code, string(output))
 		})
 	}
+}
+
+func TestJavaScriptRulesetKeyFieldCLI(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "api.yaml")
+	rules := filepath.Join(dir, "rules.mjs")
+	require.NoError(t, os.WriteFile(spec, []byte("openapi: 3.1.0\ninfo: {title: Example, version: '1'}\npaths: {}\nx-keys: [{red: false}, [false], {}]\n"), 0600))
+	require.NoError(t, os.WriteFile(rules, []byte(`export default {rules: {keys: {
+      severity: 'error', given: "$['x-keys'][*]", then: {field: '@key',
+        function: (key, options, ctx) => [{message: String(key) + ' at ' + ctx.path.join('/')}]
+      }
+    }}}`), 0600))
+	output, code := runVacuum(t, "spectral-report", spec, "-r", rules, "--stdout", "--no-update-check")
+	require.Zero(t, code, string(output))
+	var got []reports.SpectralReport
+	require.NoError(t, json.Unmarshal(output, &got))
+	require.Len(t, got, 3)
+	require.Equal(t, []string{"x-keys", "0", "red"}, got[0].Path)
+	require.Equal(t, "red at x-keys/0/red", got[0].Message)
+	require.Equal(t, []string{"x-keys", "1", "0"}, got[1].Path)
+	require.Equal(t, "0 at x-keys/1/0", got[1].Message)
+	require.Equal(t, []string{"x-keys", "2"}, got[2].Path)
+	require.Equal(t, "undefined at x-keys/2", got[2].Message)
 }

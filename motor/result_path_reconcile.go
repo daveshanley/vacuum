@@ -2330,7 +2330,7 @@ func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *res
 	}
 
 	canonicalPath := primary.Path
-	if cache != nil && !resultUsesResolvedComponentAliases(primary) {
+	if cache != nil && !primary.KeyTarget && !resultUsesResolvedComponentAliases(primary) {
 		if path, found := cache.canonicalPathForResult(primary); found {
 			canonicalPath = path
 		} else if path, found := cache.canonicalPathForResult(duplicate); found {
