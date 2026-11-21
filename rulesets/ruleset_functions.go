@@ -883,6 +883,23 @@ func GetOAS3DocumentRelationshipsRule() *model.Rule {
 	}
 }
 
+// GetOAS3OperationRefReferenceRule warns when a Link operationRef resolves only through a $ref.
+func GetOAS3OperationRefReferenceRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check link operationRef pointers are direct",
+		Id:           Oas3OperationRefReference,
+		Formats:      model.OAS3AllFormat,
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		Description:  "A link operationRef should point at its operation directly, because JSON Pointer does not follow $ref.",
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then:         model.RuleAction{Function: "oasOperationRefReferences"},
+	}
+}
+
 // GetOAS30ServerVariableDefaultRule warns when an OpenAPI 3.0 server default falls outside its enum.
 func GetOAS30ServerVariableDefaultRule() *model.Rule {
 	return &model.Rule{

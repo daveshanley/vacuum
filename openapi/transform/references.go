@@ -129,40 +129,91 @@ func appendPath(path []string, part string) []string {
 // OperationRefLookup indexes the mappings traversed by local Link operationRefs during one lint run.
 type OperationRefLookup map[*yaml.Node]map[string]*yaml.Node
 
+// OperationRefTarget is the object a local Link operationRef leads to.
+type OperationRefTarget struct {
+	// Node is the object at the pointer, or nil when the pointer is invalid or the target is not an object.
+	Node *yaml.Node
+	// Direct is an equivalent pointer that passes through no $ref. It is set only when the walk
+	// followed a local reference, which strict JSON Pointer evaluation does not do.
+	Direct string
+	// External is set when the walk reached a reference to another document. That target is not checked.
+	External bool
+}
+
+// maxOperationRefHops bounds the local references followed for one operationRef, so cycles stop.
+const maxOperationRefHops = 32
+
+var pointerTokenEscaper = strings.NewReplacer("~", "~0", "/", "~1")
+
 // Target resolves a fragment-only JSON Pointer against the document that owns the link.
-// It returns nil when the pointer is invalid or the target is not an object.
-func (lookup OperationRefLookup) Target(root *yaml.Node, ref string) *yaml.Node {
+// Authors expect a pointer such as '#/paths/~1pets/get' to reach an operation in a referenced
+// Path Item, so local references met on the way are followed and the strict pointer is recorded.
+func (lookup OperationRefLookup) Target(root *yaml.Node, ref string) OperationRefTarget {
+	node, direct, followed, external := lookup.target(root, ref, 0)
+	target := OperationRefTarget{Node: node, External: external}
+	if followed && node != nil {
+		target.Direct = direct
+	}
+	return target
+}
+
+func (lookup OperationRefLookup) target(root *yaml.Node, ref string, hops int) (node *yaml.Node, direct string, followed, external bool) {
 	if ref == "" || ref == "#" {
-		return documentRoot(root)
+		return documentRoot(root), "#", false, false
 	}
 	fragment, err := url.PathUnescape(strings.TrimPrefix(ref, "#"))
 	if err != nil || !strings.HasPrefix(ref, "#") || !strings.HasPrefix(fragment, "/") {
-		return nil
+		return nil, "", false, false
 	}
-	node := libutils.NodeAlias(documentRoot(root))
+	node = libutils.NodeAlias(documentRoot(root))
+	direct = "#"
 	for part := range strings.SplitSeq(fragment[1:], "/") {
 		token, err := decodePointerToken(part)
 		if err != nil || node == nil {
-			return nil
+			return nil, "", followed, false
 		}
 		switch node.Kind {
 		case yaml.MappingNode:
-			node = lookup.members(node)[token]
+			members := lookup.members(node)
+			// Descend through a reference, unless the token names a sibling of $ref.
+			for {
+				if _, local := members[token]; local {
+					break
+				}
+				refNode := libutils.NodeAlias(members["$ref"])
+				if refNode == nil || refNode.Kind != yaml.ScalarNode {
+					break
+				}
+				if !strings.HasPrefix(refNode.Value, "#") {
+					return nil, "", followed, true
+				}
+				if hops++; hops > maxOperationRefHops {
+					return nil, "", followed, false
+				}
+				// The reference's own target is reached by a strict pointer, which replaces the prefix.
+				if node, direct, _, external = lookup.target(root, refNode.Value, hops); node == nil {
+					return nil, "", true, external
+				}
+				followed = true
+				members = lookup.members(node)
+			}
+			node = members[token]
 		case yaml.SequenceNode:
 			index, err := strconv.Atoi(token)
 			if err != nil || index < 0 || index >= len(node.Content) || strconv.Itoa(index) != token {
-				return nil
+				return nil, "", followed, false
 			}
 			node = node.Content[index]
 		default:
-			return nil
+			return nil, "", followed, false
 		}
+		direct += "/" + pointerTokenEscaper.Replace(token)
 		node = libutils.NodeAlias(node)
 	}
 	if node == nil || node.Kind != yaml.MappingNode {
-		return nil
+		return nil, "", followed, false
 	}
-	return node
+	return node, direct, followed, false
 }
 
 func (lookup OperationRefLookup) members(node *yaml.Node) map[string]*yaml.Node {

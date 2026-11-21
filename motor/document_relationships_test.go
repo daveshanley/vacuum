@@ -128,7 +128,47 @@ x-path-items: [{get: {responses: {'204': {description: ok}}}}]
 		require.Contains(t, f.Path, ".operationRef")
 		require.Equal(t, model.SeverityError, f.RuleSeverity)
 	}
-	require.ElementsMatch(t, []string{"", "#", "#/paths/~1missing/get", "#/paths/~1alias/get", "#/info", "#/components/examples/demo/value/get", "#/paths/~2/get"}, bad)
+	// '#/paths/~1alias/get' passes through a $ref; oas3-operation-ref-reference warns about it instead.
+	require.ElementsMatch(t, []string{"", "#", "#/paths/~1missing/get", "#/info", "#/components/examples/demo/value/get", "#/paths/~2/get"}, bad)
+}
+
+func TestOpenAPIOperationRefThroughReference(t *testing.T) {
+	const spec = `openapi: 3.1.0
+info: {title: Links, version: '1'}
+paths:
+  /pets: {$ref: '#/components/pathItems/Pets'}
+  /chain: {$ref: '#/x-alias'}
+  /direct:
+    get:
+      responses:
+        '200':
+          description: ok
+          links:
+            viaRef: {operationRef: '#/paths/~1pets/get'}
+            chained: {operationRef: '#/paths/~1chain/get'}
+            absent: {operationRef: '#/paths/~1pets/delete'}
+            direct: {operationRef: '#/components/pathItems/Pets/get'}
+components:
+  pathItems:
+    Pets: {get: {responses: {'200': {description: ok}}}}
+x-alias: {$ref: '#/components/pathItems/Pets'}
+`
+	relationships, references := rulesets.GetOAS3DocumentRelationshipsRule(), rulesets.GetOAS3OperationRefReferenceRule()
+	r := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte(spec), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		relationships.Id: relationships, references.Id: references,
+	}}})
+	defer r.Release()
+	var got []string
+	for _, f := range r.Results {
+		got = append(got, f.RuleId+" "+f.RuleSeverity+" "+f.Message)
+		require.Contains(t, f.Path, ".operationRef")
+	}
+	// A $ref'd Path Item resolves with a warning naming the strict pointer; a missing target stays an error.
+	require.ElementsMatch(t, []string{
+		"oas3-operation-ref-reference warn link operationRef \"#/paths/~1pets/get\" passes through a $ref, which JSON Pointer does not follow; use \"#/components/pathItems/Pets/get\"",
+		"oas3-operation-ref-reference warn link operationRef \"#/paths/~1chain/get\" passes through a $ref, which JSON Pointer does not follow; use \"#/components/pathItems/Pets/get\"",
+		"oas3-document-relationships error link operationRef \"#/paths/~1pets/delete\" does not resolve to an operation",
+	}, got)
 }
 
 func TestOpenAPI32EncodingExclusions(t *testing.T) {

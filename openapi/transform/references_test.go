@@ -113,3 +113,45 @@ func TestYAMLHelpers(t *testing.T) {
 	assert.True(t, isExternalDiscriminatorReference("../pet.yaml#/Pet"))
 	assert.True(t, isExternalDiscriminatorReference("pet.yaml"))
 }
+
+func TestOperationRefLookupFollowsLocalReferences(t *testing.T) {
+	root := parseTestYAML(t, `paths:
+  /pets: {$ref: '#/components/pathItems/Pets'}
+  /chain: {$ref: '#/x-alias'}
+  /loop: {$ref: '#/x-loop'}
+  /external: {$ref: 'other.yaml'}
+  /sibling: {$ref: '#/components/pathItems/Pets', get: {operationId: local}}
+  /direct: {get: {operationId: direct}}
+components:
+  pathItems:
+    Pets: {get: {operationId: pets}}
+x-alias: {$ref: '#/components/pathItems/Pets'}
+x-loop: {$ref: '#/paths/~1loop'}
+`)
+	lookup := make(OperationRefLookup)
+	id := func(target OperationRefTarget) string {
+		if target.Node == nil {
+			return ""
+		}
+		return mapValue(target.Node, "operationId").Value
+	}
+	for _, tc := range []struct {
+		ref, id, direct string
+		external        bool
+	}{
+		{ref: "#/paths/~1direct/get", id: "direct"},
+		{ref: "#/paths/~1pets/get", id: "pets", direct: "#/components/pathItems/Pets/get"},
+		{ref: "#/paths/~1chain/get", id: "pets", direct: "#/components/pathItems/Pets/get"},
+		{ref: "#/paths/~1sibling/get", id: "local"},
+		{ref: "#/paths/~1pets/delete"},
+		{ref: "#/paths/~1loop/get"},
+		{ref: "#/paths/~1external/get", external: true},
+	} {
+		t.Run(tc.ref, func(t *testing.T) {
+			target := lookup.Target(root, tc.ref)
+			assert.Equal(t, tc.id, id(target))
+			assert.Equal(t, tc.direct, target.Direct)
+			assert.Equal(t, tc.external, target.External)
+		})
+	}
+}
