@@ -7,6 +7,7 @@ package transform
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/pb33f/go-yaml"
@@ -123,6 +124,58 @@ func appendPath(path []string, part string) []string {
 	copy(next, path)
 	next[len(path)] = part
 	return next
+}
+
+// OperationRefLookup indexes the mappings traversed by local Link operationRefs during one lint run.
+type OperationRefLookup map[*yaml.Node]map[string]*yaml.Node
+
+// Target resolves a fragment-only JSON Pointer against the document that owns the link.
+// It returns nil when the pointer is invalid or the target is not an object.
+func (lookup OperationRefLookup) Target(root *yaml.Node, ref string) *yaml.Node {
+	if ref == "" || ref == "#" {
+		return documentRoot(root)
+	}
+	fragment, err := url.PathUnescape(strings.TrimPrefix(ref, "#"))
+	if err != nil || !strings.HasPrefix(ref, "#") || !strings.HasPrefix(fragment, "/") {
+		return nil
+	}
+	node := libutils.NodeAlias(documentRoot(root))
+	for part := range strings.SplitSeq(fragment[1:], "/") {
+		token, err := decodePointerToken(part)
+		if err != nil || node == nil {
+			return nil
+		}
+		switch node.Kind {
+		case yaml.MappingNode:
+			node = lookup.members(node)[token]
+		case yaml.SequenceNode:
+			index, err := strconv.Atoi(token)
+			if err != nil || index < 0 || index >= len(node.Content) || strconv.Itoa(index) != token {
+				return nil
+			}
+			node = node.Content[index]
+		default:
+			return nil
+		}
+		node = libutils.NodeAlias(node)
+	}
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	return node
+}
+
+func (lookup OperationRefLookup) members(node *yaml.Node) map[string]*yaml.Node {
+	if members, ok := lookup[node]; ok {
+		return members
+	}
+	content := libutils.ResolveMergeNodes(node).Content
+	members := make(map[string]*yaml.Node, len(content)/2)
+	for i := 0; i+1 < len(content); i += 2 {
+		members[libutils.NodeAlias(content[i]).Value] = content[i+1]
+	}
+	lookup[node] = members
+	return members
 }
 
 func localPointerTokens(value string) ([]string, error) {
