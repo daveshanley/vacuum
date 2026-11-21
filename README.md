@@ -150,6 +150,8 @@ come say hi!
 
 Catch broken Link targets, duplicate tags and invalid server variable defaults. Updated schema checks cover OpenAPI 3.1 and 3.2.
 
+Native lint checks Link operation IDs and local `operationRef` targets. When a server variable default falls outside its enum, OpenAPI 3.0 gets a warning from `oas3-server-variable-default`. OpenAPI 3.1 and 3.2 get an error from `oas3-document-relationships`.
+
 Native lint can report errors on specs that passed before. Equivalent path templates conflict even when their HTTP methods differ.
 
 Use [OpenLint's packaged OpenAPI rules](https://quobix.com/vacuum/openlint/#packaged-openapi-rules) with `extends: ["openlint:openapi"]`. Built into vacuum. Works offline.

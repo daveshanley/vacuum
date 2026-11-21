@@ -246,3 +246,69 @@ paths:
 	require.Equal(t, "$.get.responses['200'].links.missing.operationRef", r.Results[0].Path)
 	require.Equal(t, file, r.Results[0].Origin.AbsoluteLocation)
 }
+
+func TestServerVariableDefaultSeverityByVersion(t *testing.T) {
+	const doc = `openapi: %s
+info: {title: Servers, version: '1'}
+paths: {}
+servers:
+  - url: https://{env}.example.com/{region}/{stage}
+    variables:
+      env: {default: qa, enum: [prod, staging]}
+      region: {default: us, enum: [us, eu]}
+      stage: {default: dev}
+components:
+  examples:
+    literal: {value: {variables: {env: {default: qa, enum: [prod]}}}}
+`
+	for _, tc := range []struct{ version, rule, severity, word string }{
+		{"3.0.4", rulesets.Oas30ServerVariableDefault, model.SeverityWarn, "should"},
+		{"3.1.1", rulesets.Oas3DocumentRelationships, model.SeverityError, "must"},
+		{"3.2.0", rulesets.Oas3DocumentRelationships, model.SeverityError, "must"},
+	} {
+		t.Run(tc.version, func(t *testing.T) {
+			rs := rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet()
+			r := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte(fmt.Sprintf(doc, tc.version)), RuleSet: rs})
+			defer r.Release()
+			var matches []model.RuleFunctionResult
+			for _, f := range r.Results {
+				if f.RuleId == rulesets.Oas30ServerVariableDefault || f.RuleId == rulesets.Oas3DocumentRelationships {
+					matches = append(matches, f)
+				}
+			}
+			require.Len(t, matches, 1)
+			f := matches[0]
+			require.Equal(t, tc.rule, f.RuleId)
+			require.Equal(t, tc.severity, f.RuleSeverity)
+			require.Contains(t, f.Message, tc.word)
+			require.Equal(t, "$.servers[0].variables.env.default", f.Path)
+			require.Equal(t, "qa", f.StartNode.Value)
+		})
+	}
+}
+
+func TestServerVariableDefaultsWithSharedAndEmptyEnums(t *testing.T) {
+	const spec = `openapi: 3.0.4
+info: {title: Test, version: '1'}
+x-default: &d {default: qa}
+x-empty: &empty []
+paths: {}
+servers:
+  - url: '/{good}/{bad}/{empty}'
+    variables:
+      good: {<<: *d, enum: [qa]}
+      bad: {<<: *d, enum: [prod]}
+      empty: {default: qa, enum: *empty}
+`
+	rule := rulesets.GetOAS30ServerVariableDefaultRule()
+	r := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte(spec), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}})
+	defer r.Release()
+	var messages []string
+	for _, f := range r.Results {
+		messages = append(messages, f.Message)
+	}
+	require.ElementsMatch(t, []string{
+		`server variable "bad" default "qa" should be a member of its enum`,
+		`server variable "empty" default "qa" should be a member of its enum`,
+	}, messages)
+}
