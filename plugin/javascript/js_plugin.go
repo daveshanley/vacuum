@@ -78,6 +78,8 @@ func (j *JSRuleFunction) createErrorResult(message string, node *yaml.Node, rule
 			EndNode:   node,
 			Path:      fmt.Sprint(ruleContext.Given),
 			Rule:      ruleContext.Rule,
+			// The engine may locate the failed input more precisely, such as a selected @key.
+			PathFromRuleGiven: true,
 		},
 	}
 }

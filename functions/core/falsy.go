@@ -73,7 +73,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 		}
 
 		// check if the target is truthy (which means falsy check fails)
-		if targetNode != nil && !falsyForContract(targetNode, context.Contract) {
+		if targetNode != nil && !falsyForContext(targetNode, context) {
 			var locatedObjects []v3.Foundational
 			var allPaths []string
 			var err error

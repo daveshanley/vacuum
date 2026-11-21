@@ -82,7 +82,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		}
 
 		// check if the target is falsy (which means truthy check fails)
-		if falsyForContract(targetNode, context.Contract) {
+		if falsyForContext(targetNode, context) {
 			if isArray {
 				pathValue = model.GetStringTemplates().BuildArrayPath(pathValue, x)
 			}
@@ -179,6 +179,15 @@ func truthyFieldOwner(root *yaml.Node, field string, opts vacuumUtils.FieldPathO
 		return root
 	}
 	return vacuumUtils.FindFieldPathSegments(segments[:len(segments)-1], root.Content, opts).ValueNode
+}
+
+// falsyForContext treats a selected @key name as a string, so "0" and "false"
+// are truthy and only the empty name is falsy, as in Spectral.
+func falsyForContext(node *yaml.Node, context model.RuleFunctionContext) bool {
+	if context.KeyTargetPath != nil && node != nil && node.Kind == yaml.ScalarNode && node.Tag == "!!str" {
+		return node.Value == ""
+	}
+	return falsyForContract(node, context.Contract)
 }
 
 func falsyForContract(node *yaml.Node, contract model.Contract) bool {
