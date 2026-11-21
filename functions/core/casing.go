@@ -106,7 +106,9 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	}
 
 	// when 'field' is set, the casing applies to the value of that field, not to the matched node.
-	// '@key' is the spectral idiom for checking the keys of the matched node, which is the default.
+	// '@key' checks the keys of the matched node. Rule execution expands it before calling casing and
+	// passes each property name or array index separately, as Spectral does; direct callers may still
+	// pass '@key', and then the keys of a map, or the elements of an array, are checked.
 	var fieldContainer *yaml.Node
 	var fieldResult vacuumUtils.FieldPathResult
 	if context.RuleAction != nil && context.RuleAction.Field != "" && context.RuleAction.Field != "@key" {
