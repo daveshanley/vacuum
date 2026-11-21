@@ -49,6 +49,7 @@ func (s *ruleKeySources) targets(nodes []*yaml.Node, includeEmpty, batch bool, l
 			}
 			return more
 		}
+		var merged mergedKeys
 		for _, node := range nodes {
 			if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 				node = node.Content[0]
@@ -71,14 +72,20 @@ func (s *ruleKeySources) targets(nodes []*yaml.Node, includeEmpty, batch bool, l
 			}
 			switch node.Kind {
 			case yaml.MappingNode:
-				for i := 0; i+1 < len(node.Content); i += 2 {
-					source := node.Content[i]
+				// Inherited keys belong to this mapping, not to their anchor.
+				container, located := aliasPath, aliasPath != ""
+				for _, entry := range merged.keys(node) {
+					source := entry.node
 					key := source
 					path := ""
-					if source.Tag != "!!str" || aliasPath != "" {
+					if source.Tag != "!!str" || aliasPath != "" || entry.inherited {
 						key = stringKey(source.Value, source)
-						if aliasPath != "" {
-							path = model.AppendResultPathSegment(aliasPath, source.Value)
+						if entry.inherited && !located {
+							container, _ = lookup(node)
+							located = true
+						}
+						if container != "" {
+							path = model.AppendResultPathSegment(container, source.Value)
 						}
 					}
 					if !emit(key, source, path) {
@@ -107,6 +114,88 @@ func (s *ruleKeySources) targets(nodes []*yaml.Node, includeEmpty, batch bool, l
 			}
 		}
 	}
+}
+
+type mappingKey struct {
+	node      *yaml.Node
+	inherited bool
+}
+
+// mergedKeys expands YAML merge keys. Results are memoized per mapping, so
+// repeated anchors cannot make expansion exponential, and cycles stop.
+type mergedKeys struct {
+	memo   map[*yaml.Node][]mappingKey
+	active map[*yaml.Node]bool
+}
+
+// keys lists a mapping's effective keys. Local keys win over inherited keys,
+// and within a merge sequence the first source wins, as YAML requires.
+func (m *mergedKeys) keys(node *yaml.Node) []mappingKey {
+	hasMerge := false
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Tag == "!!merge" {
+			hasMerge = true
+			break
+		}
+	}
+	if !hasMerge {
+		keys := make([]mappingKey, 0, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keys = append(keys, mappingKey{node: node.Content[i]})
+		}
+		return keys
+	}
+	if keys, ok := m.memo[node]; ok {
+		return keys
+	}
+	if m.active[node] {
+		return nil
+	}
+	if m.memo == nil {
+		m.memo = make(map[*yaml.Node][]mappingKey)
+		m.active = make(map[*yaml.Node]bool)
+	}
+	m.active[node] = true
+	defer delete(m.active, node)
+
+	seen := make(map[string]bool, len(node.Content)/2)
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if key := node.Content[i]; key.Tag != "!!merge" {
+			seen[key.Value] = true
+		}
+	}
+	var keys []mappingKey
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key, value := node.Content[i], node.Content[i+1]
+		if key.Tag != "!!merge" {
+			keys = append(keys, mappingKey{node: key})
+			continue
+		}
+		sources := []*yaml.Node{value}
+		if value = dereferenceAlias(value); value.Kind == yaml.SequenceNode {
+			sources = value.Content
+		}
+		for _, source := range sources {
+			if source = dereferenceAlias(source); source.Kind != yaml.MappingNode {
+				continue
+			}
+			for _, inherited := range m.keys(source) {
+				if !seen[inherited.node.Value] {
+					seen[inherited.node.Value] = true
+					keys = append(keys, mappingKey{node: inherited.node, inherited: true})
+				}
+			}
+		}
+	}
+	m.memo[node] = keys
+	return keys
+}
+
+func dereferenceAlias(node *yaml.Node) *yaml.Node {
+	if node.Kind == yaml.AliasNode && node.Alias != nil {
+		return node.Alias
+	}
+	return node
 }
 
 func stringKey(value string, source *yaml.Node) *yaml.Node {
