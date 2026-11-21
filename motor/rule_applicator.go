@@ -1978,10 +1978,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 			selectedNodes := slices.Values(filteredNodes)
 			if isKeyAction {
-				index := sync.OnceValue(func() *vacuumUtils.NodePathIndex {
-					return vacuumUtils.NodePathIndexForContext(rfc, ctx.specNode)
-				})
-				lookup := func(node *yaml.Node) (string, bool) { return index().Lookup(node) }
+				lookup := nativeKeyPathLookup(ctx, rfc)
 				rfc.KeyTargetPath = func(target *yaml.Node) (string, bool) { return keySources.path(target, lookup) }
 				includeEmpty := ruleAction.Function == "defined" || ruleAction.Function == "truthy" || (ruleFunction.GetCategory() == model.FunctionCategoryCustomJS && !batch)
 				selectedNodes = keySources.targets(filteredNodes, includeEmpty, batch, lookup)

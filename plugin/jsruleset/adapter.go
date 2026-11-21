@@ -2,6 +2,7 @@ package jsruleset
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"encoding/json"
@@ -168,10 +169,11 @@ func (a *adapter) RunRule(nodes []*yaml.Node, rfc model.RuleFunctionContext) []m
 						located = exactNode(rfc.ExecutionRoot, resultPath)
 					}
 				}
-				if located == nil || (rfc.KeyTargetPath != nil && !explicitPath) {
+				sameKey := rfc.KeyTargetPath != nil && (!explicitPath || slices.Equal(resultPath, segments))
+				if located == nil || sameKey {
 					located = node
 				}
-				results = append(results, model.RuleFunctionResult{Message: message, Path: resultPathString(resultPath), StartNode: located, EndNode: located, Rule: rfc.Rule, PathFromRuleGiven: rfc.KeyTargetPath != nil && !explicitPath})
+				results = append(results, model.RuleFunctionResult{Message: message, Path: resultPathString(resultPath), StartNode: located, EndNode: located, Rule: rfc.Rule, PathFromRuleGiven: sameKey})
 			}
 		}
 		return nil

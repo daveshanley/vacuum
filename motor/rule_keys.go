@@ -6,8 +6,10 @@ package motor
 import (
 	"iter"
 	"strconv"
+	"sync"
 
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 )
 
@@ -121,5 +123,33 @@ func locateKeyResults(results []model.RuleFunctionResult, lookup func(*yaml.Node
 			r.Path = path
 			r.KeyTarget = true
 		}
+	}
+}
+
+// Repeated references can place the same node at several paths in the resolved
+// tree. Use the authored location in that case, independent of document order.
+func nativeKeyPathLookup(ctx ruleContext, rfc model.RuleFunctionContext) func(*yaml.Node) (string, bool) {
+	resolved := sync.OnceValue(func() *vacuumUtils.NodePathIndex { return vacuumUtils.NodePathIndexForContext(rfc, ctx.specNode) })
+	authored := sync.OnceValue(func() *vacuumUtils.NodePathIndex {
+		return vacuumUtils.NodePathIndexForContext(rfc, ctx.specNodeUnresolved)
+	})
+	return func(node *yaml.Node) (string, bool) {
+		if path, ok := resolved().LookupUnique(node); ok {
+			return path, true
+		}
+		if node != nil && ctx.indexUnresolved != nil && ctx.specNodeUnresolved != ctx.specNode {
+			if origin := ctx.indexUnresolved.FindNodeOrigin(node); origin != nil {
+				source := origin.Node
+				if source.Kind == yaml.MappingNode && node.Kind == yaml.ScalarNode && len(source.Content) > 0 {
+					source = source.Content[0]
+				}
+				if source.Kind == node.Kind && source.Value == node.Value {
+					if path, ok := authored().Lookup(source); ok {
+						return path, true
+					}
+				}
+			}
+		}
+		return resolved().Lookup(node)
 	}
 }

@@ -58,7 +58,7 @@ func TestJavaScriptRulesetKeyFieldCLI(t *testing.T) {
 	require.NoError(t, os.WriteFile(spec, []byte("openapi: 3.1.0\ninfo: {title: Example, version: '1'}\npaths: {}\nx-keys: [{red: false}, [false], {}]\n"), 0600))
 	require.NoError(t, os.WriteFile(rules, []byte(`export default {rules: {keys: {
       severity: 'error', given: "$['x-keys'][*]", then: {field: '@key',
-        function: (key, options, ctx) => [{message: String(key) + ' at ' + ctx.path.join('/')}]
+        function: (key, options, ctx) => [{message: String(key) + ' at ' + ctx.path.join('/'), path: ctx.path}]
       }
     }}}`), 0600))
 	output, code := runVacuum(t, "spectral-report", spec, "-r", rules, "--stdout", "--no-update-check")

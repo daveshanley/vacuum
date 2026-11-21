@@ -81,13 +81,6 @@ func TestNativeKeyFieldTargets(t *testing.T) {
 func TestNativeKeyFieldPresenceAndLocations(t *testing.T) {
 	const spec = `openapi: 3.1.0
 info: {title: Test, version: "1"}
-paths:
-  /a:
-    get:
-      responses: {'200': {$ref: '#/components/responses/R'}}
-  /b:
-    get:
-      responses: {'200': {$ref: '#/components/responses/R'}}
 components:
   responses:
     R:
@@ -95,6 +88,13 @@ components:
       content:
         text/plain: {}
         text/html: {}
+paths:
+  /a:
+    get:
+      responses: {'200': {$ref: '#/components/responses/R'}}
+  /b:
+    get:
+      responses: {'200': {$ref: '#/components/responses/R'}}
 x-empty: {}
 x-media: &media {good: true, bad: true}
 x-copy: *media
