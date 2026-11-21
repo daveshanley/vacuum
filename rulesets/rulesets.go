@@ -87,6 +87,7 @@ const (
 	Oas2OneOf                            = "oas2-oneOf"
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
+	Oas30ServerVariableDefault           = "oas3-server-variable-default"
 	Oas3DocumentRelationships            = "oas3-document-relationships"
 	OasSchemaCheck                       = "oas-schema-check"
 	RequiredFieldsDefinedRule            = "required-fields-defined"
@@ -758,6 +759,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[OperationErrorResponse] = GetOperationErrorResponseRule()
 	rules[Oas2Schema] = GetOAS2SchemaRule()
 	rules[Oas3Schema] = GetOAS3SchemaRule()
+	rules[Oas30ServerVariableDefault] = GetOAS30ServerVariableDefaultRule()
 	rules[Oas3DocumentRelationships] = GetOAS3DocumentRelationshipsRule()
 	rules[Oas3ValidSchemaExample] = GetOAS3ExamplesRule()
 	rules[Oas3ExampleMissingCheck] = GetOAS3ExamplesMissingRule()

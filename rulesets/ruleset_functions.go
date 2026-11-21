@@ -883,6 +883,23 @@ func GetOAS3DocumentRelationshipsRule() *model.Rule {
 	}
 }
 
+// GetOAS30ServerVariableDefaultRule warns when an OpenAPI 3.0 server default falls outside its enum.
+func GetOAS30ServerVariableDefaultRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check OpenAPI 3.0 server variable defaults",
+		Id:           Oas30ServerVariableDefault,
+		Formats:      []string{model.OAS30},
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		Description:  "A server variable default should be a member of its enum in OpenAPI 3.0.",
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then:         model.RuleAction{Function: "oasServerVariableDefaults"},
+	}
+}
+
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{

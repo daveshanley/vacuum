@@ -21,8 +21,8 @@ import (
 	"time"
 )
 
-var totalRules = 70
-var totalRecommendedRules = 56
+var totalRules = 71
+var totalRecommendedRules = 57
 var totalOwaspRules = 26
 
 type blockingRulesetTransport struct {

@@ -11,7 +11,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/openapi"
 	"github.com/daveshanley/vacuum/openapi/transform"
-	"github.com/daveshanley/vacuum/repair"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
@@ -31,6 +30,12 @@ func (DocumentRelationships) GetCategory() string { return model.FunctionCategor
 
 // RunRule checks relationships against the resolved model and reports the authored value.
 func (DocumentRelationships) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	return runDocumentCheck(nodes, ctx, checkOpenAPIRelationships)
+}
+
+type reportRelationship func(*yaml.Node, string, string)
+
+func runDocumentCheck(nodes []*yaml.Node, ctx model.RuleFunctionContext, check func(*v3.Document, model.RuleFunctionContext, reportRelationship)) []model.RuleFunctionResult {
 	if len(nodes) == 0 || ctx.Document == nil || ctx.SpecInfo == nil {
 		return nil
 	}
@@ -38,12 +43,7 @@ func (DocumentRelationships) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionC
 	if built == nil {
 		return nil
 	}
-	return checkOpenAPIRelationships(&built.Model, ctx)
-}
-
-func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	root := ctx.SpecInfo.RootNode
-	version := ctx.SpecInfo.VersionNumeric
 	paths := make(map[*yaml.Node]*utils.NodePathIndex)
 	var results []model.RuleFunctionResult
 	add := func(n *yaml.Node, pointer, message string) {
@@ -66,6 +66,13 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 		finding.Paths = []string{path}
 		results = append(results, finding)
 	}
+	check(&built.Model, ctx, add)
+	return results
+}
+
+func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext, add reportRelationship) {
+	root := ctx.SpecInfo.RootNode
+	version := ctx.SpecInfo.VersionNumeric
 	checkTagRelationships(doc.Tags, version, add)
 	ids := make(map[string]bool)
 	type target struct {
@@ -107,29 +114,7 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 		},
 	}
 	if version >= 3.1 {
-		v.Server = func(s *v3.Server, at string) {
-			for name, variable := range s.Variables.FromOldest() {
-				if variable == nil || variable.GoLow() == nil {
-					continue
-				}
-				low := variable.GoLow()
-				n := low.Default.ValueNode
-				if n == nil || seen[n] || len(low.Enum) == 0 {
-					continue
-				}
-				seen[n] = true
-				found := false
-				for _, entry := range low.Enum {
-					if entry.Value == low.Default.Value {
-						found = true
-						break
-					}
-				}
-				if !found {
-					add(n, at+"/variables/"+repair.EscapeToken(name)+"/default", fmt.Sprintf("server variable %q default %q must be a member of its enum", name, low.Default.Value))
-				}
-			}
-		}
+		v.Server = checkServerDefaults("must", add)
 	}
 	v.Walk(doc)
 	if len(refs) > 0 {
@@ -177,7 +162,6 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 			add(t.node, t.pointer, fmt.Sprintf("link operationId %q does not resolve to an operation", t.id))
 		}
 	}
-	return results
 }
 
 func checkTagRelationships(tags []*base.Tag, version float32, add func(*yaml.Node, string, string)) {
