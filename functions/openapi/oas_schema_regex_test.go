@@ -6,6 +6,7 @@ package openapi
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -62,6 +63,8 @@ func TestOASSchema_ECMAScriptPatterns_Accepted(t *testing.T) {
 		`^[a-z]{1,2048}$`,                // repeat count above RE2's limit of 1000
 		`^(?<!x)[a-z]+$`,                 // lookbehind
 		`^(a)\1$`,                        // backreference
+		`(?<$word>abc)`,                  // '$' is a valid ECMAScript group-name character
+		`(?<name>a)\k<name>$`,            // named backreference
 	}
 	for _, version := range []string{"3.0.3", "3.1.0", "3.2.0"} {
 		t.Run(version, func(t *testing.T) {
@@ -72,9 +75,23 @@ func TestOASSchema_ECMAScriptPatterns_Accepted(t *testing.T) {
 }
 
 func TestOASSchema_ECMAScriptPatterns_EachPatternAcceptedAlone(t *testing.T) {
-	for _, p := range []string{`^P(?=\d)$`, `^[a-z]{1,2048}$`} {
+	for _, p := range []string{`^P(?=\d)$`, `^[a-z]{1,2048}$`, `(?<$word>abc)`} {
 		t.Run(p, func(t *testing.T) {
 			assert.Empty(t, runOASSchemaForRegexTest(t, oas3SpecWithPatterns("3.1.0", p)))
+		})
+	}
+}
+
+// `(?>...)` is an atomic group in .NET syntax: regexp2's ECMAScript mode
+// accepts it, but ECMA-262 (and therefore `format: regex`) does not, so it
+// must still be reported as an invalid pattern.
+func TestOASSchema_AtomicGroupPattern_Rejected(t *testing.T) {
+	for _, p := range []string{`(?>abc)`, `(?#comment)abc`, `(?~abc)`} {
+		t.Run(p, func(t *testing.T) {
+			// the 3.0 meta-schema asserts `format: regex` on pattern values
+			res := runOASSchemaForRegexTest(t, oas3SpecWithPatterns("3.0.3", p))
+			require.NotEmpty(t, res, p)
+			assert.Contains(t, res[0].Message, "expected `regex`", p)
 		})
 	}
 }
@@ -110,9 +127,7 @@ paths:
 // The engine also matches the patterns baked into the OpenAPI meta-schema, so
 // they must keep behaving as they did under the Go engine.
 func TestOASSchema_MetaSchemaPatternsStillMatch(t *testing.T) {
-	spec := oas3SpecWithPatterns("3.1.0", `^[a-z]+$`) + `
-x-extension: allowed
-`
+	spec := oas3SpecWithPatterns("3.1.0", `^[a-z]+$`) + "\nx-extension: allowed\n"
 	assert.Empty(t, runOASSchemaForRegexTest(t, spec))
 
 	bad := strings.Replace(spec, "x-extension", "extension", 1)
@@ -127,7 +142,51 @@ func TestOASRegexEngine_ECMAScript(t *testing.T) {
 	assert.Equal(t, `^P(?=\d)\d+$`, rx.String())
 }
 
-func TestOASRegexEngine_FallsBackToGoSyntax(t *testing.T) {
+// Patterns Go's RE2 engine accepts - including the built-in patterns baked
+// into the OpenAPI meta-schema, like `^/` - must keep the native Go matcher
+// and never be compiled with regexp2.
+func TestOASRegexEngine_GoPatternsStayNative(t *testing.T) {
+	for _, p := range []string{`^/`, `^[a-z]+$`, `(?i)^abc$`, `(?P<name>a)+`, `\pL+`} {
+		rx, err := oasRegexEngine(p)
+		require.NoError(t, err, p)
+		assert.IsType(t, &regexp.Regexp{}, rx, p)
+	}
+}
+
+// ECMAScript-only patterns are compiled with regexp2, not the Go engine.
+func TestOASRegexEngine_ECMAScriptOnlyPatternsUseRegexp2(t *testing.T) {
+	for _, p := range []string{`^P(?=\d)$`, `^[a-z]{1,2048}$`, `(?<$word>abc)`} {
+		rx, err := oasRegexEngine(p)
+		require.NoError(t, err, p)
+		assert.IsType(t, oasECMARegexp{}, rx, p)
+	}
+}
+
+// `(?<$word>abc)` is valid ECMA-262 ($ is allowed in group names) even though
+// the older regexp2 v1 rejected it; it must be accepted and match.
+func TestOASRegexEngine_DollarGroupName(t *testing.T) {
+	rx, err := oasRegexEngine(`(?<$word>abc)`)
+	require.NoError(t, err)
+	assert.True(t, rx.MatchString("abc"))
+	assert.False(t, rx.MatchString("abd"))
+	assert.Equal(t, `(?<$word>abc)`, rx.String())
+}
+
+// Constructs ECMA-262 rejects must stay invalid even though regexp2's
+// ECMAScript mode happens to accept some of them.
+func TestOASRegexEngine_RejectsNonECMAScriptConstructs(t *testing.T) {
+	for _, p := range []string{`(?>abc)`, `(?#comment)abc`, `(?~abc)`} {
+		_, err := oasRegexEngine(p)
+		assert.Error(t, err, p)
+	}
+}
+
+func TestOASRegexEngine_InvalidInBothEngines(t *testing.T) {
+	_, err := oasRegexEngine(`^(unclosed`)
+	assert.Error(t, err)
+}
+
+func TestOASRegexEngine_GoOnlySyntaxStillAccepted(t *testing.T) {
 	// valid RE2 but not ECMAScript: these were accepted before the engine
 	// was swapped, so they must not start failing.
 	for _, p := range []string{`(?i)^abc$`, `(?P<name>a)+`, `\pL+`} {
@@ -135,11 +194,6 @@ func TestOASRegexEngine_FallsBackToGoSyntax(t *testing.T) {
 		require.NoError(t, err, p)
 		assert.NotNil(t, rx)
 	}
-}
-
-func TestOASRegexEngine_InvalidInBothEngines(t *testing.T) {
-	_, err := oasRegexEngine(`^(unclosed`)
-	assert.Error(t, err)
 }
 
 func TestOASRegexEngine_MatchErrorIsNoMatch(t *testing.T) {
