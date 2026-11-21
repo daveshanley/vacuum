@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/openapi"
@@ -74,6 +75,13 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 	}
 	var targets []target
 	seen := make(map[*yaml.Node]bool)
+	type localLink struct {
+		field, target *yaml.Node
+		pointer       string
+		owner         *yaml.Node
+	}
+	var refs []localLink
+	lookup := make(transform.OperationRefLookup)
 	v := openapi.OperationVisitor{
 		Operation: func(op *v3.Operation, _ string) {
 			if op.OperationId != "" {
@@ -86,6 +94,16 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 				seen[n] = true
 				targets = append(targets, target{link.OperationId, n, at + "/operationId"})
 			}
+			field := link.GoLow().OperationRef.ValueNode
+			if field == nil || seen[field] || (link.OperationRef != "" && !strings.HasPrefix(link.OperationRef, "#")) {
+				return
+			}
+			seen[field] = true
+			owner := root
+			if idx := link.GoLow().GetIndex(); idx != nil {
+				owner = idx.GetRootNode()
+			}
+			refs = append(refs, localLink{field, lookup.Target(owner, link.OperationRef), at + "/operationRef", owner})
 		},
 	}
 	if version >= 3.1 {
@@ -114,6 +132,36 @@ func checkOpenAPIRelationships(doc *v3.Document, ctx model.RuleFunctionContext) 
 		}
 	}
 	v.Walk(doc)
+	if len(refs) > 0 {
+		// A merged Operation Object can be a shallow copy of the authored node.
+		type location struct {
+			owner        *yaml.Node
+			line, column int
+		}
+		operations := make(map[location]bool)
+		// A referenced Path Item can live in a fragment with no OpenAPI header.
+		openapi.OperationVisitor{Operation: func(op *v3.Operation, _ string) {
+			low := op.GoLow()
+			if idx := low.GetIndex(); idx != nil {
+				operations[location{idx.GetRootNode(), low.RootNode.Line, low.RootNode.Column}] = true
+			}
+		}}.Walk(doc)
+		checked := make(map[*yaml.Node]bool)
+		for _, ref := range refs {
+			var target location
+			if ref.target != nil {
+				target = location{ref.owner, ref.target.Line, ref.target.Column}
+			}
+			if ref.target != nil && !operations[target] && !checked[ref.owner] {
+				// A linked operation may be outside the part used by the entry document.
+				transform.VisitDocumentOperations(ref.owner, func(node *yaml.Node) { operations[location{ref.owner, node.Line, node.Column}] = true })
+				checked[ref.owner] = true
+			}
+			if !operations[target] {
+				add(ref.field, ref.pointer, fmt.Sprintf("link operationRef %q does not resolve to an operation", ref.field.Value))
+			}
+		}
+	}
 	// A Link can name an operation elsewhere in an already parsed document.
 	rolodex := ctx.Document.GetRolodex()
 	for _, t := range targets {

@@ -77,6 +77,57 @@ components:
 	}
 }
 
+func TestOpenAPILocalOperationRefs(t *testing.T) {
+	const spec = `openapi: 3.2.0
+info: {title: Links, version: '1'}
+paths:
+  /fromArray: {$ref: '#/x-path-items/0'}
+  /merged: {<<: {get: {responses: {'204': {description: ok}}}}}
+  /alias: {$ref: '#/components/pathItems/Shared'}
+  /a~b/{id}:
+    get:
+      responses:
+        '200':
+          description: ok
+          links:
+            escaped: {operationRef: '#/paths/~1a~0b~1%7Bid%7D/get'}
+            missing: {operationRef: '#/paths/~1missing/get'}
+            info: {operationRef: '#/info'}
+            empty: {operationRef: ''}
+            root: {operationRef: '#'}
+            external: {operationRef: 'other.yaml#/paths/~1else/get'}
+            web: {operationRef: 'https://example.test/doc#/paths/~1else/get'}
+webhooks:
+  lock:
+    additionalOperations:
+      LOCK: {}
+components:
+  links:
+    fromArray: {operationRef: '#/x-path-items/0/get'}
+    merged: {operationRef: '#/paths/~1merged/get'}
+    shared: {operationRef: '#/components/pathItems/Shared/get'}
+    absentAtUseSite: {operationRef: '#/paths/~1alias/get'}
+    custom: {operationRef: '#/webhooks/lock/additionalOperations/LOCK'}
+    example: {operationRef: '#/components/examples/demo/value/get'}
+    badEscape: {operationRef: '#/paths/~2/get'}
+  pathItems:
+    Shared: {get: {}}
+  examples:
+    demo: {value: {get: {}, operationRef: '#/missing'}}
+x-path-items: [{get: {responses: {'204': {description: ok}}}}]
+`
+	rule := rulesets.GetOAS3DocumentRelationshipsRule()
+	r := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte(spec), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}})
+	defer r.Release()
+	var bad []string
+	for _, f := range r.Results {
+		bad = append(bad, f.StartNode.Value)
+		require.Contains(t, f.Path, ".operationRef")
+		require.Equal(t, model.SeverityError, f.RuleSeverity)
+	}
+	require.ElementsMatch(t, []string{"", "#", "#/paths/~1missing/get", "#/paths/~1alias/get", "#/info", "#/components/examples/demo/value/get", "#/paths/~2/get"}, bad)
+}
+
 func TestOpenAPI32EncodingExclusions(t *testing.T) {
 	for _, tc := range []struct {
 		content string
@@ -131,9 +182,9 @@ func TestOpenAPILinkTargetsInAlreadyLoadedDocuments(t *testing.T) {
 	dir := t.TempDir()
 	const other = `openapi: 3.1.1
 info: {title: Jobs, version: '1'}
+x-jobs: &jobs {get: {operationId: listJobs, responses: {'200': {description: ok}}}}
 paths:
-  /jobs:
-    get: {operationId: listJobs, responses: {'200': {description: ok}}}
+  /jobs: {<<: *jobs}
 components:
   responses:
     Accepted:
@@ -141,6 +192,8 @@ components:
       links:
         next: {operationId: listJobs}
         broken: {operationId: exampleOnly}
+        sameDocument: {operationRef: '#/paths/~1jobs/get'}
+        entryOnly: {operationRef: '#/paths/~1shop/get'}
   examples:
     Fake: {value: {operationId: exampleOnly}}
 `
@@ -157,7 +210,39 @@ paths:
 		Base: dir, AllowLookup: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}},
 	})
 	defer r.Release()
+	var paths []string
+	for _, f := range r.Results {
+		paths = append(paths, f.Path)
+		require.Equal(t, filepath.Join(dir, "other.yaml"), f.Origin.AbsoluteLocation)
+	}
+	require.ElementsMatch(t, []string{"$.components.responses.Accepted.links.broken.operationId", "$.components.responses.Accepted.links.entryOnly.operationRef"}, paths)
+}
+
+func TestOpenAPILocalOperationRefInPathItemFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "path.yaml")
+	require.NoError(t, os.WriteFile(file, []byte(`get:
+  responses:
+    '200':
+      description: ok
+      links:
+        next: {operationRef: '#/post'}
+        missing: {operationRef: '#post'}
+post:
+  <<: {responses: {'204': {description: ok}}}
+`), 0600))
+	const root = `openapi: 3.1.1
+info: {title: Test, version: '1'}
+paths:
+  /shop: {$ref: 'path.yaml'}
+`
+	rule := rulesets.GetOAS3DocumentRelationshipsRule()
+	r := ApplyRulesToRuleSet(&RuleSetExecution{
+		Spec: []byte(root), SpecFileName: filepath.Join(dir, "root.yaml"),
+		Base: dir, AllowLookup: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}},
+	})
+	defer r.Release()
 	require.Len(t, r.Results, 1)
-	require.Equal(t, "$.components.responses.Accepted.links.broken.operationId", r.Results[0].Path)
-	require.Equal(t, filepath.Join(dir, "other.yaml"), r.Results[0].Origin.AbsoluteLocation)
+	require.Equal(t, "$.get.responses['200'].links.missing.operationRef", r.Results[0].Path)
+	require.Equal(t, file, r.Results[0].Origin.AbsoluteLocation)
 }

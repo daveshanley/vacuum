@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pb33f/go-yaml"
+	libutils "github.com/pb33f/libopenapi/utils"
 )
 
 // FilterOperationsByTags applies the configured tag and operation-ID filters.
@@ -491,14 +492,23 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 // VisitOperationIDs visits IDs declared by Operation Objects in one parsed OpenAPI 3
 // document, including callbacks, webhooks and reusable Path Items. It does no I/O.
 func VisitOperationIDs(root *yaml.Node, visit func(string)) {
-	root = documentRoot(root)
+	VisitDocumentOperations(root, func(node *yaml.Node) {
+		if id := resolvedMapValue(node, "operationId"); id != nil && id.Kind == yaml.ScalarNode && id.Tag == "!!str" {
+			visit(id.Value)
+		}
+	})
+}
+
+// VisitDocumentOperations visits authored Operation Objects in a parsed OpenAPI 3 document.
+func VisitDocumentOperations(root *yaml.Node, visit func(*yaml.Node)) {
+	root = libutils.ResolveMergeNodes(documentRoot(root))
 	version := resolvedMapValue(root, "openapi")
 	if version == nil || !strings.HasPrefix(version.Value, "3.") {
 		return
 	}
 	visitOperations(root, version.Value, func(node *yaml.Node, _ []string) {
-		if id := resolvedMapValue(node, "operationId"); id != nil && id.Kind == yaml.ScalarNode && id.Tag == "!!str" {
-			visit(id.Value)
+		if node != nil && node.Kind == yaml.MappingNode {
+			visit(node)
 		}
 	})
 }
@@ -513,7 +523,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 	operation = func(node *yaml.Node, path []string) {
 		node = aliasTarget(node)
 		visit(node, path)
-		callbacks := resolvedMapValue(node, "callbacks")
+		callbacks := libutils.ResolveMergeNodes(resolvedMapValue(libutils.ResolveMergeNodes(node), "callbacks"))
 		if callbacks != nil && callbacks.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(callbacks.Content); i += 2 {
 				callback(callbacks.Content[i+1], appendPath(appendPath(path, "callbacks"), callbacks.Content[i].Value))
@@ -529,6 +539,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			return
 		}
 		seenCallbacks[node] = struct{}{}
+		node = libutils.ResolveMergeNodes(node)
 		if ref := resolvedMapValue(node, "$ref"); ref != nil {
 			if target := resolveLocalNode(root, ref.Value); target != nil {
 				callback(target, localReferencePath(ref.Value))
@@ -550,6 +561,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			return
 		}
 		seen[node] = struct{}{}
+		node = libutils.ResolveMergeNodes(node)
 		if ref := resolvedMapValue(node, "$ref"); ref != nil {
 			if target := resolveLocalNode(root, ref.Value); target != nil {
 				pathItem(target, localReferencePath(ref.Value))
@@ -561,7 +573,11 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 				opPath := appendPath(path, key)
 				operation(node.Content[i+1], opPath)
 			}
-			if additional := aliasTarget(node.Content[i+1]); key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) && additional.Kind == yaml.MappingNode {
+			if additional := node.Content[i+1]; key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) {
+				additional = libutils.ResolveMergeNodes(additional)
+				if additional == nil || additional.Kind != yaml.MappingNode {
+					continue
+				}
 				for j := 0; j+1 < len(additional.Content); j += 2 {
 					opPath := appendPath(appendPath(path, key), additional.Content[j].Value)
 					operation(additional.Content[j+1], opPath)
@@ -573,7 +589,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 		if top == "webhooks" && !supportsWebhooks(version) {
 			continue
 		}
-		container := resolvedMapValue(root, top)
+		container := libutils.ResolveMergeNodes(resolvedMapValue(root, top))
 		if container != nil && container.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(container.Content); i += 2 {
 				if top == "paths" && strings.HasPrefix(container.Content[i].Value, "x-") {
@@ -583,13 +599,13 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			}
 		}
 	}
-	if components := resolvedMapValue(root, "components"); components != nil {
-		if items := resolvedMapValue(components, "pathItems"); items != nil && items.Kind == yaml.MappingNode {
+	if components := libutils.ResolveMergeNodes(resolvedMapValue(root, "components")); components != nil {
+		if items := libutils.ResolveMergeNodes(resolvedMapValue(components, "pathItems")); items != nil && items.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(items.Content); i += 2 {
 				pathItem(items.Content[i+1], []string{"components", "pathItems", items.Content[i].Value})
 			}
 		}
-		if callbacks := resolvedMapValue(components, "callbacks"); callbacks != nil && callbacks.Kind == yaml.MappingNode {
+		if callbacks := libutils.ResolveMergeNodes(resolvedMapValue(components, "callbacks")); callbacks != nil && callbacks.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(callbacks.Content); i += 2 {
 				callback(callbacks.Content[i+1], []string{"components", "callbacks", callbacks.Content[i].Value})
 			}
