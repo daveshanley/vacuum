@@ -221,6 +221,29 @@ paths:
 	assert.Len(t, res, 1)
 }
 
+func TestSuccessResponse_RangeCodeInList(t *testing.T) {
+
+	// responses must be a map; a list item that looks like a status code is not a response
+	yml := `openapi: 3.1.0
+paths:
+  /melody:
+    get:
+      operationId: listMelodies
+      responses:
+        - "2XX"`
+
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction("$", "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, index.CreateOpenAPIIndexConfig())
+	ctx.SpecInfo = info
+
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+}
+
 func TestSuccessResponse_RangeCodes_Swagger(t *testing.T) {
 
 	// Swagger 2.0 has no range codes, so 2XX is not a success response there.

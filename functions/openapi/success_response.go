@@ -72,7 +72,8 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 						var invalidCodes []int
 						// only the response keys are status codes; the values are response objects
 						// or extension values, which must not count as a success response.
-						for i := 0; i < len(valNode.Content); i += 2 {
+						// responses that aren't a map (e.g. a list) have no status codes at all.
+						for i := 0; utils.IsNodeMap(valNode) && i < len(valNode.Content); i += 2 {
 							response := valNode.Content[i]
 							if utils.IsNodeStringValue(response) {
 								responseCode, _ = strconv.Atoi(response.Value)
