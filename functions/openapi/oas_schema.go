@@ -7,13 +7,16 @@ package openapi
 import (
 	"crypto/sha256"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonschema/v6"
@@ -237,11 +240,38 @@ func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
 // There are at most 4 entries (2.0, 3.0, 3.1, 3.2) so a sync.Map is ideal.
 var oasSchemaCache sync.Map
 
+type oasSchemaRegexp struct{ *regexp2.Regexp }
+
+func (r oasSchemaRegexp) MatchString(value string) bool {
+	matched, err := r.Regexp.MatchString(value)
+	return err == nil && matched
+}
+
+// compileOASSchemaRegexp is the regular expression engine used by the OAS schema.
+// JSON Schema defines `pattern` (and the `regex` format) as ECMA-262, so expressions
+// Go's RE2 engine cannot compile, such as lookarounds or repeat counts over 1000,
+// fall back to regexp2 in ECMAScript mode. Expressions RE2 accepts keep using it.
+func compileOASSchemaRegexp(pattern string) (jsonschema.Regexp, error) {
+	if rx, err := regexp.Compile(pattern); err == nil {
+		return rx, nil
+	}
+	rx, err := regexp2.Compile(pattern, regexp2.ECMAScript)
+	if err != nil {
+		return nil, err
+	}
+	rx.MatchTimeout = time.Second
+	return oasSchemaRegexp{rx}, nil
+}
+
+// oasSchemaRegexEngine is applied both to the cached OAS schema and to the validator's
+// own compilation, which it falls back to when no precompiled schema is available.
+var oasSchemaRegexEngine = config.WithRegexEngine(compileOASSchemaRegexp)
+
 func getOrCompileOASSchema(apiSchema string, version float32) (*jsonschema.Schema, error) {
 	if cached, ok := oasSchemaCache.Load(version); ok {
 		return cached.(*jsonschema.Schema), nil
 	}
-	options := config.NewValidationOptions()
+	options := config.NewValidationOptions(oasSchemaRegexEngine)
 	compiled, err := helpers.NewCompiledSchemaWithVersion("schema", []byte(apiSchema), options, version)
 	if err != nil {
 		return nil, err
@@ -318,7 +348,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	// Use a cached compiled schema when possible to avoid recompiling the OAS schema every invocation
 	compiledSchema, _ := getOrCompileOASSchema(info.APISchema, info.VersionNumeric)
 	valid, validationErrors := schema_validation.ValidateOpenAPIDocumentWithPrecompiled(
-		context.Document, compiledSchema)
+		context.Document, compiledSchema, oasSchemaRegexEngine)
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := validationInfo.VersionNumeric

@@ -1,7 +1,9 @@
 package openapi
 
 import (
+	"fmt"
 	"math/big"
+	"regexp"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -698,4 +700,78 @@ func TestExtractLeafValidationErrorsStableAcrossCauseOrder(t *testing.T) {
 	assert.Equal(t, forward, reverse)
 	assert.Contains(t, forward[0].message, "/~1first/")
 	assert.Contains(t, forward[1].message, "/~1second/")
+}
+
+func runOASSchemaOnYAML(t *testing.T, yml string) []model.RuleFunctionResult {
+	t.Helper()
+	specInfo, err := datamodel.ExtractSpecInfo([]byte(yml))
+	assert.NoError(t, err)
+
+	rule := buildOpenApiTestRuleAction("$", "oas3_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, index.CreateOpenAPIIndexConfig())
+	ctx.SpecInfo = specInfo
+	ctx.Document, err = libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	return OASSchema{}.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+}
+
+const oasSchemaPatternDocument = `openapi: %s
+info:
+  title: Regex pattern repro
+  version: 1.0.0
+paths:
+  /durations:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: string
+                    pattern: '%s'`
+
+// https://github.com/daveshanley/vacuum/issues/1068
+func TestOASSchema_ECMAScriptPatterns(t *testing.T) {
+	for _, version := range []string{"3.0.3", "3.1.0"} {
+		for _, pattern := range []string{
+			`^P(?=\d)(\d+Y)?(\d+M)?(\d+D)?$`,
+			`^[a-z]{1,2048}$`,
+		} {
+			t.Run(version+" "+pattern, func(t *testing.T) {
+				res := runOASSchemaOnYAML(t, fmt.Sprintf(oasSchemaPatternDocument, version, pattern))
+				assert.Len(t, res, 0)
+			})
+		}
+	}
+}
+
+func TestOASSchema_InvalidPatternStillReported(t *testing.T) {
+	res := runOASSchemaOnYAML(t, fmt.Sprintf(oasSchemaPatternDocument, "3.0.3", `^[a-z`))
+	if assert.Len(t, res, 1) {
+		assert.Contains(t, res[0].Message, "/properties/value/pattern")
+		assert.Contains(t, res[0].Message, "invalid format")
+	}
+}
+
+func TestCompileOASSchemaRegexp(t *testing.T) {
+	rx, err := compileOASSchemaRegexp(`^x-`)
+	assert.NoError(t, err)
+	assert.IsType(t, &regexp.Regexp{}, rx, "RE2-compatible expressions keep using Go's regexp")
+	assert.True(t, rx.MatchString("x-foo"))
+
+	rx, err = compileOASSchemaRegexp(`^P(?=\d)(\d+Y)?$`)
+	assert.NoError(t, err)
+	assert.IsType(t, oasSchemaRegexp{}, rx)
+	assert.True(t, rx.MatchString("P1Y"))
+	assert.False(t, rx.MatchString("PY"))
+	assert.Equal(t, `^P(?=\d)(\d+Y)?$`, rx.String())
+
+	_, err = compileOASSchemaRegexp(`^[a-z`)
+	assert.Error(t, err)
 }
