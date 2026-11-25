@@ -50,6 +50,12 @@ func (or Operation4xResponse) RunRule(_ []*yaml.Node, context model.RuleFunction
 				for codePairs := operation.Responses.Codes.First(); codePairs != nil; codePairs = codePairs.Next() {
 					code := codePairs.Key()
 
+					// the 4XX range code covers every 4xx response
+					if code == "4XX" {
+						seen = true
+						break
+					}
+
 					// convert code to int
 					codeVal, er := strconv.Atoi(code)
 					if er == nil {

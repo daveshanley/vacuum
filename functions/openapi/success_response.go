@@ -70,10 +70,19 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 						var responseInvalidType bool
 						var responseCode int
 						var invalidCodes []int
-						for _, response := range valNode.Content {
+						// only the response keys are status codes; the values are response objects
+						// or extension values, which must not count as a success response.
+						// responses that aren't a map (e.g. a list) have no status codes at all.
+						for i := 0; utils.IsNodeMap(valNode) && i < len(valNode.Content); i += 2 {
+							response := valNode.Content[i]
 							if utils.IsNodeStringValue(response) {
 								responseCode, _ = strconv.Atoi(response.Value)
 								if responseCode >= 200 && responseCode < 400 {
+									responseSeen = true
+								}
+								// OpenAPI 3 allows the range codes 2XX and 3XX, which cover every success code.
+								if context.SpecInfo.SpecType == utils.OpenApi3 &&
+									(response.Value == "2XX" || response.Value == "3XX") {
 									responseSeen = true
 								}
 							}

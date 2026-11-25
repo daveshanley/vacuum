@@ -101,3 +101,42 @@ func TestOperation4xResponse_RunRule_Fail(t *testing.T) {
 
 	assert.Len(t, res, 402)
 }
+
+func TestOperation4xResponse_RunRule_RangeCode(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /melody:
+    get:
+      responses:
+        "200":
+          description: hello
+        "4XX":
+          description: hello
+    post:
+      responses:
+        "200":
+          description: hello
+        "5XX":
+          description: hello`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	rule := buildOpenApiTestRuleAction("$", "responses", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drModel.NewDrDocument(m)
+	ctx.Rule = &rule
+
+	def := Operation4xResponse{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "$.paths['/melody'].post.responses", res[0].Path)
+}
