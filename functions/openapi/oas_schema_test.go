@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/dlclark/regexp2/v2"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonschema/v6"
@@ -772,6 +775,31 @@ func TestCompileOASSchemaRegexp(t *testing.T) {
 	assert.False(t, rx.MatchString("PY"))
 	assert.Equal(t, `^P(?=\d)(\d+Y)?$`, rx.String())
 
+	// ECMAScript semantics: \d only matches ASCII digits.
+	rx, err = compileOASSchemaRegexp(`^(?=\d)\d$`)
+	assert.NoError(t, err)
+	assert.True(t, rx.MatchString("3"))
+	assert.False(t, rx.MatchString("\u0663"))
+
 	_, err = compileOASSchemaRegexp(`^[a-z`)
 	assert.Error(t, err)
+}
+
+func TestGetOrCompileOASSchemaUsesECMAScriptRegexEngine(t *testing.T) {
+	const version = float32(99)
+	oasSchemaCache.Delete(version)
+	t.Cleanup(func() { oasSchemaCache.Delete(version) })
+
+	compiled, err := getOrCompileOASSchema(`{"$schema":"http://json-schema.org/draft-07/schema#","type":"string","format":"regex"}`, version)
+	if assert.NoError(t, err) {
+		assert.NoError(t, compiled.Validate(`^P(?=\d)(\d+Y)?$`))
+		assert.NoError(t, compiled.Validate(`^[a-z]{1,2048}$`))
+		assert.Error(t, compiled.Validate(`^[a-z`))
+	}
+}
+
+func TestOASSchemaRegexpMatchTimeoutIsNoMatch(t *testing.T) {
+	rx := regexp2.MustCompile(`^(a+)+$`, regexp2.ECMAScript)
+	rx.MatchTimeout = time.Millisecond
+	assert.False(t, oasSchemaRegexp{rx}.MatchString(strings.Repeat("a", 64)+"!"))
 }
